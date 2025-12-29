@@ -82,21 +82,25 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
 
     AxiosInstance.post("/circulations/mark-lost", {
       book_copy_id: bookInfo.id,
-      settlement_type: settlementType, // Sends "fine" or "replacement"
+      settlement_type: settlementType,
     })
       .then((res) => {
         setModalMessage({
           type: "success",
-          message: `Book marked as Lost via ${settlementType.toUpperCase()}. Total: ₱${
-            res.data.total_bill
-          }`,
+          message: `Book marked as Lost. Total: ₱${res.data.total_bill.toFixed(
+            2
+          )}`,
         });
 
         setTimeout(() => {
           const role = localStorage.getItem("role")?.toLowerCase();
-          navigate(
-            role === "admin" ? "/admin/circulation" : "/staff/circulation"
-          );
+          if (settlementType === "replacement" && res.data.book_id) {
+            navigate(`/${role}/cataloging/${res.data.book_id}`);
+          } else {
+            navigate(
+              role === "admin" ? "/admin/circulation" : "/staff/circulation"
+            );
+          }
           onSuccess();
         }, 2000);
       })

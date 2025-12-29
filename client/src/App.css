@@ -421,7 +421,7 @@
 .bibliographical-record {
   background: #ffffff;
   margin-top: 1.5rem;
-  padding: 1.5rem;
+  padding: 1.5rem 2.3rem;
   border-radius: 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   font-family: 'Inter', sans-serif;
@@ -522,6 +522,84 @@
 .grid-item .value {
   font-size: 1rem;
   font-weight: 500;
+}
+
+
+
+
+
+/* Parent container to hold H2 and the Bar side-by-side */
+.copies-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0; /* Keeps it flush with the table */
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 8px 20px;
+}
+
+/* The Utility Bar (now just the right-side part) */
+.copies-utility-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.copies-count {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Small vertical line between count and buttons */
+.utility-separator {
+  width: 1px;
+  height: 20px;
+  background-color: #e5e7eb;
+}
+
+.utility-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.utility-btn {
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.utility-btn i {
+  margin-right: 6px;
+}
+
+/* Secondary Action (Print) */
+.utility-btn.secondary {
+  color: #4b5563;
+}
+
+.utility-btn.secondary:hover {
+  background-color: #c05b421d;
+  color: #c05b42;
+}
+
+/* Primary Action (New Copy) */
+.utility-btn.primary {
+  color: #c05b42;
+  font-weight: 600;
+}
+
+.utility-btn.primary:hover {
+  background-color: #c05b421d;
+  color: #c05b42
 }
 
 

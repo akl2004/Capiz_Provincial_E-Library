@@ -39,6 +39,8 @@ interface Transaction {
   due_date?: string;
   return_date?: string;
   fine: number;
+  paid_amount?: number;
+  settlement_type?: string;
 }
 
 const PatronInfo = () => {
@@ -61,23 +63,22 @@ const PatronInfo = () => {
   };
 
   useEffect(() => {
-  document.title = "Patron Information";
+    document.title = "Patron Information";
 
-  const fetchPatron = async () => {
-    try {
-      setLoadingPatron(true);
-      const response = await AxiosInstance.get(`/patrons/${id}`);
-      setPatron(response.data);
-    } catch (error) {
-      console.error("Error fetching patron info:", error);
-    } finally {
-      setLoadingPatron(false);
-    }
-  };
+    const fetchPatron = async () => {
+      try {
+        setLoadingPatron(true);
+        const response = await AxiosInstance.get(`/patrons/${id}`);
+        setPatron(response.data);
+      } catch (error) {
+        console.error("Error fetching patron info:", error);
+      } finally {
+        setLoadingPatron(false);
+      }
+    };
 
-  fetchPatron();
-}, [id]);
-
+    fetchPatron();
+  }, [id]);
 
 
   // fetch transaction
@@ -90,7 +91,7 @@ const PatronInfo = () => {
 
         setTransactions(data);
 
-        // 🔹 Calculate stats
+        // Calculate stats
         const borrowedBooks = data.length;
         const returnedBooks = data.filter(
           (t) => t.status === "Returned"
@@ -100,13 +101,16 @@ const PatronInfo = () => {
           (t) => t.status !== "Returned" && new Date(t.due_date || "") < now
         ).length;
 
-        const totalFine = data.reduce((sum, t) => sum + (t.fine || 0), 0);
+        const totalFineBalance = data.reduce((sum, t) => {
+          const isSettled = t.status === "Lost" || t.status === "Returned";
+          return sum + (!isSettled ? t.fine || 0 : 0);
+        }, 0);
 
         setStats({
           borrowedBooks,
           returnedBooks,
           overdueBooks,
-          totalFine,
+          totalFine: totalFineBalance,
         });
       } catch (error) {
         console.error("Error fetching transactions:", error);
@@ -115,10 +119,8 @@ const PatronInfo = () => {
       }
     };
 
-
     if (id) fetchTransactions();
   }, [id]);
-
 
   const sortedTransactions = [...transactions].sort((a, b) => {
     const aDate = new Date(a.date_issued).getTime();
@@ -129,7 +131,6 @@ const PatronInfo = () => {
   const filteredTransactions = sortedTransactions.filter((t) =>
     t.book_title.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
 
   if (loadingPatron) return <LoadingSpinner />;
   if (!patron) return <p>Patron not found.</p>;
@@ -235,7 +236,7 @@ const PatronInfo = () => {
 
           <div className="stat-card">
             <div className="stat-header">
-              <i className="bi bi-cash me-3"></i> TOTAL FINE
+              <i className="bi bi-cash me-3"></i> TOTAL DEBT
             </div>
             <div className="stat-body">
               <span className="stat-number">
@@ -315,7 +316,8 @@ const PatronInfo = () => {
                 <th>Date Issued</th>
                 <th>Due Date</th>
                 <th>Return Date</th>
-                <th>Fine</th>
+                <th>Fine / Settlement</th>
+                <th>Method</th>
               </tr>
             </thead>
             <tbody>
@@ -328,7 +330,40 @@ const PatronInfo = () => {
                   <td>{t.date_issued ? t.date_issued.slice(0, 10) : "—"}</td>
                   <td>{t.due_date ? t.due_date.slice(0, 10) : "—"}</td>
                   <td>{t.return_date ? t.return_date.slice(0, 10) : "—"}</td>
-                  <td>₱{(t.fine ?? 0).toFixed(2)}</td>
+                  <td>
+                    {t.status === "Lost" ? (
+                      <div className="text-success fw-bold">
+                        ₱{(t.paid_amount || 0).toFixed(2)}
+                        <div
+                          style={{ fontSize: "0.65rem", fontWeight: "normal" }}
+                          className="text-muted"
+                        >
+                          (Paid & Closed)
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={t.fine > 0 ? "text-danger fw-bold" : ""}>
+                        {t.fine > 0 ? `₱${t.fine.toFixed(2)}` : "₱0.00"}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    {t.status === "Lost" ? (
+                      <small
+                        className={`badge ${
+                          t.settlement_type === "Replaced"
+                            ? "bg-info text-dark"
+                            : "bg-light text-dark border"
+                        }`}
+                      >
+                        {t.settlement_type === "Replaced"
+                          ? "Replacement"
+                          : "Cash Settlement"}
+                      </small>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

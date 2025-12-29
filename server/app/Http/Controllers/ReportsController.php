@@ -132,8 +132,8 @@ class ReportsController extends Controller
         for ($i = 11; $i >= 0; $i--) {
             $m = $now->copy()->subMonths($i);
             $months[] = [
-                'label' => $m->format('Y-m'),    // e.g. 2025-10
-                'display' => $m->format('M Y'),  // e.g. Oct 2025
+                'label' => $m->format('Y-m'), 
+                'display' => $m->format('M Y'), 
                 'year' => (int)$m->format('Y'),
                 'month' => (int)$m->format('n'),
             ];
@@ -141,7 +141,7 @@ class ReportsController extends Controller
 
         $rows = [];
         $totals = [
-            'on loan' => 0,
+            'onLoan' => 0,
             'returned' => 0,
             'renewed' => 0,
             'overdue' => 0,
@@ -154,7 +154,6 @@ class ReportsController extends Controller
 
             // on loan = circulations issued in that month
             $onLoan = DB::table('circulations')
-                ->where('status', 'On Loan')
                 ->whereYear('issue_date', $y)
                 ->whereMonth('issue_date', $mo)
                 ->count();
@@ -174,20 +173,21 @@ class ReportsController extends Controller
                 ->count();
 
             // Overdue:
-            $currentlyOverdue = DB::table('circulations')
-                ->where('status', 'Overdue')
-                ->whereYear('due_date', $y)
-                ->whereMonth('due_date', $mo)
+            $overdue = DB::table('circulations')
+                ->where(function($query) use ($y, $mo) {
+                    // Case A: Still overdue and the due date was in this month
+                    $query->where('status', 'Overdue')
+                        ->whereYear('due_date', $y)
+                        ->whereMonth('due_date', $mo);
+                })
+                ->orWhere(function($query) use ($y, $mo) {
+                    // Case B: Returned in this month but was late
+                    $query->whereNotNull('date_returned')
+                        ->whereYear('date_returned', $y)
+                        ->whereMonth('date_returned', $mo)
+                        ->whereRaw('date_returned > due_date');
+                })
                 ->count();
-
-            $returnedOverdue = DB::table('circulations')
-                ->whereNotNull('date_returned')
-                ->whereYear('date_returned', $y)
-                ->whereMonth('date_returned', $mo)
-                ->whereRaw('date_returned > due_date')
-                ->count();
-
-            $overdue = $currentlyOverdue + $returnedOverdue;
 
             // Fines: calculate dynamically
             $finesSum = DB::table('circulations')
@@ -209,9 +209,8 @@ class ReportsController extends Controller
 
             $finesSum = (float) $finesSum;
 
-
             // Add to totals
-            $totals['on loan'] += $onLoan;
+            $totals['onLoan'] += $onLoan;
             $totals['returned'] += $returned;
             $totals['renewed'] += $renewed;
             $totals['overdue'] += $overdue;
@@ -220,7 +219,7 @@ class ReportsController extends Controller
             $rows[] = [
                 'month' => $m['display'],
                 'year_month' => $m['label'],
-                'on loan' => (int)$onLoan,
+                'onLoan' => (int)$onLoan,
                 'returned' => (int)$returned,
                 'renewed' => (int)$renewed,
                 'overdue' => (int)$overdue,
@@ -230,7 +229,7 @@ class ReportsController extends Controller
 
         // summary
         $summary = [
-            'on loan' => $totals['on loan'],
+            'onLoan' => $totals['onLoan'],
             'returned' => $totals['returned'],
             'renewed' => $totals['renewed'],
             'overdue' => $totals['overdue'],

@@ -121,6 +121,13 @@ class CirculationController extends Controller
             ], 400);
         }
 
+        // Check book status for Lost
+        if ($bookCopy->status === 'Lost') {
+            return response()->json([
+                'message' => 'Cannot issue book: This copy is marked as LOST.'
+            ], 400);
+        }
+
         // Check book availability
         if ($bookCopy->status !== 'Available') {
             return response()->json([
@@ -227,37 +234,37 @@ class CirculationController extends Controller
         return response()->json(['message' => 'Book copy returned successfully', 'status' => $finalStatus]);
     }
 
-    // Mark a book copy as lost
     public function markAsLost(Request $request)
     {
         $request->validate([
-            'book_copy_id' => 'required|exists:book_copies,id'
+            'book_copy_id' => 'required|exists:book_copies,id',
+            'settlement_type' => 'required|in:fine,replacement' // Ensure this is sent from React
         ]);
         
         $user = $request->user();
+        $settlementType = $request->settlement_type;
         
         $circulation = Circulation::where('book_copy_id', $request->book_copy_id)
             ->whereIn('status', ['On Loan', 'Overdue'])
             ->firstOrFail();
 
-        // 1. Get the book price (Replacement Cost)
-        $replacementCost = (float) ($circulation->bookCopy->price ?? 0);
+        $replacementCost = ($settlementType === 'fine') 
+            ? (float) ($circulation->bookCopy->price ?? 0) 
+            : 0;
 
-        // 2. Get the processing fee from settings (default to 50 if not found)
         $processingFee = (float) LibrarySetting::getValue('lost_book_processing_fee', 50);
+        
+        $existingFine = (float) ($circulation->fine ?? 0);
+        $totalFine = $replacementCost + $processingFee + $existingFine;
 
-        // 3. Total fine = Price + Processing Fee
-        $totalFine = $replacementCost + $processingFee;
-
-        DB::transaction(function () use ($circulation, $totalFine) {
+        DB::transaction(function () use ($circulation, $totalFine, $settlementType) {
             // Update the circulation record
             $circulation->update([
                 'status' => 'Lost',
                 'fine' => $totalFine,
-                'overdue_by' => 0, // We reset overdue days since it's now a "Lost" debt
+                'overdue_by' => 0, 
+                'lost_resolution' => ($settlementType === 'fine') ? 'Paid' : 'Replaced'
             ]);
-
-            // Update the physical book copy status
             $circulation->bookCopy->update(['status' => 'Lost']);
         });
 
@@ -267,14 +274,13 @@ class CirculationController extends Controller
             'role' => $user->role ?? 'staff',
             'module' => 'Circulation Module',
             'action' => 'Marked Lost',
-            'description' => "Marked '{$circulation->bookCopy->book->title}' as lost. Total fine: P{$totalFine} (includes P{$processingFee} fee)."
+            'description' => "Marked '{$circulation->bookCopy->book->title}' as lost ({$settlementType}). Total: P{$totalFine}."
         ]);
 
         return response()->json([
             'message' => 'Book marked as Lost.',
-            'replacement_cost' => $replacementCost,
-            'processing_fee' => $processingFee,
-            'total_due' => $totalFine
+            'total_bill' => $totalFine,
+            'book_id' => $circulation->bookCopy->book_id
         ]);
     }
 
@@ -356,10 +362,14 @@ class CirculationController extends Controller
     // Get all transactions for a specific patron
     public function patronTransactions($patronId)
     {
+        $currentFee = (float) LibrarySetting::getValue('lost_book_processing_fee', 50);
+
         $transactions = Circulation::with(['bookCopy.book'])
             ->where('patron_id', $patronId)
             ->get()
-            ->map(function ($t) {
+            ->map(function ($t) use ($currentFee) {
+            $isLost = $t->status === 'Lost';
+
                 return [
                     'id'          => $t->id,
                     'book_title'  => $t->bookCopy->book->title ?? 'Unknown',
@@ -369,7 +379,10 @@ class CirculationController extends Controller
                     'date_issued' => $t->issue_date,
                     'due_date'    => $t->due_date,
                     'return_date' => $t->date_returned,
-                    'fine'        => (float) ($t->fine ?? 0),
+                    'fine'        => $isLost ? 0 : (float) ($t->fine ?? 0),
+                    'paid_amount' => $isLost ? (float)$t->fine : 0,
+                    'processing_fee_used' => $isLost ? $currentFee : 0,
+                    'settlement_type' => $t->lost_resolution,
                 ];
             });
 

@@ -1014,7 +1014,7 @@ const Reports = () => {
                       dataKey="onLoan"
                       stackId="a"
                       fill="#3B82F6"
-                      name="On Loan"
+                      name="OnLoan"
                     />
                     <Bar
                       dataKey="returned"

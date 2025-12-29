@@ -70,6 +70,19 @@ const BookDetails: React.FC = () => {
     return `BC${randomNumbers}`;
   };
 
+  const handlePrintAllExistingBarcodes = () => {
+    if (book && book.copies.length > 0) {
+      setNewlyAddedCopies(book.copies); 
+      setShowBarcodeModal(true);
+    } else {
+      setMessageModal({
+        show: true,
+        message: "No copies available to print.",
+        type: "error",
+      });
+    }
+  };
+
   const getCoverImageUrl = (cover_image?: string) => {
     if (!cover_image) return "/src/assets/cover_placeholder.jpg";
     return `${
@@ -244,7 +257,33 @@ const BookDetails: React.FC = () => {
 
       {/* Copies Info */}
       <div className="copies-info mt-6">
-        <h1 className="text-xl font-semibold mb-4">Copies Information</h1>
+        <div className="copies-header-container">
+          <h1 className="copies-title">Copies Information</h1>
+
+          <div className="copies-utility-bar">
+            <span className="copies-count">
+              Total Copies:{" "}
+              <span className="count-highlight">{book.copies.length}</span>
+            </span>
+            <div className="utility-separator"></div>
+            <div className="utility-actions">
+              <button
+                type="button"
+                onClick={handlePrintAllExistingBarcodes}
+                className="utility-btn secondary"
+              >
+                <i className="bi bi-printer"></i> Print Barcode
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowModal(true)}
+                className="utility-btn primary"
+              >
+                <i className="bi bi-plus-circle"></i> New Copy
+              </button>
+            </div>
+          </div>
+        </div>
         {book.copies.length > 0 ? (
           <table>
             <thead>
@@ -290,13 +329,6 @@ const BookDetails: React.FC = () => {
         ) : (
           <p>No copies available</p>
         )}
-
-        {/* Add Copy Button */}
-        <div className="mt-4 flex justify-end">
-          <button onClick={() => setShowModal(true)} className="addpatron-btn">
-            Add New Copy
-          </button>
-        </div>
 
         {/* Add Copy Modal */}
         {showModal && book && (
@@ -490,7 +522,7 @@ const BookDetails: React.FC = () => {
               </button>
 
               <h2 className="text-xl font-semibold mb-4">
-                Print Barcodes for New Copies
+                Print Barcodes
               </h2>
 
               <div id="printable-barcodes">
@@ -515,10 +547,7 @@ const BookDetails: React.FC = () => {
               </div>
 
               <div className="form-actions no-print">
-                <button
-                  onClick={() => window.print()}
-                  className="submit-btn"
-                >
+                <button onClick={() => window.print()} className="submit-btn">
                   <i className="bi bi-printer me-2"></i> Print All
                 </button>
                 <button

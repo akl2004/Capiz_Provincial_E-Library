@@ -105,7 +105,18 @@ const IssueForm = ({ onSuccess }: IssueFormProps) => {
     const delayDebounce = setTimeout(() => {
       AxiosInstance.get(`/books/copy/${barcode}`)
         .then((res) => {
-          if (res.data.status === "On Loan") {
+          const status = res.data.status;
+
+          // 🚨 ADD LOST STATUS CHECK HERE 🚨
+          if (status === "Lost") {
+            setBookInfo(null);
+            setSearchError(true);
+            setModalMessage({
+              type: "error",
+              message:
+                "This book is marked as LOST.",
+            });
+          } else if (status === "On Loan") {
             setBookInfo(null);
             setSearchError(true);
             setModalMessage({

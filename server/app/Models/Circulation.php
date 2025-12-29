@@ -21,6 +21,7 @@ class Circulation extends Model
         'fine',
         'date_returned',
         'status',
+        'lost_resolution',
     ];
 
     protected $dates = [
