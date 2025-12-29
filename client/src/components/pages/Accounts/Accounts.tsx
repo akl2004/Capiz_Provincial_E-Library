@@ -20,6 +20,7 @@ interface Staff {
   status: string;
   created_at: string;
   last_login_at: string | null;
+  profile_image_url: string | null;
 }
 
 interface Patron {
@@ -77,6 +78,7 @@ const Accounts: React.FC = () => {
     email: "",
     password: "",
     status: "Active",
+    profile_image: null as File | null,
   });
 
   const fetchSettings = async () => {
@@ -135,30 +137,39 @@ const Accounts: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    setCurrentPage(1); // Reset page when searching
+    setCurrentPage(1);
   }, [searchTerm]);
 
   // adding new user
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); // start loading
+    setLoading(true);
 
     try {
-      await AxiosInstance.post("/users", {
-        first_name: formData.first_name,
-        middle_name: formData.middle_name,
-        last_name: formData.last_name,
-        suffix: formData.suffix,
-        phone_number: formData.phone,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-        status: formData.status || "Active",
+      const data = new FormData();
+      data.append("role", formData.role);
+      data.append("first_name", formData.first_name);
+      data.append("middle_name", formData.middle_name);
+      data.append("last_name", formData.last_name);
+      data.append("suffix", formData.suffix);
+      data.append("phone_number", formData.phone);
+      data.append("email", formData.email);
+      data.append("password", formData.password);
+      data.append("status", formData.status);
+
+      if (formData.profile_image) {
+        data.append("profile_image", formData.profile_image);
+      }
+
+      await AxiosInstance.post("/users", data, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
+
       setAlertMessage("User added successfully!");
       setAlertType("success");
-
       setShowModal(false);
+
+      // Reset form (including image)
       setFormData({
         role: "staff",
         first_name: "",
@@ -169,23 +180,18 @@ const Accounts: React.FC = () => {
         email: "",
         password: "",
         status: "Active",
+        profile_image: null,
       });
-      fetchStaff(); // refresh list
+      fetchStaff();
+      fetchUserCounts();
     } catch (err: any) {
-      console.error("Error saving user:", err);
-
-      const errorMessage =
-        err.response?.data?.message ||
-        "Failed to add user. Please check your input or try again later.";
-
-      setAlertMessage(errorMessage);
+      setAlertMessage(err.response?.data?.message || "Failed to add user.");
       setAlertType("error");
     } finally {
       setLoading(false);
     }
   };
 
-  // Close filter menu if clicked outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -278,7 +284,6 @@ const Accounts: React.FC = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-
   // Pagination logic
   const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -298,7 +303,7 @@ const Accounts: React.FC = () => {
         .format("MMMM D, YYYY h:mm A");
     } catch (err) {
       console.error("Timezone error:", err);
-      return m.format("MMMM D, YYYY h:mm A"); // fallback to local
+      return m.format("MMMM D, YYYY h:mm A");
     }
   };
 
@@ -594,7 +599,6 @@ const Accounts: React.FC = () => {
                   key={`${user.id}-${index}`}
                   style={{ cursor: "pointer" }}
                   onClick={() => {
-                    // 👇 Navigate based on user type (admin | staff | patron)
                     if ("role" in user) {
                       if (user.role === "admin") {
                         navigate(`/admin/accounts/admin/${user.id}`);
@@ -687,108 +691,151 @@ const Accounts: React.FC = () => {
               <hr />
 
               <form onSubmit={handleSubmit}>
-                <div className="modal-body">
-                  {/* Role Selection Buttons */}
-                  <div className="name-row">
-                    <label className="row-label">Role</label>
-                    <div className="role-selection-container text-center">
-                      <button
-                        type="button"
-                        className={`role-btn ${
-                          formData.role === "staff" ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setFormData({ ...formData, role: "staff" })
-                        }
-                      >
-                        STAFF
-                      </button>
-                      <button
-                        type="button"
-                        className={`role-btn ${
-                          formData.role === "admin" ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setFormData({ ...formData, role: "admin" })
-                        }
-                      >
-                        ADMIN
-                      </button>
+                <div className="modal-flex-container">
+                  {/* LEFT SIDE: Image Preview */}
+                  <div className="profile-upload-section">
+                    <div className="image-preview-circle">
+                      {formData.profile_image ? (
+                        <img
+                          src={URL.createObjectURL(formData.profile_image)}
+                          alt="Preview"
+                        />
+                      ) : (
+                        <i className="bi bi-person-bounding-box"></i>
+                      )}
                     </div>
+
+                    <label className="custom-file-upload">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            setFormData({
+                              ...formData,
+                              profile_image: e.target.files[0],
+                            });
+                          }
+                        }}
+                      />
+                      Choose Photo
+                    </label>
+                    <small
+                      style={{
+                        marginTop: "8px",
+                        color: "#888",
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      JPG or PNG, Max 5MB
+                    </small>
                   </div>
 
-                  {/* ✅ Full Name Row */}
-                  <div className="name-row mb-1">
-                    <label className="row-label">Full Name</label>
-                    <div className="inputs">
+                  {/* RIGHT SIDE: Input Fields */}
+                  <div className="form-fields-section">
+                    <div className="name-row mb-3">
+                      <label className="row-label">Role</label>
+                      <div className="role-selection-container">
+                        <button
+                          type="button"
+                          className={`role-btn ${
+                            formData.role === "staff" ? "active" : ""
+                          }`}
+                          onClick={() =>
+                            setFormData({ ...formData, role: "staff" })
+                          }
+                        >
+                          {" "}
+                          STAFF{" "}
+                        </button>
+                        <button
+                          type="button"
+                          className={`role-btn ${
+                            formData.role === "admin" ? "active" : ""
+                          }`}
+                          onClick={() =>
+                            setFormData({ ...formData, role: "admin" })
+                          }
+                        >
+                          {" "}
+                          ADMIN{" "}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="name-row mb-1">
+                      <label className="row-label">Full Name</label>
+                      <div className="inputs">
+                        <input
+                          type="text"
+                          placeholder="First Name"
+                          required
+                          value={formData.first_name}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              first_name: e.target.value,
+                            })
+                          }
+                        />
+                        <input
+                          type="text"
+                          placeholder="Middle Name"
+                          required
+                          value={formData.middle_name}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              middle_name: e.target.value,
+                            })
+                          }
+                        />
+                        <input
+                          type="text"
+                          placeholder="Last Name"
+                          required
+                          value={formData.last_name}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              last_name: e.target.value,
+                            })
+                          }
+                        />
+                        <input
+                          type="text"
+                          placeholder="Suffix"
+                          required
+                          value={formData.suffix}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              suffix: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="name-row mb-1">
+                      <label className="row-label">Contact</label>
                       <input
                         type="text"
-                        placeholder="First Name"
+                        placeholder="Phone Number"
+                        value={formData.phone}
+                        onChange={(e) =>
+                          setFormData({ ...formData, phone: e.target.value })
+                        }
                         required
-                        value={formData.first_name}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            first_name: e.target.value,
-                          })
-                        }
-                      />
-                      <input
-                        type="text"
-                        placeholder="Middle Name"
-                        value={formData.middle_name}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            middle_name: e.target.value,
-                          })
-                        }
-                      />
-                      <input
-                        type="text"
-                        placeholder="Last Name"
-                        value={formData.last_name}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            last_name: e.target.value,
-                          })
-                        }
-                        required
-                      />
-                      <input
-                        type="text"
-                        placeholder="Suffix"
-                        value={formData.suffix}
-                        onChange={(e) =>
-                          setFormData({ ...formData, suffix: e.target.value })
-                        }
                       />
                     </div>
-                  </div>
 
-                  {/* Phone Number */}
-                  <div className="name-row">
-                    <label className="row-label">Number</label>
-                    <input
-                      type="text"
-                      placeholder="Number"
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-
-                  {/* Email + Password */}
-                  <div className="inline-row mb-1" style={{ gap: "30px" }}>
-                    <div className="inline-row inline-grow">
-                      <label className="inline-label">Email</label>
+                    <div className="name-row mb-1">
+                      <label className="row-label">Email</label>
                       <input
-                        type="email"
-                        placeholder="email"
-                        style={{ width: "240px" }}
+                        type="text"
+                        placeholder="email@example.com"
                         value={formData.email}
                         onChange={(e) =>
                           setFormData({ ...formData, email: e.target.value })
@@ -797,25 +844,61 @@ const Accounts: React.FC = () => {
                       />
                     </div>
 
-                    <div className="inline-row inline-grow">
-                      <label className="inline-label">Password</label>
+                    <div className="name-row mb-1">
+                      <label className="row-label">Password</label>
                       <input
                         type="text"
                         placeholder="password"
-                        style={{ width: "240px" }}
                         value={formData.password}
                         onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
+                          setFormData({
+                            ...formData,
+                            password: e.target.value,
+                          })
                         }
                         required
                       />
                     </div>
+
+                    {/* <div
+                      className="name-row mb-3"
+                      style={{ display: "flex", gap: "15px" }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <label className="row-label">Email</label>
+                        <input
+                          type="email"
+                          placeholder="email@example.com"
+                          style={{ width: "100%" }}
+                          value={formData.email}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label className="row-label">Password</label>
+                        <input
+                          type="password"
+                          placeholder="password"
+                          style={{ width: "100%" }}
+                          value={formData.password}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              password: e.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </div>
+                    </div> */}
                   </div>
                 </div>
 
                 <div className="form-actions">
                   <button type="submit" className="submit-btn">
-                    {loading && <span className="spinner-tiny"></span>}
                     {loading ? "Saving..." : "Save User"}
                   </button>
                   <button

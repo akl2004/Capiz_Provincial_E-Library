@@ -526,6 +526,49 @@
 
 
 
+/* Container for the side-by-side rows */
+.accession-grid-row {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 12px;
+  align-items: center;
+}
+
+/* Individual field group (Label + Input) */
+.accession-field {
+  display: flex;
+  flex: 1;
+  gap: 12px;
+}
+
+/* Fixed width for labels to ensure vertical alignment of inputs */
+.accession-field label {
+  width: 170px;
+  margin-bottom: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* Smaller notes for the MARC tags */
+.catalog_number {
+  color: #17a2b8;
+  font-size: 0.75rem;
+  font-weight: normal;
+}
+
+/* Notes section - Stacked but side-by-side */
+.accession-notes-row {
+  display: flex;
+  gap: 30px;
+}
+
+.accession-note-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 
 
 /* Parent container to hold H2 and the Bar side-by-side */
@@ -1459,7 +1502,7 @@ select {
 
 .modal-box {
   max-height: 80vh;
-  max-width: 800px;
+  max-width: 65%;
   width: 100%;
   padding: 1.25rem;
   margin: auto;
@@ -4674,7 +4717,7 @@ input:focus {
 /* css for adding new user in the accounts module */
 .role-selection-container {
   display: flex;
-  width: 80%;
+  width: 85%;
   background-color: #f8f9fa;
   padding: 5px;
   border: 1px solid #676767;
@@ -4704,6 +4747,179 @@ input:focus {
   color: white;
   border-color: #ffffff;
   border-radius: 7px;
+}
+
+/* Container for the left and right sections */
+.modal-flex-container {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    padding: 10px 0;
+}
+
+/* Left side: Profile Picture */
+.profile-upload-section {
+    flex: 0 0 200px; /* Fixed width for the image side */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.image-preview-circle {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 2px dashed #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: #fdfdfd;
+    margin-bottom: 15px;
+}
+
+.image-preview-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-preview-circle i {
+    font-size: 3rem;
+    color: #ccc;
+}
+
+/* Custom upload button */
+.custom-file-upload {
+    padding: 8px 16px;
+    cursor: pointer;
+    background: #fff;
+    border: 1px solid #ff6b00; /* Match your orange theme */
+    color: #ff6b00;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.custom-file-upload:hover {
+    background: #ff6b00;
+    color: #fff;
+}
+
+/* Right side: Input fields */
+.form-fields-section {
+    flex: 1; /* Takes up remaining space */
+}
+
+/* staff and admin profile css */
+.profile-img-wrapper {
+    margin-right: 25px;
+    flex-shrink: 0;
+}
+
+.profile-img-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 1px solid #ddd;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+}
+
+.profile-img-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.profile-img-circle i {
+    font-size: 4rem;
+}
+
+/* Typography */
+.profile-info-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.profile-name {
+    margin-bottom: 0;
+    font-weight: 600;
+    font-size: 1.4rem;
+}
+
+.profile-role {
+    color: #6c757d;
+    margin-bottom: 0;
+    font-size: 1rem;
+}
+
+/* Action Links */
+.profile-actions {
+    font-size: 0.9rem;
+}
+
+.action-link {
+    cursor: pointer;
+    color: #8b4513; /* Brownish color from image */
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.action-link:hover {
+    text-decoration: underline;
+}
+
+.action-divider {
+    margin: 0 8px;
+    color: #ccc;
+}
+
+/* Deactivate specific color if needed */
+.deactivate-link {
+    color: #8b4513; 
+}
+
+/* Loading Skeleton */
+.account-skeleton-text {
+    width: 250px;
+    height: 34px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+
+.input-group-stack {
+  display: flex;
+  flex-direction: column; 
+  flex: 1;               
+  align-items: flex-start;
+}
+
+.disabled-input {
+  background-color: #f0f0f0;
+  cursor: not-allowed;
+  width: 100%;      
+  border: 1px solid #ccc;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+/* Spacing for the small text */
+.helper-text {
+  font-size: 0.7rem;
+  color: #666;
 }
 
 /* tally counts */
@@ -4780,14 +4996,14 @@ input:focus {
   flex: 1;
   min-width: 0;
   justify-content: flex-start;
-  gap: 15px; /* space between count and labels */
+  gap: 15px;
 }
 
 .attendance-tally-count {
   font-size: 2rem;
   font-weight: bold;
   color: #c05b42;
-  min-width: 50px; /* keeps consistent spacing */
+  min-width: 50px; 
   text-align: center;
 }
 
@@ -4795,7 +5011,7 @@ input:focus {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start; /* align text to left */
+  align-items: flex-start; 
   flex: 1;
 }
 

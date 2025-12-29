@@ -17,8 +17,9 @@ class User extends Authenticatable
         'middle_name',
         'last_name',
         'suffix',
+        'profile_image',
         'phone_number',
-        'name',        // optional full name field
+        'name',
         'email',
         'password',
         'role',
@@ -40,7 +41,14 @@ class User extends Authenticatable
     }
 
     // Expose full name as "name" in JSON
-    protected $appends = ['name'];
+    protected $appends = ['name', 'profile_image_url'];
+
+    public function getProfileImageUrlAttribute()
+    {
+        if ($this->profile_image) {
+            return asset('storage/' . $this->profile_image);
+        }
+    }
 
 
     // Optional: Accessor for full name

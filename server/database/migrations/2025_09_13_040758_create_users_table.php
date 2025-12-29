@@ -20,6 +20,8 @@ return new class extends Migration
             $table->string('last_name');
             $table->string('suffix')->nullable();
 
+            $table->string('profile_image')->nullable();
+
             // Contact & login
             $table->string('phone_number')->nullable();
             $table->string('email')->unique();

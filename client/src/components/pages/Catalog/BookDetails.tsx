@@ -63,7 +63,9 @@ const BookDetails: React.FC = () => {
     show: false,
     message: "",
     type: "success" as "success" | "error",
-  }); 
+  });
+
+  const [copies, setCopies] = useState(1); 
 
   const generateBarcode = () => {
     const randomNumbers = Math.floor(1000000000 + Math.random() * 9000000000);
@@ -333,7 +335,10 @@ const BookDetails: React.FC = () => {
         {/* Add Copy Modal */}
         {showModal && book && (
           <div className="modal-overlay">
-            <div className="modal-box">
+            <div
+              className="modal-box"
+              style={{ maxWidth: "800px", width: "95%" }}
+            >
               <h2 className="mb-3">Add New Copy</h2>
 
               <form
@@ -342,9 +347,7 @@ const BookDetails: React.FC = () => {
                   setIsAdding(true);
                   const formData = new FormData(e.currentTarget);
                   const priceValue = formData.get("price");
-
                   const numCopies = Number(formData.get("copies") || 1);
-
                   const barcodeList = Array.from({ length: numCopies }, () =>
                     generateBarcode()
                   );
@@ -360,13 +363,14 @@ const BookDetails: React.FC = () => {
                         condition: formData.get("condition"),
                         cataloging_note: formData.get("cataloging_note"),
                         internal_note: formData.get("internal_note"),
-                        copies: Number(formData.get("copies") || 1),
+                        copies: numCopies,
                         barcodes: barcodeList,
                         price: priceValue
                           ? parseFloat(priceValue.toString())
                           : 0,
                       }
                     );
+
                     if (postResponse.data && postResponse.data.copies) {
                       setNewlyAddedCopies(postResponse.data.copies);
                     }
@@ -376,7 +380,6 @@ const BookDetails: React.FC = () => {
                       message: "New copy added successfully!",
                       type: "success",
                     });
-
                     const refreshResponse = await AxiosInstance.get(
                       `/books/${id}`
                     );
@@ -384,15 +387,9 @@ const BookDetails: React.FC = () => {
                     setShowModal(false);
                     setShowBarcodeModal(true);
                   } catch (error: any) {
-                    console.error("Error adding copy:", error);
-
-                    const errorMsg =
-                      error.response?.data?.message ||
-                      "Action Failed: Could not add copy.";
-
                     setMessageModal({
                       show: true,
-                      message: errorMsg,
+                      message: error.response?.data?.message || "Action Failed",
                       type: "error",
                     });
                   } finally {
@@ -400,101 +397,156 @@ const BookDetails: React.FC = () => {
                   }
                 }}
               >
-                {/* Material Type Dropdown */}
-                <div className="addpatron-row mb-1">
-                  <label className="addpatron-label">Material Type</label>
-                  <select
-                    name="material_type"
-                    defaultValue={materialTypes[0] || ""}
-                  >
-                    {materialTypes.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <fieldset className="p-3">
+                  {/* Row 1 */}
+                  <div className="accession-grid-row">
+                    <div className="accession-field">
+                      <label>
+                        Material Type{" "}
+                        <span className="catalog_number">(245)</span>
+                      </label>
+                      <select
+                        name="material_type"
+                        className="form-control"
+                        defaultValue={materialTypes[0]}
+                      >
+                        {materialTypes.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="accession-field">
+                      <label>
+                        Source <span className="catalog_number">(245)</span>
+                      </label>
+                      <select
+                        name="source"
+                        className="form-control"
+                        defaultValue={sources[0]}
+                      >
+                        {sources.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-                {/* Source Dropdown */}
-                <div className="addpatron-row mb-1">
-                  <label className="addpatron-label">
-                    Source of Acquisition
-                  </label>
-                  <select name="source" defaultValue={sources[0] || ""}>
-                    {sources.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  {/* Row 2 */}
+                  <div className="accession-grid-row">
+                    <div className="accession-field">
+                      <label>
+                        Condition <span className="catalog_number">(245)</span>
+                      </label>
+                      <select
+                        name="condition"
+                        className="form-control"
+                        defaultValue={conditions[0]}
+                      >
+                        {conditions.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="accession-field">
+                      <label>
+                        Price <span className="catalog_number">(020)</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="price"
+                        className="form-control"
+                        placeholder="0.00"
+                        defaultValue={price}
+                      />
+                    </div>
+                  </div>
 
-                {/* Condition */}
-                <div className="addpatron-row mb-1">
-                  <label className="addpatron-label">Condition</label>
-                  <select name="condition" defaultValue={conditions[0] || ""}>
-                    {conditions.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  {/* Row 3 - Full Width or Shared */}
+                  <div className="accession-grid-row">
+                    <div className="accession-field">
+                      <label>
+                        No. of Copies{" "}
+                        <span className="catalog_number">(245)</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="copies"
+                        className="form-control"
+                        min={1}
+                        value={copies || 1}
+                        onChange={(e) =>
+                          setCopies(Math.max(1, Number(e.target.value)))
+                        }
+                      />
+                    </div>
+                    <div className="accession-field">
+                      <label>
+                        Funding Source{" "}
+                        <span className="catalog_number">(245)</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="source_person"
+                        className="form-control"
+                        placeholder="Donor name"
+                      />
+                    </div>
+                  </div>
 
-                {/* Number of Copies */}
-                <div className="addpatron-row mb-1">
-                  <label className="addpatron-label">Number of Copies</label>
-                  <input type="number" min={1} name="copies" defaultValue={1} />
-                </div>
+                  {/* Row 4 - Notes */}
+                  <div className="accession-notes-row">
+                    <div className="accession-note-group">
+                      <label>
+                        Cataloging Note{" "}
+                        <span className="catalog_number">(910)</span>
+                      </label>
+                      <textarea
+                        name="cataloging_note"
+                        className="form-control"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="accession-note-group">
+                      <label>
+                        Internal Note{" "}
+                        <span className="catalog_number">(245)</span>
+                      </label>
+                      <textarea
+                        name="internal_note"
+                        className="form-control"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                </fieldset>
 
-                {/* Price */}
-                <div className="addpatron-row mb-1">
-                  <label className="addpatron-label">Price</label>
-                  <input
-                    key={price}
-                    type="text"
-                    name="price"
-                    defaultValue={price}
-                  />
-                </div>
-
-                {/* Source Person */}
-                <div className="addpatron-row mb-1">
-                  <label className="addpatron-label">Funding Source</label>
-                  <input
-                    type="text"
-                    name="source_person"
-                    placeholder="If donated, enter donor name"
-                  />
-                </div>
-
-                {/* Cataloging Note */}
-                <div className="addpatron-row mb-1">
-                  <label className="addpatron-label">Cataloging Note</label>
-                  <textarea name="cataloging_note" />
-                </div>
-
-                {/* Internal Note */}
-                <div className="addpatron-row mb-1">
-                  <label className="addpatron-label">Internal Note</label>
-                  <textarea name="internal_note" />
-                </div>
-
-                <div className="form-actions">
-                  <button
-                    type="submit"
-                    className="submit-btn"
-                    disabled={isAdding}
-                  >
-                    {isAdding && <span className="spinner-tiny"></span>}
-                    {isAdding ? "Adding..." : "Add Copy"}
-                  </button>
+                <div
+                  className="form-actions mt-4"
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "10px",
+                  }}
+                >
                   <button
                     type="button"
                     className="cancel-btn"
                     onClick={() => setShowModal(false)}
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="submit-btn"
+                    disabled={isAdding}
+                  >
+                    {isAdding ? "Adding..." : "Add Copy"}
                   </button>
                 </div>
               </form>
@@ -521,9 +573,7 @@ const BookDetails: React.FC = () => {
                 &times;
               </button>
 
-              <h2 className="text-xl font-semibold mb-4">
-                Print Barcodes
-              </h2>
+              <h2 className="text-xl font-semibold mb-4">Print Barcodes</h2>
 
               <div id="printable-barcodes">
                 {newlyAddedCopies.map((c) => (

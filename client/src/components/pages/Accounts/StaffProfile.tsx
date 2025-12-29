@@ -18,6 +18,7 @@ interface Staff {
   registered_by: string;
   last_login_at: string | null;
   role: string;
+  profile_image_url?: string;
 }
 
 interface ActivityLog {
@@ -53,6 +54,7 @@ const StaffProfile: React.FC = () => {
     email: "",
     password: "",
     role: "staff",
+    profile_image: undefined as File | undefined,
   });
 
   const [showResetModal, setShowResetModal] = useState(false);
@@ -108,8 +110,9 @@ const StaffProfile: React.FC = () => {
         suffix: staff.suffix || "",
         phone: staff.phone_number || "",
         email: staff.email,
-        password: "", // leave empty for security
-        role: "staff", // or staff.role if editable
+        password: "", 
+        role: "staff", 
+        profile_image: undefined,
       });
     }
   }, [showModal, staff]);
@@ -123,37 +126,34 @@ const StaffProfile: React.FC = () => {
       const token = localStorage.getItem("authToken");
       if (!token) throw new Error("No auth token found");
 
-      const payload: { [key: string]: any } = {
-        first_name: formData.first_name,
-        middle_name: formData.middle_name || null,
-        last_name: formData.last_name,
-        suffix: formData.suffix || null,
-        phone_number: formData.phone || null,
-        role: formData.role,
-      };
+      const data = new FormData();
+      data.append("first_name", formData.first_name);
+      data.append("middle_name", formData.middle_name || "");
+      data.append("last_name", formData.last_name);
+      data.append("suffix", formData.suffix || "");
+      data.append("phone_number", formData.phone || "");
+      data.append("role", formData.role);
+      data.append("_method", "PUT");
 
-      await AxiosInstance.put(`/users/${id}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
+      if (formData.profile_image instanceof File) {
+        data.append("profile_image", formData.profile_image);
+      }
+      const res = await AxiosInstance.post(`/users/${id}`, data, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       });
-
       setShowModal(false);
+      setStaff(res.data.user || res.data);
 
-      // Refresh staff details
-      setLoadingStaff(true);
-      const res = await AxiosInstance.get(`/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setStaff(res.data);
-
-      // Success alert
       setAlertMessage("Staff updated successfully!");
       setAlertType("success");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating staff:", err);
-      setAlertMessage("Failed to update staff. Check console for errors.");
+      setAlertMessage(err.response?.data?.message || "Failed to update staff.");
       setAlertType("error");
     } finally {
-      setLoadingStaff(false);
       setLoading(false);
     }
   };
@@ -432,62 +432,55 @@ const StaffProfile: React.FC = () => {
       </div>
 
       {/* Basic Info / Actions */}
-      <div className="staff-profile d-flex justify-content-between align-items-center border p-3 mb-4">
-        <div>
-          <h4 className="mb-0">
-            {loadingStaff ? (
-              <div
-                style={{
-                  width: "250px",
-                  height: "34px",
-                  background: "#e0e0e0",
-                  borderRadius: "4px",
-                  animation: "pulse 1.5s infinite",
-                }}
-              ></div>
+      <div className="staff-profile d-flex align-items-center border mb-4">
+        {/* Profile Image Container */}
+        <div className="profile-img-wrapper">
+          <div className="profile-img-circle">
+            {staff?.profile_image_url ? (
+              <img src={staff.profile_image_url} alt="Profile" />
             ) : (
-              <u>{fullName}</u>
+              <i className="bi bi-person-fill text-secondary"></i>
+            )}
+          </div>
+        </div>
+
+        {/* Name and Title Section */}
+        <div className="profile-info-content">
+          <h4 className="profile-name">
+            {loadingStaff ? (
+              <div className="account-skeleton-text"></div>
+            ) : (
+              fullName
             )}
           </h4>
-          <small className="text-muted">Staff</small>
+          <p className="profile-role">Staff</p>
         </div>
-        <div className="patron-actions">
-          <span
-            className="action-link"
-            style={{ cursor: "pointer" }}
-            onClick={() => setShowModal(true)}
-          >
+
+        {/* Action Links aligned to the right-bottom */}
+        <div className="profile-actions ms-auto align-self-end pb-2">
+          <span className="action-link" onClick={() => setShowModal(true)}>
             Edit Account
           </span>
-          {" | "}
-          <span
-            className="action-link"
-            style={{ cursor: "pointer" }}
-            onClick={() => setShowResetModal(true)}
-          >
+          <span className="action-divider">|</span>
+          <span className="action-link" onClick={() => setShowResetModal(true)}>
             Reset Password
           </span>
-
-          {" | "}
+          <span className="action-divider">|</span>
           <span
             className="action-link"
-            style={{ cursor: "pointer" }}
-            onClick={() => {
-              if (staff?.status === "Active") {
-                setShowDeactivateModal(true);
-              } else {
-                setShowActivateModal(true);
-              }
-            }}
+            onClick={() =>
+              staff?.status === "Active"
+                ? setShowDeactivateModal(true)
+                : setShowActivateModal(true)
+            }
           >
             {staff?.status === "Deactivated"
               ? "Reactivate Account"
               : "Deactivate Account"}
           </span>
-          {" | "}
+          <span className="action-divider">|</span>
           <span
             className="action-link"
-            style={{ cursor: "pointer" }}
             onClick={() => setShowPromoteModal(true)}
           >
             Promote
@@ -708,127 +701,184 @@ const StaffProfile: React.FC = () => {
               <i>Update the staff information below.</i>
             </p>
             <hr />
+
             <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                {/* Role (buttons disabled) */}
-                <div className="name-row">
-                  <label className="row-label">Role</label>
-                  <div className="role-selection-container text-center">
-                    <button
-                      type="button"
-                      className={`role-btn ${
-                        formData.role === "staff" ? "active" : ""
-                      }`}
-                      disabled
-                    >
-                      STAFF
-                    </button>
-                    <button
-                      type="button"
-                      className={`role-btn ${
-                        formData.role === "admin" ? "active" : ""
-                      }`}
-                      disabled
-                    >
-                      ADMIN
-                    </button>
+              <div
+                className="modal-flex-container"
+                style={{ display: "flex", gap: "30px" }}
+              >
+                {/* LEFT SIDE: Image Preview & Upload */}
+                <div
+                  className="profile-upload-section"
+                  style={{ flex: "0 0 150px", textAlign: "center" }}
+                >
+                  <div className="image-preview-circle">
+                    {formData.profile_image instanceof File ? (
+                      <img
+                        src={URL.createObjectURL(formData.profile_image)}
+                        alt="New Preview"
+                      />
+                    ) : staff?.profile_image_url ? (
+                      <img
+                        src={staff.profile_image_url}
+                        alt="Current Profile"
+                      />
+                    ) : (
+                      <i className="bi bi-person-bounding-box"></i>
+                    )}
                   </div>
+
+                  <label className="custom-file-upload">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setFormData({
+                            ...formData,
+                            profile_image: e.target.files[0],
+                          });
+                        }
+                      }}
+                    />
+                    {staff?.profile_image_url ? "Change Photo" : "Choose Photo"}
+                  </label>
+                  <small
+                    style={{
+                      marginTop: "8px",
+                      color: "#888",
+                      display: "block",
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    JPG or PNG, Max 5MB
+                  </small>
                 </div>
 
-                {/* Full Name */}
-                <div className="name-row mb-1">
-                  <label className="row-label">Full Name</label>
-                  <div className="inputs">
+                {/* RIGHT SIDE: Input Fields */}
+                <div className="form-fields-section" style={{ flex: 1 }}>
+                  {/* Role (Read-only for Edit) */}
+                  <div className="name-row mb-3">
+                    <label className="row-label">Role</label>
+                    <div className="role-selection-container">
+                      <button
+                        type="button"
+                        className={`role-btn ${
+                          formData.role === "staff" ? "active" : ""
+                        }`}
+                        disabled
+                      >
+                        STAFF
+                      </button>
+                      <button
+                        type="button"
+                        className={`role-btn ${
+                          formData.role === "admin" ? "active" : ""
+                        }`}
+                        disabled
+                      >
+                        ADMIN
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Name Fields */}
+                  <div className="name-row mb-1">
+                    <label className="row-label">Full Name</label>
+                    <div className="inputs grid-inputs">
+                      <input
+                        type="text"
+                        placeholder="First"
+                        value={formData.first_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            first_name: e.target.value,
+                          })
+                        }
+                      />
+                      <input
+                        type="text"
+                        placeholder="Middle"
+                        value={formData.middle_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            middle_name: e.target.value,
+                          })
+                        }
+                      />
+                      <input
+                        type="text"
+                        placeholder="Last"
+                        value={formData.last_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            last_name: e.target.value,
+                          })
+                        }
+                      />
+                      <input
+                        type="text"
+                        placeholder="Suffix"
+                        value={formData.suffix}
+                        onChange={(e) =>
+                          setFormData({ ...formData, suffix: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* Contact */}
+                  <div className="name-row mb-1">
+                    <label className="row-label">Contact</label>
                     <input
                       type="text"
-                      placeholder="First Name"
+                      placeholder="Phone Number"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        setFormData({ ...formData, phone: e.target.value })
+                      }
                       required
-                      value={formData.first_name}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          first_name: e.target.value,
-                        })
-                      }
-                    />
-                    <input
-                      type="text"
-                      placeholder="Middle Name"
-                      value={formData.middle_name}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          middle_name: e.target.value,
-                        })
-                      }
-                    />
-                    <input
-                      type="text"
-                      placeholder="Last Name"
-                      value={formData.last_name}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          last_name: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Suffix"
-                      value={formData.suffix}
-                      onChange={(e) =>
-                        setFormData({ ...formData, suffix: e.target.value })
-                      }
                     />
                   </div>
-                </div>
 
-                {/* Phone Number */}
-                <div className="name-row mb-1">
-                  <label className="row-label">Number</label>
-                  <input
-                    type="text"
-                    placeholder="Number"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                {/* Email (read-only) */}
-                <div className="inline-row mb-1" style={{ gap: "30px" }}>
-                  <div className="inline-row inline-grow">
-                    <label className="inline-label">Email</label>
+                  {/* Email (Usually disabled on Edit) */}
+                  <div className="name-row mb-1">
+                    <label className="row-label">Email</label>
                     <input
-                      type="email"
-                      placeholder="email"
-                      style={{ width: "240px" }}
+                      type="text"
                       value={formData.email}
                       disabled
+                      style={{
+                        backgroundColor: "#f0f0f0",
+                        cursor: "not-allowed",
+                      }}
                     />
                   </div>
 
-                  {/* Password (masked / read-only) */}
-                  <div className="inline-row inline-grow">
-                    <label className="inline-label">Password</label>
-                    <input
-                      type="text"
-                      placeholder="password"
-                      style={{ width: "240px" }}
-                      value="********"
-                      disabled
-                    />
+                  {/* Password (Placeholder for Edit) */}
+                  <div className="name-row mb-1">
+                    <label className="row-label">Password</label>
+                    <div className="input-group-stack">
+                      <input
+                        type="text"
+                        value="********"
+                        disabled
+                        className="disabled-input mb-0"
+                      />
+                      <small className="helper-text mx-2">
+                        Use 'Reset Password' action to change.
+                      </small>
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="form-actions">
                 <button type="submit" className="submit-btn" disabled={loading}>
-                  {loading && <span className="spinner-tiny"></span>}
                   {loading ? "Saving..." : "Save Changes"}
                 </button>
                 <button

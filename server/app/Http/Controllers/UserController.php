@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use App\Models\Patron;
 use Carbon\Carbon;
 
@@ -38,13 +39,20 @@ class UserController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:6',
             'role' => 'required|in:staff,admin',
+            'profile_image'=> 'nullable|image|mimes:jpeg,png,jpg|max:5120',
         ]);
+
+        $imagePath = null;
+        if ($request->hasFile('profile_image')) {
+            $imagePath = $request->file('profile_image')->store('profile_images', 'public');
+        }
 
         $target = User::create([
             'first_name' => $request->first_name,
             'middle_name' => $request->middle_name,
             'last_name' => $request->last_name,
             'suffix' => $request->suffix,
+            'profile_image' => $imagePath,
             'phone_number' => $request->phone_number,
             'email' => $request->email,
             'password' => $request->password,
@@ -72,7 +80,17 @@ class UserController extends Controller
             'phone_number' => 'nullable|string|max:20',
             'email' => 'sometimes|required|email|unique:users,email,' . $target->id,
             'role' => 'sometimes|required|in:staff,admin',
+            'profile_image' => 'nullable|image|mimes:jpeg,png,jpg|max:5120',
         ]);
+
+        if ($request->hasFile('profile_image')) {
+            if ($target->profile_image && Storage::disk('public')->exists($target->profile_image)) {
+                Storage::disk('public')->delete($target->profile_image);
+            }
+
+            $imagePath = $request->file('profile_image')->store('profile_images', 'public');
+            $target->profile_image = $imagePath;
+        }
 
         $target->update($request->only([
             'first_name',
@@ -198,7 +216,7 @@ class UserController extends Controller
         $target->role = 'admin';
         $target->save();
 
-        // 🧾 Log the activity
+        // Log the activity
         $this->logActivity(
             'Promote User', 
             $actor->first_name . ' ' . $actor->last_name . ' promoted ' . $target->first_name . ' ' . $target->last_name . ' to admin',
@@ -209,7 +227,7 @@ class UserController extends Controller
     }
 
 
-    /** 🧾 Helper function to record activity **/
+    /** Helper function to record activity **/
     private function logActivity($action, $description = null, $actor)
     {
         ActivityLog::create([

@@ -192,7 +192,7 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
         </p>
         <hr />
         <form onSubmit={handleSubmit}>
-          <div className="name-row mt-5 mb-1">
+          <div className="name-row mt-2 mb-1">
             <label className="row-label">Patron ID</label>
             <div className="inputs">
               <input type="text" value={patronId} disabled />

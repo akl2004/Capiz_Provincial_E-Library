@@ -14,7 +14,7 @@ interface Patron {
   email: string;
   status: string;
   created_at: string;
-  registered_by: string; // staff name
+  registered_by: string; 
   expiry_date: string | null;
 }
 

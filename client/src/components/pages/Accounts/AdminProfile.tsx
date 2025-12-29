@@ -16,6 +16,7 @@ interface Admin {
   created_at: string;
   registered_by: string;
   last_login_at: string | null;
+  profile_image_url?: string;
 }
 
 interface ActivityLog {
@@ -50,6 +51,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
     email: "",
     password: "",
     role: "admin",
+    profile_image: null as File | null,
   });
 
   const [showResetModal, setShowResetModal] = useState(false);
@@ -103,6 +105,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
         email: admin.email,
         password: "",
         role: "admin",
+        profile_image: null,
       });
     }
   }, [showModal, admin]);
@@ -114,19 +117,23 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
 
     try {
       const token = localStorage.getItem("authToken");
-      if (!token) throw new Error("No auth token found");
+      const data = new FormData();
+      data.append("_method", "PUT");
+      data.append("first_name", formData.first_name);
+      data.append("middle_name", formData.middle_name || "");
+      data.append("last_name", formData.last_name);
+      data.append("suffix", formData.suffix || "");
+      data.append("phone_number", formData.phone || "");
 
-      const payload: { [key: string]: any } = {
-        first_name: formData.first_name,
-        middle_name: formData.middle_name || null,
-        last_name: formData.last_name,
-        suffix: formData.suffix || null,
-        phone_number: formData.phone || null,
-        role: formData.role,
-      };
+      if (formData.profile_image) {
+        data.append("profile_image", formData.profile_image);
+      }
 
-      await AxiosInstance.put(`/users/${id}`, payload, {
-        headers: { Authorization: `Bearer ${token}` },
+      await AxiosInstance.post(`/users/${id}`, data, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       });
 
       setShowModal(false);
@@ -234,7 +241,6 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Reset everything
       setShowResetModal(false);
       setCurrentPassword("");
       setNewPassword("");
@@ -258,7 +264,6 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
   };
 
 
-  // Confirming deactivation
   const handleDeactivate = async () => {
     if (!admin) return;
     setDeactivating(true);
@@ -266,11 +271,9 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       await AxiosInstance.patch(`/users/${admin.id}/deactivate`);
       setShowDeactivateModal(false);
 
-      // Refresh admin data
       const updated = await AxiosInstance.get(`/users/${admin.id}`);
       setAdmin(updated.data);
 
-      // Success alert
       setAlertMessage("Admin has been deactivated successfully!");
       setAlertType("success");
     } catch (error) {
@@ -282,7 +285,6 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
     }
   };
 
-  // reactivate admin
   const handleActivate = async () => {
     if (!admin) return;
     setActivating(true);
@@ -290,11 +292,9 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       await AxiosInstance.patch(`/users/${admin.id}/activate`);
       setShowActivateModal(false);
 
-      // Refresh admin data
       const updated = await AxiosInstance.get(`/users/${admin.id}`);
       setAdmin(updated.data);
 
-      // Success alert
       setAlertMessage("Admin has been reactivated successfully!");
       setAlertType("success");
     } catch (error) {
@@ -356,52 +356,47 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       </div>
 
       {/* Basic Info / Actions */}
-      <div className="staff-profile d-flex justify-content-between align-items-center border p-3 mb-4">
-        <div>
-          <h4 className="mb-0">
-            {loadingAdmin ? (
-              <div
-                style={{
-                  width: "250px",
-                  height: "34px",
-                  background: "#e0e0e0",
-                  borderRadius: "4px",
-                  animation: "pulse 1.5s infinite",
-                }}
-              ></div>
+      <div className="staff-profile d-flex align-items-center border mb-4">
+        {/* Profile Image Container */}
+        <div className="profile-img-wrapper">
+          <div className="profile-img-circle">
+            {admin?.profile_image_url ? (
+              <img src={admin.profile_image_url} alt="Profile" />
             ) : (
-              <u>{fullName}</u>
+              <i className="bi bi-person-fill text-secondary"></i>
+            )}
+          </div>
+        </div>
+
+        {/* Name and Title Section */}
+        <div className="profile-info-content">
+          <h4 className="profile-name">
+            {loadingAdmin ? (
+              <div className="account-skeleton-text"></div>
+            ) : (
+              fullName
             )}
           </h4>
-          <small className="text-muted">Admin</small>
+          <p className="profile-role">Admin</p>
         </div>
-        <div className="patron-actions">
-          <span
-            className="action-link"
-            style={{ cursor: "pointer" }}
-            onClick={() => setShowModal(true)}
-          >
+
+        {/* Action Links aligned to the right-bottom */}
+        <div className="profile-actions ms-auto align-self-end pb-2">
+          <span className="action-link" onClick={() => setShowModal(true)}>
             Edit Account
           </span>
-          {" | "}
-          <span
-            className="action-link"
-            style={{ cursor: "pointer" }}
-            onClick={() => setShowResetModal(true)}
-          >
+          <span className="action-divider">|</span>
+          <span className="action-link" onClick={() => setShowResetModal(true)}>
             Reset Password
           </span>
-          {" | "}
+          <span className="action-divider">|</span>
           <span
-            className="action-link"
-            style={{ cursor: "pointer" }}
-            onClick={() => {
-              if (admin?.status === "Active") {
-                setShowDeactivateModal(true);
-              } else {
-                setShowActivateModal(true);
-              }
-            }}
+            className="action-link deactivate-link"
+            onClick={() =>
+              admin?.status === "Active"
+                ? setShowDeactivateModal(true)
+                : setShowActivateModal(true)
+            }
           >
             {admin?.status === "Deactivated"
               ? "Reactivate Account"
@@ -526,127 +521,149 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
               <i>Update the admin information below.</i>
             </p>
             <hr />
+
             <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                {/* Role (buttons disabled) */}
-                <div className="name-row">
-                  <label className="row-label">Role</label>
-                  <div className="role-selection-container text-center">
-                    <button
-                      type="button"
-                      className={`role-btn ${
-                        formData.role === "staff" ? "active" : ""
-                      }`}
-                      disabled
-                    >
-                      STAFF
-                    </button>
-                    <button
-                      type="button"
-                      className={`role-btn ${
-                        formData.role === "admin" ? "active" : ""
-                      }`}
-                      disabled
-                    >
-                      ADMIN
-                    </button>
+              <div className="modal-flex-container">
+                {/* LEFT SIDE: Image Preview & Upload */}
+                <div className="profile-upload-section">
+                  <div className="image-preview-circle">
+                    {formData.profile_image ? (
+                      <img
+                        src={URL.createObjectURL(formData.profile_image)}
+                        alt="Preview"
+                      />
+                    ) : admin?.profile_image_url ? (
+                      <img src={admin.profile_image_url} alt="Current" />
+                    ) : (
+                      <i className="bi bi-person-bounding-box"></i>
+                    )}
                   </div>
+
+                  <label className="custom-file-upload">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setFormData({
+                            ...formData,
+                            profile_image: e.target.files[0],
+                          });
+                        }
+                      }}
+                    />
+                    Change Photo
+                  </label>
+                  <small className="upload-hint">JPG or PNG, Max 5MB</small>
                 </div>
 
-                {/* Full Name */}
-                <div className="name-row mb-1">
-                  <label className="row-label">Full Name</label>
-                  <div className="inputs">
+                {/* RIGHT SIDE: Input Fields */}
+                <div className="form-fields-section">
+                  <div className="name-row mb-3">
+                    <label className="row-label">Role</label>
+                    <div className="role-selection-container">
+                      <button
+                        type="button"
+                        className="role-btn active"
+                        disabled
+                      >
+                        ADMIN
+                      </button>
+                      <button type="button" className="role-btn" disabled>
+                        STAFF
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="name-row mb-1">
+                    <label className="row-label">Full Name</label>
+                    <div className="inputs grid-inputs">
+                      <input
+                        type="text"
+                        placeholder="First"
+                        value={formData.first_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            first_name: e.target.value,
+                          })
+                        }
+                      />
+                      <input
+                        type="text"
+                        placeholder="Middle"
+                        value={formData.middle_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            middle_name: e.target.value,
+                          })
+                        }
+                      />
+                      <input
+                        type="text"
+                        placeholder="Last"
+                        value={formData.last_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            last_name: e.target.value,
+                          })
+                        }
+                      />
+                      <input
+                        type="text"
+                        placeholder="Suffix"
+                        value={formData.suffix}
+                        onChange={(e) =>
+                          setFormData({ ...formData, suffix: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="name-row mb-1">
+                    <label className="row-label">Contact</label>
                     <input
                       type="text"
-                      placeholder="First Name"
-                      required
-                      value={formData.first_name}
+                      value={formData.phone}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          first_name: e.target.value,
-                        })
-                      }
-                    />
-                    <input
-                      type="text"
-                      placeholder="Middle Name"
-                      value={formData.middle_name}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          middle_name: e.target.value,
-                        })
-                      }
-                    />
-                    <input
-                      type="text"
-                      placeholder="Last Name"
-                      value={formData.last_name}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          last_name: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Suffix"
-                      value={formData.suffix}
-                      onChange={(e) =>
-                        setFormData({ ...formData, suffix: e.target.value })
+                        setFormData({ ...formData, phone: e.target.value })
                       }
                     />
                   </div>
-                </div>
 
-                {/* Phone Number */}
-                <div className="name-row mb-1">
-                  <label className="row-label">Number</label>
-                  <input
-                    type="text"
-                    placeholder="Number"
-                    value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-
-                {/* Email (read-only) */}
-                <div className="inline-row mb-1" style={{ gap: "30px" }}>
-                  <div className="inline-row inline-grow">
-                    <label className="inline-label">Email</label>
+                  <div className="name-row mb-1">
+                    <label className="row-label">Email</label>
                     <input
-                      type="email"
-                      placeholder="email"
-                      style={{ width: "240px" }}
+                      type="text"
                       value={formData.email}
                       disabled
+                      className="disabled-field"
                     />
                   </div>
 
-                  {/* Password (masked / read-only) */}
-                  <div className="inline-row inline-grow">
-                    <label className="inline-label">Password</label>
-                    <input
-                      type="text"
-                      placeholder="password"
-                      style={{ width: "240px" }}
-                      value="********"
-                      disabled
-                    />
+                  {/* PASSWORD SECTION WITH CSS STACKING */}
+                  <div className="name-row mb-1">
+                    <label className="row-label">Password</label>
+                    <div className="input-group-stack">
+                      <input
+                        type="text"
+                        value="********"
+                        disabled
+                        className="disabled-field"
+                      />
+                      <small className="helper-text">
+                        Use 'Reset Password' action to change.
+                      </small>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="form-actions">
+              <div className="form-actions mt-4">
                 <button type="submit" className="submit-btn" disabled={loading}>
-                  {loading && <span className="spinner-tiny"></span>}
                   {loading ? "Saving..." : "Save Changes"}
                 </button>
                 <button
