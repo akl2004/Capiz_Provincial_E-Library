@@ -4,6 +4,11 @@ import Barcode from "react-barcode";
 import { useNavigate } from "react-router-dom";
 import MessageModal from "../../MessageModal";
 
+interface MaterialType {
+  id: number;
+  name: string;
+}
+
 interface Copy {
   copy_number: number;
   barcode: string;
@@ -58,9 +63,9 @@ const BookForm: React.FC = () => {
   const [section, setSection] = useState("");
   const [source, setSource] = useState("");
   const [materialType, setMaterialType] = useState("");
+  const [materialTypes, setMaterialTypes] = useState<MaterialType[]>([]);
   const [sections, setSections] = useState<string[]>([]);
   const [sources, setSources] = useState<string[]>([]);
-  const [materialTypes, setMaterialTypes] = useState<string[]>([]);
   const [coverImage, setCoverImage] = useState<File | null>(null);
 
   const [defaultCondition, setDefaultCondition] = useState<string[]>([]);
@@ -100,13 +105,15 @@ const BookForm: React.FC = () => {
     AxiosInstance.get("/dropdown-options").then((res) => {
       setSections(res.data.sections || []);
       setSources(res.data.sources || []);
-      setMaterialTypes(res.data.materialTypes || []);
+      const mTypes: MaterialType[] = res.data.materialTypes || [];
+      setMaterialTypes(mTypes);
       const fetchedConditions = res.data.conditions || [];
       setDefaultCondition(fetchedConditions);
       if (res.data.sections?.length) setSection(res.data.sections[0]);
       if (res.data.sources?.length) setSource(res.data.sources[0]);
-      if (res.data.materialTypes?.length)
-        setMaterialType(res.data.materialTypes[0]);
+      if (mTypes.length) {
+        setMaterialType(mTypes[0].id.toString());
+      }
     });
   }, []);
 
@@ -177,7 +184,7 @@ const BookForm: React.FC = () => {
     formData.append("copies", copies.toString());
     formData.append("section", section);
     formData.append("source", source.trim());
-    formData.append("material_type", materialType);
+    formData.append("material_type_id", materialType);
     formData.append("condition", defaultCondition[0] || "Fine");
     if (coverImage) formData.append("cover_image", coverImage);
 
@@ -614,8 +621,11 @@ const BookForm: React.FC = () => {
                 onChange={(e) => setMaterialType(e.target.value)}
               >
                 {materialTypes.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
+                  <option
+                    key={typeof m === "object" ? m.id : m}
+                    value={typeof m === "object" ? m.id : m}
+                  >
+                    {typeof m === "object" ? m.name : m}
                   </option>
                 ))}
               </select>

@@ -60,7 +60,6 @@ const CirculationPage = () => {
     "On Loan": "This Week",
     Returned: "This Week",
     Overdue: "This Week",
-    Renewed: "This Week",
   });
 
   // Sorting
@@ -207,9 +206,6 @@ const CirculationPage = () => {
         getStatus(r) === "Overdue" &&
         filterByPeriod(r, activePeriodMap["Overdue"])
     ).length,
-    Renewed: records.filter(
-      (r) => r.renewed && filterByPeriod(r, activePeriodMap["Renewed"])
-    ).length,
   };
 
   const getStatusColor = (record: Circulation) => {
@@ -221,8 +217,6 @@ const CirculationPage = () => {
         return "#198754"; // green
       case "Overdue":
         return "#dc3545"; // red
-      // case "Renewed":
-      //   return "#ffc107"; // yellow
       default:
         return "#6c757d"; // gray for others
     }
@@ -279,7 +273,6 @@ const CirculationPage = () => {
           if (key === "On Loan") cardClass = "tally-borrowed";
           else if (key === "Returned") cardClass = "tally-returned";
           else if (key === "Overdue") cardClass = "tally-overdue";
-          else if (key === "Renewed") cardClass = "tally-renewed";
 
           return (
             <div
@@ -291,7 +284,7 @@ const CirculationPage = () => {
             >
               <img src={bookIcon} alt={`${key} icon`} />
               <div className="tally-text">
-                <div className="tally-key">{key}</div>
+                <div className="tally-key">{key} Materials</div>
                 <div className="tally-count">{count}</div>
 
                 <span

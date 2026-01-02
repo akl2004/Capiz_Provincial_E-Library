@@ -33,9 +33,9 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
   const [barcode, setBarcode] = useState("");
   const [bookInfo, setBookInfo] = useState<BookCopy | null>(null);
   const [processingFee, setProcessingFee] = useState<number>(0);
-  const [settlementType, setSettlementType] = useState<"fine" | "replacement">(
-    "fine"
-  );
+  const [settlementType, setSettlementType] = useState<
+    "payment" | "replacement"
+  >("payment");
 
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState(false);
@@ -219,9 +219,9 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
                   <div className="settlement-toggle">
                     <button
                       className={`toggle-btn ${
-                        settlementType === "fine" ? "active" : ""
+                        settlementType === "payment" ? "active" : ""
                       }`}
-                      onClick={() => setSettlementType("fine")}
+                      onClick={() => setSettlementType("payment")}
                     >
                       Pay Fine
                     </button>
@@ -242,7 +242,7 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
                   ₱{processingFee.toFixed(2)}
                 </td>
               </tr>
-              {settlementType === "fine" && (
+              {settlementType === "payment" && (
                 <tr>
                   <td className="field-label">Book Price</td>
                   <td className="field-value">
@@ -268,7 +268,7 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
                   {(
                     processingFee +
                     (bookInfo?.fine || 0) +
-                    (settlementType === "fine"
+                    (settlementType === "payment"
                       ? Number(bookInfo?.price || 0)
                       : 0)
                   ).toFixed(2)}
@@ -287,7 +287,7 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
           >
             <i className="bi bi-exclamation-octagon me-2"></i>
             Confirm Lost (
-            {settlementType === "fine" ? "Full Payment" : "Replacement Only"})
+            {settlementType === "payment" ? "Payment" : "Replacement"})
           </button>
         </div>
       </form>

@@ -15,21 +15,27 @@ class ReportsController extends Controller
     {
         // 1. Donut chart: Count materials per type (from book_copies)
         $materialsByType = DB::table('book_copies')
-            ->select('material_type', DB::raw('COUNT(*) as total'))
-            ->whereNotNull('material_type')
-            ->groupBy('material_type')
+            ->join('material_types', 'book_copies.material_type_id', '=', 'material_types.id')
+            ->select('material_types.name as material_type', DB::raw('COUNT(*) as total'))
+            ->groupBy('material_types.name')
             ->get();
 
         // 2. Line chart: Books added per month (from books)
         if (DB::getDriverName() === 'sqlite') {
-            $booksPerMonth = DB::table('books')
-                ->select(DB::raw("strftime('%m', created_at) as month"), DB::raw('COUNT(*) as total'))
+            $booksPerMonth = DB::table('book_copies')
+                ->select(
+                    DB::raw("strftime('%m', created_at) as month"), 
+                    DB::raw('COUNT(*) as total')
+                )
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get();
         } else {
-            $booksPerMonth = DB::table('books')
-                ->select(DB::raw("MONTH(created_at) as month"), DB::raw('COUNT(*) as total'))
+            $booksPerMonth = DB::table('book_copies')
+                ->select(
+                    DB::raw("MONTH(created_at) as month"), 
+                    DB::raw('COUNT(*) as total')
+                )
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get();
@@ -45,16 +51,16 @@ class ReportsController extends Controller
 
         // 4. Bar chart: Books per category (from books)
         $ddcCategories = [
-            '000' => 'Technology',
-            '100' => 'Religion',
-            '200' => 'Philosophy',
-            '300' => 'General Works',
-            '400' => 'Arts',
-            '500' => 'Languages',
-            '600' => 'Literature',
-            '700' => 'Social Sciences',
-            '800' => 'Science',
-            '900' => 'History and geography',
+            '000' => 'General Works',
+            '100' => 'Philosophy',
+            '200' => 'Religion',
+            '300' => 'Social Sciences',
+            '400' => 'Language',
+            '500' => 'Science',
+            '600' => 'Technology',
+            '700' => 'Arts',
+            '800' => 'Literature',
+            '900' => 'History & Geography',
         ];
 
         $booksByCategory = DB::table('book_copies')
@@ -82,16 +88,21 @@ class ReportsController extends Controller
         // 5. Collection Overview Summary
         $totalCopies = DB::table('book_copies')->count();
 
-        // Count total on loan per material type
+        // Define the statuses you consider "Active"
+        $activeStatuses = ['On Loan', 'Returned', 'Reserved', 'Renewed'];
+
         $borrowedByType = DB::table('circulations')
             ->join('book_copies', 'circulations.book_copy_id', '=', 'book_copies.id')
-            ->select('book_copies.material_type', DB::raw('COUNT(*) as borrowed_total'))
-            ->where('circulations.status', 'On Loan')
-            ->groupBy('book_copies.material_type')
-            ->pluck('borrowed_total', 'book_copies.material_type');
+            ->join('material_types', 'book_copies.material_type_id', '=', 'material_types.id')
+            ->select('material_types.name as material_type_name', DB::raw('COUNT(DISTINCT book_copies.id) as borrowed_total'))
+            ->whereIn('circulations.status', $activeStatuses)
+            ->whereYear('circulations.created_at', now()->year)
+            ->groupBy('material_types.name')
+            ->pluck('borrowed_total', 'material_type_name');
 
         $collectionOverview = $materialsByType->map(function ($item) use ($totalCopies, $borrowedByType) {
             $active = $borrowedByType[$item->material_type] ?? 0;
+
             return [
                 'material_type' => $item->material_type,
                 'total' => $item->total,

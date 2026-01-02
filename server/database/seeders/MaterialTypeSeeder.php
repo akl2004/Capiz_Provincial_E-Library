@@ -22,7 +22,7 @@ class MaterialTypeSeeder extends Seeder {
         ];
 
         foreach ($types as $type) {
-            MaterialType::create($type);
+            MaterialType::firstOrCreate($type);
         }
     }
 }

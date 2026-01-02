@@ -203,8 +203,8 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
       );
       setCirculationToday({
         borrowed: {
-          count: circulationRes.data.Borrowed?.count ?? 0,
-          percent: circulationRes.data.Borrowed?.percent ?? 0,
+          count: circulationRes.data["On Loan"]?.count ?? 0,
+          percent: circulationRes.data["On Loan"]?.percent ?? 0,
         },
         returned: {
           count: circulationRes.data.Returned?.count ?? 0,

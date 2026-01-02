@@ -97,7 +97,7 @@ class PatronController extends Controller
 
         $patron->update($validated);
 
-        // 🧾 Log the activity
+        // Log the activity
         $this->logActivity('Edit Patron', 'Updated patron: ' . $patron->first_name . ' ' . $patron->last_name, $user);
 
         return response()->json($patron);
@@ -135,23 +135,23 @@ class PatronController extends Controller
         }
     }
 
-    public function stats($id)
-    {
-        $patron = Patron::with('circulations')->findOrFail($id);
+public function stats($id)
+{
+    $patron = Patron::findOrFail($id);
 
-        $stats = [
-            'borrowedBooks' => $patron->circulations()->count(),
-            'returnedBooks' => $patron->circulations()->where('status', 'Returned')->count(),
-            'totalFine' => $patron->circulations()->sum('fine'),
-            'overdueBooks' => $patron->circulations()
-            ->where('status', '!=', 'Returned')
-            ->where('due_date', '<', now())
-            ->count(),
-            'history' => $patron->circulations()->get()
-        ];
+    $totalFine = $patron->circulations()
+        ->where('is_paid', false) 
+        ->sum('fine');
 
-        return response()->json($stats);
-    }
+    return response()->json([
+        'borrowedBooks' => $patron->circulations()->count(),
+        'returnedBooks' => $patron->circulations()->whereIn('status', ['Returned', 'Returned Late'])->count(),
+        'lostBooks'     => $patron->circulations()->where('status', 'Lost')->count(),
+        'activeLoans'   => $patron->circulations()->whereIn('status', ['On Loan', 'Overdue'])->count(),
+        'totalFine'     => (float) $totalFine, // This will now be 0 if the book is paid
+        'overdueBooks'  => $patron->circulations()->where('status', 'Overdue')->count(),
+    ]);
+}
 
     // deactivating a patron
     public function deactivate(Request $request, $id)
@@ -207,7 +207,7 @@ class PatronController extends Controller
         $patron->status = 'Active';
         $patron->save();
 
-        // 🧾 Log the activity
+        // Log the activity
         $this->logActivity(
             'Activate Patron',
             'Activated patron: ' . $patron->first_name . ' ' . $patron->last_name,

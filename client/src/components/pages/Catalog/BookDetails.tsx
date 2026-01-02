@@ -15,7 +15,7 @@ interface BookCopy {
   price?: number;
   source: string;
   source_person: string;
-  material_type?: string;
+  material_type?: string | { id: number; name: string };
   cataloging_note: string;
   internal_note: string;
 }
@@ -45,7 +45,9 @@ interface Book {
 
 const BookDetails: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
-  const [materialTypes, setMaterialTypes] = useState<string[]>([]);
+  const [materialTypes, setMaterialTypes] = useState<
+    { id: number; name: string }[]
+  >([]);
   const [sources, setSources] = useState<string[]>([]);
   const [price, setPrice] = useState<number>(0);
   const [conditions, setCondition] = useState<string[]>([]);
@@ -53,6 +55,9 @@ const BookDetails: React.FC = () => {
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [selectedMaterialTypeId, setSelectedMaterialTypeId] = useState<
+    number | string
+  >("");
 
   const navigate = useNavigate();
 
@@ -131,11 +136,28 @@ const BookDetails: React.FC = () => {
     if (showModal) {
       AxiosInstance.get("/dropdown-options")
         .then((res) => {
-          setMaterialTypes(res.data.materialTypes || []);
+          const mTypes = res.data.materialTypes || [];
+          setMaterialTypes(mTypes);
           setSources(res.data.sources || []);
           setCondition(res.data.conditions || []);
+
           if (book && book.copies && book.copies.length > 0) {
-            setPrice(book.copies[0].price || 0);
+            const firstCopy = book.copies[0];
+
+            // Set Price
+            setPrice(parseFloat(firstCopy.price?.toString() || "0"));
+
+            // Set Material Type ID
+            // Check if material_type is an object with an id or just an id
+            const mTypeId =
+              typeof firstCopy.material_type === "object"
+                ? firstCopy.material_type.id
+                : firstCopy.material_type;
+
+            setSelectedMaterialTypeId(mTypeId || mTypes[0]?.id || "");
+          } else if (mTypes.length > 0) {
+            // If no copies exist, default to the first available type
+            setSelectedMaterialTypeId(mTypes[0].id);
           }
         })
         .catch((err) => console.error("Error fetching dropdowns:", err));
@@ -358,7 +380,7 @@ const BookDetails: React.FC = () => {
                       `/books/${book.id}/add-copy`,
                       {
                         source: formData.get("source"),
-                        material_type: formData.get("material_type"),
+                        material_type_id: formData.get("material_type_id"),
                         source_person: formData.get("source_person"),
                         condition: formData.get("condition"),
                         cataloging_note: formData.get("cataloging_note"),
@@ -406,13 +428,19 @@ const BookDetails: React.FC = () => {
                         <span className="catalog_number">(245)</span>
                       </label>
                       <select
-                        name="material_type"
+                        name="material_type_id"
                         className="form-control"
-                        defaultValue={materialTypes[0]}
+                        value={selectedMaterialTypeId} // Controlled value
+                        onChange={(e) =>
+                          setSelectedMaterialTypeId(e.target.value)
+                        } // Update state on change
                       >
+                        <option value="" disabled>
+                          Select Material Type
+                        </option>
                         {materialTypes.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
+                          <option key={m.id} value={m.id}>
+                            {m.name}
                           </option>
                         ))}
                       </select>
@@ -458,11 +486,15 @@ const BookDetails: React.FC = () => {
                         Price <span className="catalog_number">(020)</span>
                       </label>
                       <input
-                        type="text"
+                        type="number" // Change to number for better handling
+                        step="0.01" // Allow decimals
                         name="price"
                         className="form-control"
                         placeholder="0.00"
-                        defaultValue={price}
+                        value={price} // Controlled component
+                        onChange={(e) =>
+                          setPrice(parseFloat(e.target.value) || 0)
+                        }
                       />
                     </div>
                   </div>

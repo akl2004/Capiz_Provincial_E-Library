@@ -3,6 +3,11 @@ import AxiosInstance from "../../../AxiosInstance";
 import { useNavigate } from "react-router-dom";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 
+interface MaterialType {
+  id: number;
+  name: string;
+}
+
 interface Book {
   id: number;
   title: string;
@@ -18,7 +23,7 @@ interface Book {
 
 interface BookCopy {
   book_id: number;
-  material_type: string;
+  material_type: MaterialType | string;
 }
 
 const Cataloging = () => {
@@ -90,8 +95,15 @@ const Cataloging = () => {
         const year = book.year?.toString() || "";
         const classification = book.classification?.toLowerCase() || "";
         const material_type =
-          book.copies?.map((c) => c.material_type.toLowerCase()).join(", ") ||
-          "";
+          book.copies
+            ?.map((c) => {
+              const val =
+                typeof c.material_type === "object"
+                  ? c.material_type.name
+                  : c.material_type;
+              return val?.toLowerCase() || "";
+            })
+            .join(", ") || "";
         const subjects = book.topical_subjects?.join(", ").toLowerCase() || "";
         const section = book.section?.toLowerCase() || "";
 
@@ -587,8 +599,10 @@ const Cataloging = () => {
                     <p className="mb-0">
                       <strong>Material:</strong>{" "}
                       {book.copies && book.copies.length > 0
-                        ? book.copies[0].material_type
-                        : "N/A"}
+                        ? typeof book.copies[0].material_type === "object"
+                          ? book.copies[0].material_type.name
+                          : book.copies[0].material_type
+                        : "-"}
                     </p>
                     <p className="mb-0">
                       <strong>Title:</strong> {book.title}
@@ -660,8 +674,10 @@ const Cataloging = () => {
                   >
                     <td>
                       {book.copies && book.copies.length > 0
-                        ? book.copies[0].material_type
-                        : "N/A"}
+                        ? typeof book.copies[0].material_type === "object"
+                          ? book.copies[0].material_type.name
+                          : book.copies[0].material_type
+                        : "-"}
                     </td>
                     <td>{book.title}</td>
                     <td>{book.contributor}</td>
@@ -670,7 +686,7 @@ const Cataloging = () => {
                     <td>
                       {book.topical_subjects?.length
                         ? book.topical_subjects.join(", ")
-                        : "N/A"}
+                        : "-"}
                     </td>
                     <td>{book.section}</td>
                     <td>{book.classification}</td>

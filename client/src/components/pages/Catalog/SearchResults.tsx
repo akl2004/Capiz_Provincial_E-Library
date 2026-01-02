@@ -19,20 +19,25 @@ interface Book {
   copies: BookCopy[];
 }
 
+interface MaterialType {
+  id: number;
+  name: string;
+}
+
 interface BookCopy {
-  material_type?: string;
+  material_type: MaterialType | string;
   status?: string;
 }
 
 const deweyMap: { [key: string]: string } = {
   "000": "General Works",
-  "100": "Philosophy & Psychology",
+  "100": "Philosophy",
   "200": "Religion",
   "300": "Social Sciences",
   "400": "Language",
   "500": "Science",
   "600": "Technology",
-  "700": "Arts & Recreation",
+  "700": "Arts",
   "800": "Literature",
   "900": "History & Geography",
 };
@@ -265,16 +270,22 @@ const SearchResults = () => {
                     <div className="card-text ms-3">
                       <p className="mb-0">
                         <strong>Material:</strong>{" "}
-                        {book.copies?.length
-                          ? book.copies[0].material_type || "N/A"
-                          : "N/A"}
+                        {book.copies && book.copies.length > 0
+                          ? typeof book.copies[0].material_type === "object"
+                            ? book.copies[0].material_type.name
+                            : book.copies[0].material_type
+                          : "-"}
                       </p>
 
                       <p className="mb-0">
                         <strong>Title:</strong> {book.title}
                       </p>
                       <p className="mb-0">
-                        <strong>Author:</strong> {book.author || book.editor || book.other_author_editor || "Unknown Author"}
+                        <strong>Author:</strong>{" "}
+                        {book.author ||
+                          book.editor ||
+                          book.other_author_editor ||
+                          "Unknown Author"}
                       </p>
                       <p className="mb-0">
                         <strong>Edition:</strong> {book.edition}
@@ -329,12 +340,19 @@ const SearchResults = () => {
               {mainResults.map((book) => (
                 <tr key={book.id}>
                   <td>
-                    {book.copies?.length
-                      ? book.copies[0].material_type || "N/A"
-                      : "N/A"}
+                    {book.copies && book.copies.length > 0
+                      ? typeof book.copies[0].material_type === "object"
+                        ? book.copies[0].material_type.name
+                        : book.copies[0].material_type
+                      : "-"}
                   </td>
                   <td>{book.title}</td>
-                  <td>{book.author || book.editor || book.other_author_editor || "Unknown Author"}</td>
+                  <td>
+                    {book.author ||
+                      book.editor ||
+                      book.other_author_editor ||
+                      "Unknown Author"}
+                  </td>
                   <td>{book.edition}</td>
                   <td>{book.year}</td>
                   <td>

@@ -47,7 +47,7 @@ const categories = [
   { name: "LANGUAGE", image: guestHome4, dewey: "400" },
   { name: "SCIENCE", image: guestHome3, dewey: "500" },
   { name: "TECHNOLOGY", image: guestHome1, dewey: "600" },
-  { name: "ARTS & RECREATION", image: guestHome2, dewey: "700" },
+  { name: "ARTS", image: guestHome2, dewey: "700" },
 ];
 
 const GuestDashboard = () => {

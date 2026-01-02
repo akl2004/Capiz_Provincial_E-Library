@@ -108,7 +108,7 @@ const Accounts: React.FC = () => {
     } catch (err) {
       console.error("Error fetching staff:", err);
     } finally {
-      setLoading(false); // stop loading
+      setLoading(false);
     }
   };
 
@@ -169,7 +169,6 @@ const Accounts: React.FC = () => {
       setAlertType("success");
       setShowModal(false);
 
-      // Reset form (including image)
       setFormData({
         role: "staff",
         first_name: "",
@@ -214,7 +213,6 @@ const Accounts: React.FC = () => {
   const allUsers = [...staffList, ...patronList];
 
   const filteredUsers = allUsers.filter((u) => {
-    // Search by name or email/patron_id
     const fullName = `${u.first_name} ${u.middle_name ?? ""} ${u.last_name} ${
       u.suffix ?? ""
     }`.toLowerCase();
@@ -594,7 +592,7 @@ const Accounts: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedUsers.map((user, index) => (
+              {currentUsers.map((user, index) => (
                 <tr
                   key={`${user.id}-${index}`}
                   style={{ cursor: "pointer" }}
@@ -782,7 +780,6 @@ const Accounts: React.FC = () => {
                         <input
                           type="text"
                           placeholder="Middle Name"
-                          required
                           value={formData.middle_name}
                           onChange={(e) =>
                             setFormData({
@@ -806,7 +803,6 @@ const Accounts: React.FC = () => {
                         <input
                           type="text"
                           placeholder="Suffix"
-                          required
                           value={formData.suffix}
                           onChange={(e) =>
                             setFormData({
@@ -859,41 +855,6 @@ const Accounts: React.FC = () => {
                         required
                       />
                     </div>
-
-                    {/* <div
-                      className="name-row mb-3"
-                      style={{ display: "flex", gap: "15px" }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <label className="row-label">Email</label>
-                        <input
-                          type="email"
-                          placeholder="email@example.com"
-                          style={{ width: "100%" }}
-                          value={formData.email}
-                          onChange={(e) =>
-                            setFormData({ ...formData, email: e.target.value })
-                          }
-                          required
-                        />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label className="row-label">Password</label>
-                        <input
-                          type="password"
-                          placeholder="password"
-                          style={{ width: "100%" }}
-                          value={formData.password}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              password: e.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </div>
-                    </div> */}
                   </div>
                 </div>
 

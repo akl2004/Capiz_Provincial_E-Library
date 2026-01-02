@@ -12,6 +12,7 @@ class SourceSeeder extends Seeder
         $sources = [
             ['name' => 'Purchased'],
             ['name' => 'Donation'],
+            ['name' => 'Replacement'],
             ['name' => 'Exchange'],
             ['name' => 'Legal Deposit'],
             ['name' => 'Other']

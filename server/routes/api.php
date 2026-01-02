@@ -80,12 +80,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/circulations/return', [CirculationController::class, 'return']);
     Route::post('/circulations/mark-lost', [CirculationController::class, 'markAsLost']);
     Route::post('/circulations/renew', [CirculationController::class, 'renew']);
+    Route::post('/circulations/book-copies/withdraw-bulk', [CirculationController::class, 'withdraw']);
+    
+    Route::get('/patrons/{id}/transactions', [CirculationController::class, 'patronTransactions']); // fetch patrons transaction
 });
 
 Route::get('/circulations/today-tally', [CirculationController::class, 'todayTallyWithPercentage']);
 Route::get('/circulations', [CirculationController::class, 'index']);        // list all circulations
-Route::put('/circulations/{id}/mark-lost', [CirculationController::class, 'markLost']); // mark book as lost
-Route::get('/patrons/{id}/transactions', [CirculationController::class, 'patronTransactions']); // fetch patrons transaction
 Route::get('/copies/{copyId}/history', [CirculationController::class, 'copyHistory']); //fetches all transaction of a book
 Route::get('/circulation/top-books-week', [CirculationController::class, 'topBooksThisWeek']);
 

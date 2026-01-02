@@ -40,7 +40,9 @@ return new class extends Migration
             $table->boolean('includes_bibliographical_references')->default(false);
 
             // Identifiers
-            $table->string('isbn')->nullable();
+            $table->string('isbn_paperback')->nullable()->index();
+            $table->string('isbn_hardcover')->nullable()->index();
+            $table->string('issn')->nullable()->index();
 
             // Call number breakdown
             $table->string('dewey_decimal');

@@ -18,15 +18,9 @@ interface HeaderProps {
 
 const Header = ({ user, onLogout, isUserLoading = false }: HeaderProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle("dark", !darkMode);
-  };
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
@@ -47,20 +41,20 @@ const Header = ({ user, onLogout, isUserLoading = false }: HeaderProps) => {
   );
 
   const breadcrumbNameMap: Record<string, string> = {
-    admindashboard: "Dashboard",
-    staffdashboard: "Dashboard",
-    patrons: "Patrons",
-    cataloging: "Cataloging",
-    accession: "Accession",
-    circulation: "Circulation",
-    attendance: "Attendance",
-    dailyattendance: "Daily Attendance",
-    reports: "Reports",
-    settings: "Settings",
-    transactions: "Transactions",
-    addbook: "Add Book",
-    copies: "Copy Information",
-    issue: "Issue Form",
+    admindashboard: "DASHBOARD",
+    staffdashboard: "DASHBOARD",
+    patrons: "PATRONS",
+    cataloging: "CATALOGING",
+    accession: "ACCESSION",
+    circulation: "CIRCULATION",
+    attendance: "ATTENDANCE",
+    dailyattendance: "DAILY ATTENDANCE",
+    reports: "REPORTS",
+    settings: "SETTINGS",
+    transactions: "TRANSACTIONS",
+    addbook: "ADD BOOK",
+    copies: "COPY INFORMATION",
+    issue: "ISSUE FORM",
     "loan-days": "Loan Days",
     "expiration-years": "Expiration Years",
     "fine-per-day": "Fine per Day",
@@ -132,12 +126,6 @@ const Header = ({ user, onLogout, isUserLoading = false }: HeaderProps) => {
 
       {/* RIGHT: User Controls */}
       <div className="d-flex align-items-center gap-3">
-        <button
-          onClick={toggleDarkMode}
-          className="btn btn-sm btn-outline-secondary"
-        >
-          {darkMode ? "☀️" : "🌙"}
-        </button>
 
         <div className="dropdown">
           <button

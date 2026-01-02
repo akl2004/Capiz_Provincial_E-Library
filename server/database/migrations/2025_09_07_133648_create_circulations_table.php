@@ -14,6 +14,8 @@ return new class extends Migration {
             $table->foreignId('book_copy_id')->constrained('book_copies')->onDelete('cascade');
             $table->foreignId('patron_id')->constrained('patrons')->onDelete('cascade'); 
 
+            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
+
             // Circulation details
             $table->date('issue_date');
             $table->date('due_date');
@@ -25,7 +27,7 @@ return new class extends Migration {
             $table->date('date_returned')->nullable();
 
             // Track how the 'Lost' status is handled
-            $table->enum('lost_resolution', ['Pending', 'Paid', 'Replaced', 'None'])->default('None');
+            $table->enum('lost_resolution', ['Pending', 'Payment', 'Replacement', 'None'])->default('None');
 
             $table->enum('status', [
                 'On Loan', 

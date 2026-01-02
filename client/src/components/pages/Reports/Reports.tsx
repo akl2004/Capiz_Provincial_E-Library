@@ -38,6 +38,12 @@ const Reports = () => {
     booksPerMonth: { month: string; books: number }[];
     sourcesPercentage: { name: string; value: number }[];
     booksPerDDC: { category: string; books: number }[];
+    collectionOverview: {
+      material_type: string;
+      total: number;
+      percent_of_total: number;
+      percent_active: number;
+    }[];
   };
 
   const [reportData, setReportData] = useState<ReportData>({
@@ -45,6 +51,7 @@ const Reports = () => {
     booksPerMonth: [],
     sourcesPercentage: [],
     booksPerDDC: [],
+    collectionOverview: [],
   });
 
   const fetchCollectionReports = async () => {
@@ -53,16 +60,16 @@ const Reports = () => {
       const res = await AxiosInstance.get("/reports/collection");
 
       const ddcCategories: Record<string, string> = {
-        "000": "Technology",
-        "100": "Religion",
-        "200": "Philosophy",
-        "300": "General Works",
-        "400": "Arts",
-        "500": "Languages",
-        "600": "Literature",
-        "700": "Social Sciences",
-        "800": "Science",
-        "900": "History and geography",
+        "000": "General Works",
+        "100": "Philosophy",
+        "200": "Religion",
+        "300": "Social Sciences",
+        "400": "Language",
+        "500": "Science",
+        "600": "Technology",
+        "700": "Arts",
+        "800": "Literature",
+        "900": "History & Geography",
       };
 
       // Initialize counts
@@ -94,6 +101,7 @@ const Reports = () => {
           value: item.total || item.value,
         })),
         booksPerDDC,
+        collectionOverview: res.data.collectionOverview,
       });
 
       // Fetch masterlist
@@ -103,6 +111,13 @@ const Reports = () => {
     } finally {
       setLoadingCollectionData(false);
     }
+  };
+
+  const INVENTORY_COLORS = {
+    Purchased: "#F36E57",
+    Donation: "#F58A68",
+    Replacement: "#F9A378",
+    Others: "#FFBB28",
   };
 
   const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
@@ -135,13 +150,11 @@ const Reports = () => {
       Subjects: (() => {
         if (!copy.book?.topical_subject) return "N/A";
         try {
-          // Try parsing if it's a stringified array
           const subjects = Array.isArray(copy.book.topical_subject)
             ? copy.book.topical_subject
             : JSON.parse(copy.book.topical_subject);
           return subjects.length ? subjects.join(", ") : "N/A";
         } catch {
-          // Fallback if it's just a string
           return copy.book.topical_subject || "N/A";
         }
       })(),
@@ -221,16 +234,29 @@ const Reports = () => {
   });
 
   const DDC_COLORS: Record<string, string> = {
-    Technology: "#3B82F6",
-    Religion: "#10B981",
-    Philosophy: "#F59E0B",
-    "General Works": "#EF4444",
-    Arts: "#8B5CF6",
-    Languages: "#EC4899",
-    Literature: "#14B8A6",
-    "Social Sciences": "#F87171",
-    Science: "#FBBF24",
-    "History and geography": "#60A5FA",
+    "General Works": "#E6644D",
+    Philosophy: "#FF7144",
+    Religion: "#E64E22",
+    "Social Sciences": "#FF7463",
+    Language: "#FF782B",
+    Science: "#F28500",
+    Technology: "#FF5900",
+    Arts: "#FF8F4E",
+    Literature: "#E86F2E",
+    "History & Geography": "#FF8040",
+  };
+
+  const ddcOrderMap: Record<string, number> = {
+    "General Works": 0,
+    Philosophy: 1,
+    Religion: 2,
+    "Social Sciences": 3,
+    Language: 4,
+    Science: 5,
+    Technology: 6,
+    Arts: 7,
+    Literature: 8,
+    "History & Geography": 9,
   };
 
   const [summarySort, setSummarySort] = useState<"asc" | "desc">("asc");
@@ -257,18 +283,14 @@ const Reports = () => {
   });
 
   const exportSummaryToExcel = () => {
-    if (!reportData.materialsByType.length) return;
+    if (!reportData.collectionOverview.length) return;
 
     // Prepare data
-    const total = reportData.materialsByType.reduce(
-      (sum, item) => sum + item.value,
-      0
-    );
-    const data = reportData.materialsByType.map((item) => ({
-      "Material Type": item.name,
-      "Total Materials": item.value,
-      "Total Collection": ((item.value / total) * 100).toFixed(2) + "%",
-      "Active Circulation": Math.floor(Math.random() * 50 + 20) + "%",
+    const data = reportData.collectionOverview.map((item) => ({
+      "Material Type": item.material_type,
+      "Total Materials": item.total,
+      "Total Collection": item.percent_of_total + "%",
+      "Active Circulation": item.percent_active + "%",
     }));
 
     // Convert to worksheet
@@ -517,7 +539,7 @@ const Reports = () => {
       });
   }, [activeTab]);
 
-  // 🔹 SORT FUNCTION
+  // SORT FUNCTION
   const sortAccountRegistry = (order: "asc" | "desc") => {
     const sortedData = [...accountsData].sort((a, b) => {
       const nameA = a.full_name.toLowerCase();
@@ -556,8 +578,8 @@ const Reports = () => {
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
-        const res = await AxiosInstance.get("/user"); // Adjust endpoint if needed
-        setUserRole(res.data.role); // assuming backend returns { role: "admin" | "staff" }
+        const res = await AxiosInstance.get("/user");
+        setUserRole(res.data.role); 
       } catch (error) {
         console.error("Error fetching user role:", error);
       }
@@ -624,6 +646,12 @@ const Reports = () => {
     indexOfLastAccounts
   );
 
+  const sortedData = [...reportData.booksPerDDC].sort((a, b) => {
+    const rankA = ddcOrderMap[b.category] ?? 99;
+    const rankB = ddcOrderMap[a.category] ?? 99;
+    return rankB - rankA;
+  });
+
   const renderTabContent = () => {
     switch (activeTab) {
       case "collection":
@@ -669,19 +697,20 @@ const Reports = () => {
                       dataKey="month"
                       tickFormatter={(monthNumber) => {
                         const monthNames = [
-                          "Jan",
-                          "Feb",
-                          "Mar",
-                          "Apr",
+                          "January",
+                          "February",
+                          "March",
+                          "April",
                           "May",
-                          "Jun",
-                          "Jul",
-                          "Aug",
-                          "Sep",
-                          "Oct",
-                          "Nov",
-                          "Dec",
+                          "June",
+                          "July",
+                          "August",
+                          "September",
+                          "October",
+                          "November",
+                          "December",
                         ];
+
                         return (
                           monthNames[parseInt(monthNumber, 10) - 1] ||
                           monthNumber
@@ -690,7 +719,25 @@ const Reports = () => {
                     />
 
                     <YAxis allowDecimals={false} />
-                    <Tooltip />
+                    <Tooltip
+                      labelFormatter={(value) => {
+                        const monthNames = [
+                          "January",
+                          "February",
+                          "March",
+                          "April",
+                          "May",
+                          "June",
+                          "July",
+                          "August",
+                          "September",
+                          "October",
+                          "November",
+                          "December",
+                        ];
+                        return monthNames[parseInt(value, 10) - 1] || value;
+                      }}
+                    />
                     <Legend />
                     <Line
                       type="monotone"
@@ -716,8 +763,11 @@ const Reports = () => {
                       outerRadius={100}
                       label
                     >
-                      {reportData.sourcesPercentage.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      {reportData.sourcesPercentage.map((entry, index) => (
+                        <Cell
+                          key={index}
+                          fill={INVENTORY_COLORS[entry.name as keyof typeof INVENTORY_COLORS] || "#8884d8"}
+                        />
                       ))}
                     </Pie>
                     <Legend />
@@ -732,7 +782,7 @@ const Reports = () => {
                 <ResponsiveContainer width="100%" height={400}>
                   <BarChart
                     layout="vertical"
-                    data={reportData.booksPerDDC}
+                    data={sortedData}
                     margin={{ top: 20, right: 30, left: 50, bottom: 20 }}
                   >
                     <XAxis
@@ -752,11 +802,11 @@ const Reports = () => {
                     <YAxis
                       dataKey="category"
                       type="category"
-                      tick={{ width: 160 }}
+                      tick={{ width: 160, fontSize: 12 }}
                     />
                     <Tooltip />
                     <Bar dataKey="books">
-                      {reportData.booksPerDDC.map((entry, index) => (
+                      {sortedData.map((entry, index) => (
                         <Cell
                           key={index}
                           fill={DDC_COLORS[entry.category] || "#10B981"}
@@ -802,27 +852,14 @@ const Reports = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {(() => {
-                      // Calculate total materials
-                      const total = reportData.materialsByType.reduce(
-                        (sum, item) => sum + item.value,
-                        0
-                      );
-
-                      return reportData.materialsByType.map((item) => {
-                        const activePercent =
-                          Math.floor(Math.random() * 50) + 20;
-
-                        return (
-                          <tr key={item.name}>
-                            <td>{item.name}</td>
-                            <td>{item.value}</td>
-                            <td>{((item.value / total) * 100).toFixed(2)}%</td>
-                            <td>{activePercent}%</td>
-                          </tr>
-                        );
-                      });
-                    })()}
+                    {reportData.collectionOverview.map((item) => (
+                      <tr key={item.material_type}>
+                        <td>{item.material_type}</td>
+                        <td>{item.total}</td>
+                        <td>{item.percent_of_total}%</td>
+                        <td>{item.percent_active}%</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1119,7 +1156,7 @@ const Reports = () => {
                   </button>
                 </div>
               </div>
-              <div className="table-wrapper">
+              <div className="summary-table-wrapper">
                 <table className="summary-table">
                   <thead>
                     <tr>

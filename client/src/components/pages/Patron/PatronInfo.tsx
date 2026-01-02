@@ -27,6 +27,8 @@ interface PatronStats {
   returnedBooks: number;
   totalFine: number | null;
   overdueBooks: number;
+  lostBooks: number;
+  activeLoans: number;
 }
 
 interface Transaction {
@@ -41,6 +43,9 @@ interface Transaction {
   fine: number;
   paid_amount?: number;
   settlement_type?: string;
+  processed_by?: string;
+  material_price?: string;
+  processing_fee_used: string;
 }
 
 const PatronInfo = () => {
@@ -55,11 +60,11 @@ const PatronInfo = () => {
 
   // for transaction
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc"); // default latest first
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
-    return new Date(dateString).toISOString().split("T")[0]; // YYYY-MM-DD
+    return new Date(dateString).toISOString().split("T")[0]; 
   };
 
   useEffect(() => {
@@ -82,45 +87,44 @@ const PatronInfo = () => {
 
 
   // fetch transaction
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoadingTransactions(true);
-        const response = await AxiosInstance.get(`/patrons/${id}/transactions`);
-        const data: Transaction[] = response.data;
+ useEffect(() => {
+   const fetchData = async () => {
+     try {
+       setLoadingTransactions(true);
 
-        setTransactions(data);
+       // 1. Fetch Stats from your Laravel stats() method
+       const statsRes = await AxiosInstance.get(`/patrons/${id}/stats`);
+       setStats({
+         borrowedBooks: statsRes.data.borrowedBooks,
+         returnedBooks: statsRes.data.returnedBooks,
+         totalFine: statsRes.data.totalFine,
+         overdueBooks: statsRes.data.overdueBooks,
+         lostBooks: statsRes.data.lostBooks,
+         activeLoans: statsRes.data.activeLoans,
+       });
 
-        // Calculate stats
-        const borrowedBooks = data.length;
-        const returnedBooks = data.filter(
-          (t) => t.status === "Returned"
-        ).length;
-        const now = new Date();
-        const overdueBooks = data.filter(
-          (t) => t.status !== "Returned" && new Date(t.due_date || "") < now
-        ).length;
+       // 2. Fetch Transactions from your patronTransactions() method
+       const transRes = await AxiosInstance.get(`/patrons/${id}/transactions`);
+       setTransactions(transRes.data);
+     } catch (error) {
+       console.error("Error fetching patron data:", error);
+     } finally {
+       setLoadingTransactions(false);
+     }
+   };
 
-        const totalFineBalance = data.reduce((sum, t) => {
-          const isSettled = t.status === "Lost" || t.status === "Returned";
-          return sum + (!isSettled ? t.fine || 0 : 0);
-        }, 0);
+   if (id) fetchData();
+ }, [id]);
 
-        setStats({
-          borrowedBooks,
-          returnedBooks,
-          overdueBooks,
-          totalFine: totalFineBalance,
-        });
-      } catch (error) {
-        console.error("Error fetching transactions:", error);
-      } finally {
-        setLoadingTransactions(false);
-      }
-    };
+ const activeLoans = stats?.activeLoans ?? 0;
 
-    if (id) fetchTransactions();
-  }, [id]);
+ const settlementTransactions = transactions.filter((t) => {
+   const isLost = t.status === "Lost";
+   const wasFinePaid =
+     t.status === "Returned" && (t.fine > 0 || (t.paid_amount ?? 0) > 0);
+
+   return isLost || wasFinePaid;
+ });
 
   const sortedTransactions = [...transactions].sort((a, b) => {
     const aDate = new Date(a.date_issued).getTime();
@@ -197,7 +201,6 @@ const PatronInfo = () => {
             </div>
             <div className="stat-body">
               <span className="stat-number">{stats?.borrowedBooks ?? 0}</span>
-              <span className="stat-label">/ borrowed materials</span>
             </div>
             <div className="stat-footer">
               Represents total books borrowed to date.
@@ -206,37 +209,19 @@ const PatronInfo = () => {
 
           <div className="stat-card">
             <div className="stat-header">
-              <i className="bi bi-inboxes me-3"></i> TOTAL RETURNED
+              <i className="bi bi-inboxes me-3"></i> ACTIVE LOANS
             </div>
             <div className="stat-body">
-              <span className="stat-number">{stats?.returnedBooks ?? 0}</span>
-              <span className="stat-label">
-                /{stats?.borrowedBooks ?? 0} returned materials
-              </span>
+              <span className="stat-number">{activeLoans}</span>
             </div>
             <div className="stat-footer">
-              Represents total books returned to date.
+              Number of books currently on loan to the patron.
             </div>
           </div>
 
           <div className="stat-card">
             <div className="stat-header">
-              <i className="bi bi-alarm me-3"></i> OVERDUE INCIDENTS
-            </div>
-            <div className="stat-body">
-              <span className="stat-number">{stats?.overdueBooks ?? 0}</span>
-              <span className="stat-label">
-                /{stats?.borrowedBooks ?? 0} borrow incidents
-              </span>
-            </div>
-            <div className="stat-footer">
-              Indicates frequency of overdue returns.
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-header">
-              <i className="bi bi-cash me-3"></i> TOTAL DEBT
+              <i className="bi bi-cash me-3"></i> OUTSTANDING BALANCE
             </div>
             <div className="stat-body">
               <span className="stat-number">
@@ -245,7 +230,7 @@ const PatronInfo = () => {
             </div>
 
             <div className="stat-footer">
-              Total penalties incurred by the patron.
+              Total active unpaid fines associated with the patron.
             </div>
           </div>
         </div>
@@ -316,8 +301,6 @@ const PatronInfo = () => {
                 <th>Date Issued</th>
                 <th>Due Date</th>
                 <th>Return Date</th>
-                <th>Fine / Settlement</th>
-                <th>Method</th>
               </tr>
             </thead>
             <tbody>
@@ -330,46 +313,61 @@ const PatronInfo = () => {
                   <td>{t.date_issued ? t.date_issued.slice(0, 10) : "—"}</td>
                   <td>{t.due_date ? t.due_date.slice(0, 10) : "—"}</td>
                   <td>{t.return_date ? t.return_date.slice(0, 10) : "—"}</td>
-                  <td>
-                    {t.status === "Lost" ? (
-                      <div className="text-success fw-bold">
-                        ₱{(t.paid_amount || 0).toFixed(2)}
-                        <div
-                          style={{ fontSize: "0.65rem", fontWeight: "normal" }}
-                          className="text-muted"
-                        >
-                          (Paid & Closed)
-                        </div>
-                      </div>
-                    ) : (
-                      <div className={t.fine > 0 ? "text-danger fw-bold" : ""}>
-                        {t.fine > 0 ? `₱${t.fine.toFixed(2)}` : "₱0.00"}
-                      </div>
-                    )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>No borrowing activity found.</p>
+        )}
+      </div>
+
+      <div className="transactions-page mt-4">
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h1 className="text-xl font-semibold mb-0">Settlement History</h1>
+            <p className="mb-0">
+              <i>
+                List of payment and replacement settlements for lost
+                transactions.
+              </i>
+            </p>
+          </div>
+        </div>
+
+        {loadingTransactions ? (
+          <LoadingSpinner />
+        ) : settlementTransactions.length > 0 ? (
+          <table className="custom-table">
+            <thead>
+              <tr>
+                <th>Settlement ID</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Details</th>
+                <th>Processed By</th>
+              </tr>
+            </thead>
+            <tbody>
+              {settlementTransactions.map((t) => (
+                <tr key={t.id}>
+                  <td>{t.id}</td>
+                  <td>{formatDate(t.return_date || t.date_issued)}</td>
+                  <td>{t.settlement_type}</td>
+                  <td className="py-3 px-4 border-bottom align-middle text-muted">
+                    {t.settlement_type === "Replacement"
+                      ? `Replaced "${t.book_title}" (Copy #${t.copy_number})`
+                      : `Paid ₱${t.material_price} book price + ₱${t.processing_fee_used} processing fee`}
                   </td>
-                  <td>
-                    {t.status === "Lost" ? (
-                      <small
-                        className={`badge ${
-                          t.settlement_type === "Replaced"
-                            ? "bg-info text-dark"
-                            : "bg-light text-dark border"
-                        }`}
-                      >
-                        {t.settlement_type === "Replaced"
-                          ? "Replacement"
-                          : "Cash Settlement"}
-                      </small>
-                    ) : (
-                      "—"
-                    )}
+                  <td className="py-3 px-4 border-bottom align-middle text-muted">
+                    {t.processed_by}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p>No transactions found.</p>
+          <p>No settlement history found.</p>
         )}
       </div>
     </div>

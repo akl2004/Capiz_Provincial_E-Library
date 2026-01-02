@@ -17,18 +17,20 @@ return new class extends Migration
             // Link to book
             $table->foreignId('book_id')->constrained()->onDelete('cascade');
 
+            $table->enum('binding', ['Paperback', 'Hardcover', 'Spiral', 'Other'])->default('Paperback');
+
             // Copy-specific info
             $table->string('accession_number')->unique();
             $table->string('barcode')->unique()->nullable();
             $table->integer('copy_number');
 
-            $table->enum('condition', ['Fine', 'Very Good', 'Damaged'])->default('Fine');
+            $table->enum('condition', ['New', 'Fine', 'Damaged'])->default('New');
 
             // Accession / acquisition details
-            $table->enum('material_type', ['Book', 'Journal', 'Thesis', 'E-Resource']);
+            $table->foreignId('material_type_id')->constrained('material_types')->onDelete('cascade');
             $table->text('cataloging_note')->nullable();
             $table->text('internal_note')->nullable();
-            $table->enum('source', ['Purchased', 'Donation', 'Exchange', 'Legal Deposit', 'Other']);
+            $table->enum('source', ['Purchased', 'Donation', 'Replaced', 'Exchange', 'Legal Deposit', 'Other']);
             $table->string('source_person')->nullable();
             $table->string('location_of_book')->nullable();
 
@@ -37,7 +39,7 @@ return new class extends Migration
             $table->enum('status', ['Available', 'On Loan', 'Lost'])->default('Available');
             $table->dateTime('date_added')->useCurrent();
 
-
+            $table->softDeletes();
             $table->timestamps();
         });
     }

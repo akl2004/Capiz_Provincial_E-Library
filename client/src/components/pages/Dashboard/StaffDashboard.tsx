@@ -145,7 +145,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   }, []);
 
   const fetchDashboardData = async (isInitial = false) => {
-    // Show skeleton only on first load
     if (isInitial) {
       setLoadingTally(true);
       setLoadingTopPatrons(true);
@@ -223,7 +222,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     } catch (err) {
       console.error(err);
     } finally {
-      // Turn off skeletons only after first load
       if (isInitial) {
         setLoadingTally(false);
         setLoadingTopPatrons(false);

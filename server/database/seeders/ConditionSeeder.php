@@ -8,8 +8,8 @@ use Illuminate\Database\Seeder;
 class ConditionSeeder extends Seeder {
     public function run(): void {
         $condition = [
+            ['name' => 'New'],
             ['name' => 'Fine'],
-            ['name' => 'Very Good'],
             ['name' => 'Damaged'],
         ];
 

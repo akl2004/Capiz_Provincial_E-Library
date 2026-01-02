@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Book;
 use App\Models\BookCopy;
+use App\Models\MaterialType;
 use Illuminate\Database\Seeder;
 
 class BookSeeder extends Seeder
@@ -13,6 +14,9 @@ class BookSeeder extends Seeder
      */
     public function run(): void
     {
+
+        $bookMaterialType = MaterialType::where('name', 'Book')->first();
+
         // Define section → abbreviation mapping
         $sectionMap = [
             'Filipiniana' => 'FIL',
@@ -46,7 +50,7 @@ class BookSeeder extends Seeder
             'place_of_publication' => 'Manila',
             'copyright' => $copyright,
             'number_of_pages' => 250,
-            'book_language' => 'en',
+            'book_language' => 'ENG',
             'person_as_subject' => null,
             'topical_subject' => 'Culture, Filipino Customs',
             'geographical_subject' => 'Philippines',
@@ -58,13 +62,15 @@ class BookSeeder extends Seeder
             'includes_bibliographical_references' => true,
 
             // Identifiers
-            'isbn' => '978-1234567890',
+            'isbn_paperback' => '978-1234567890',
+            'isbn_hardcover' => '978-0987654321',
+            'issn' => null,
 
             // Call number breakdown
             'dewey_decimal' => $dewey,
             'author_number' => $authorNumber,
             'call_number' => $callNumber,
-            'section' => $section, // store full section name
+            'section' => $section,
         ]);
 
         // Define number of copies for this book
@@ -78,7 +84,7 @@ class BookSeeder extends Seeder
         for ($i = 1; $i <= $numCopies; $i++) {
             $copyNumber = $book->copies()->count() + 1;
             $accessionNumber = str_pad($startAccession + $i, 5, '0', STR_PAD_LEFT);
-            $barcode = uniqid("BC");
+            $barcode = "BC" . random_int(1000000000, 9999999999);
 
             $condition = ($i === 1) ? 'Damaged' : 'Fine';
             
@@ -91,12 +97,15 @@ class BookSeeder extends Seeder
                 'status' => 'Available',
 
                 // Copy-specific fields
-                'material_type' => 'Book',
+                'material_type_id' => $bookMaterialType->id,
                 'condition' => $condition,
                 'price' => $price,
                 'cataloging_note' => 'Cataloged by FCU Library, August 28, 2025',
                 'internal_note' => 'Donated by alumni association.',
                 'source' => 'Donation',
+
+                'binding' => ($i === 1) ? 'Hardcover' : 'Paperback',
+                
                 'source_person' => 'Alumni Association',
                 'location_of_book' => 'Main Library Shelf A1',
             ]);

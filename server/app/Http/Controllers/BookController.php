@@ -31,7 +31,7 @@ class BookController extends Controller
             'book_language' => 'nullable|string',
             'person_as_subject' => 'nullable|string',
             'location_of_book' => 'nullable|string',
-            'material_type' => 'nullable|string',
+            'material_type_id' => 'required|exists:material_types,id',
             'cataloging_note' => 'nullable|string',
             'internal_note' => 'nullable|string',
             'includes_index' => 'boolean',
@@ -89,6 +89,8 @@ class BookController extends Controller
         foreach ($frontendCopies as $index => $copyData) {
             $accessionNumber = str_pad($startAccession + ($index + 1), 5, '0', STR_PAD_LEFT);
 
+            $materialTypeId = $request->material_type_id;
+
             $book->copies()->create([
                 'copy_number'      => $copyData['copy_number'], 
                 'barcode'          => $copyData['barcode'],    
@@ -99,7 +101,7 @@ class BookController extends Controller
                 'internal_note'    => $request->internal_note,
                 'source_person'    => $request->source_person,
                 'source'           => $request->source,
-                'material_type'    => $request->material_type,
+                'material_type_id' => $materialTypeId,
             ]);
         }
 
@@ -117,11 +119,9 @@ class BookController extends Controller
         ], 201);
     }
 
-
-    // List all books
-    public function index()
+        public function index()
     {
-        $books = Book::with('copies')->get();
+        $books = Book::with(['copies.materialType'])->get();
 
         $books->each(function($book) {
             $subjectsArray = json_decode($book->topical_subject, true);
@@ -129,15 +129,22 @@ class BookController extends Controller
                 $subjectsArray = [];
             }
             $book->topical_subject = implode(", ", $subjectsArray); 
+
+            $book->copies = $book->copies->map(function($copy) {
+                $copy->material_type = $copy->materialType->name ?? 'N/A';
+                return $copy;
+            });
         });
 
         return response()->json($books);
     }
 
+
+
     // Show book details
     public function show($id)
     {
-        $book = Book::with('copies')->find($id);
+        $book = Book::with(['copies.materialType'])->find($id);
 
         if (!$book) {
             return response()->json(['message' => 'Book not found'], 404);
@@ -152,6 +159,19 @@ class BookController extends Controller
                 ->where('status', 'On Loan')
                 ->latest('issue_date')
                 ->first();
+            
+            $data = [
+                'id' => $copy->id,
+                'copy_number' => $copy->copy_number,
+                'barcode' => $copy->barcode,
+                'accession_number' => $copy->accession_number,
+                'price' => $copy->price,
+                'source' => $copy->source,
+                'source_person' => $copy->source_person,
+                'cataloging_note' => $copy->cataloging_note,
+                'date_added' => $copy->date_added,
+                'material_type' => $copy->materialType ? $copy->materialType->name : 'N/A',
+            ];
 
             if ($circulation) {
                 $dueDate = $circulation->due_date instanceof Carbon
@@ -160,7 +180,7 @@ class BookController extends Controller
                 $now = now();
                 $overdueBy = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
 
-                return [
+                return array_merge($data, [
                     'id' => $copy->id,
                     'copy_number' => $copy->copy_number,
                     'barcode' => $copy->barcode,
@@ -175,15 +195,15 @@ class BookController extends Controller
                     'fine' => $overdueBy * $fineRate,
                     'issue_date' => $circulation->issue_date,
                     'due_date' => $circulation->due_date,
-                ];
+                ]);
             } else {
-                return [
+                return array_merge($data, [
                     'id' => $copy->id,
                     'copy_number' => $copy->copy_number,
                     'barcode' => $copy->barcode,
                     'accession_number' => $copy->accession_number,
                     'status' => 'Available',
-                ];
+                ]);
             }
         });
 
@@ -255,7 +275,7 @@ class BookController extends Controller
         $books->each(function ($book) {
             $subjectsArray = json_decode($book->topical_subject, true) ?? [];
             $book->topical_subject = implode(', ', $subjectsArray);
-            $book->material_type = $book->copies->first()->material_type ?? 'N/A';
+            $book->material_type = $book->copies->first()->materialType->name ?? 'N/A';
         });
 
         return response()->json($books, 200);
@@ -269,7 +289,7 @@ class BookController extends Controller
 
         $request->validate([
             'source' => 'required|string',
-            'material_type' => 'nullable|string',
+            'material_type_id' => 'required|exists:material_types,id',
             'source_person' => 'nullable|string',
             'cataloging_note' => 'nullable|string',
             'internal_note' => 'nullable|string',
@@ -304,8 +324,8 @@ class BookController extends Controller
                 'internal_note' => $request->internal_note,
                 'source_person' => $request->source_person,
                 'source' => $request->source,
-                'material_type' => $request->material_type,
-                'status' => 'available',
+                'material_type_id' => $request->material_type_id,
+                'status' => 'Available',
                 'price' => $request->price,
                 'condition' => $request->condition,
             ]);

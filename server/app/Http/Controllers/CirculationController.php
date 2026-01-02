@@ -21,21 +21,17 @@ class CirculationController extends Controller
         $now = now()->startOfDay();
 
         $records = $records->map(function ($rec) use ($fineRate, $now) {
+            if ($rec->is_paid || in_array($rec->status, ['Returned', 'Returned Late', 'Lost'])) {
+                return $rec;
+            }
             $dueDate = Carbon::parse($rec->due_date)->startOfDay();
-            $isAlreadyPaid = ($rec->fine == 0 && $now->gt($dueDate));
+            
 
-            if (!$isAlreadyPaid && in_array($rec->status, ['On Loan', 'Overdue']) && $now->gt($dueDate)) {
+            if ($now->gt($dueDate)) {
                 $overdueBy = $dueDate->diffInDays($now);
-                
                 $rec->status = 'Overdue';
                 $rec->overdue_by = $overdueBy;
                 $rec->fine = $overdueBy * $fineRate;
-
-                if ($rec->isDirty()) {
-                    $rec->save();
-                }
-            } else {
-                $rec->overdue_by = $rec->overdue_by ?? 0;
             }
 
             return $rec;
@@ -156,12 +152,13 @@ class CirculationController extends Controller
         $loanDays = $policy['loan_days'];
 
         $circulation = null;
-        DB::transaction(function () use ($bookCopy, $patron, $issueDate, $loanDays, &$circulation) {
+        DB::transaction(function () use ($bookCopy, $patron, $issueDate, $loanDays, $user, &$circulation) {
             $dueDate = Carbon::parse($issueDate)->addDays($loanDays);
 
             $circulation = Circulation::create([
                 'book_copy_id' => $bookCopy->id,
                 'patron_id' => $patron->id,
+                'user_id'      => $user->id,
                 'issue_date' => $issueDate,
                 'due_date' => $dueDate,
                 'status' => 'On Loan',
@@ -218,6 +215,7 @@ class CirculationController extends Controller
             'overdue_by'    => $overdueBy,
             'fine'          => $fine,
             'status'        => $finalStatus,
+            'user_id'       => $user->id,
         ]);
 
         $circulation->bookCopy->update(['status' => 'Available']);
@@ -238,7 +236,7 @@ class CirculationController extends Controller
     {
         $request->validate([
             'book_copy_id' => 'required|exists:book_copies,id',
-            'settlement_type' => 'required|in:fine,replacement' // Ensure this is sent from React
+            'settlement_type' => 'required|in:payment,replacement'
         ]);
         
         $user = $request->user();
@@ -248,25 +246,31 @@ class CirculationController extends Controller
             ->whereIn('status', ['On Loan', 'Overdue'])
             ->firstOrFail();
 
-        $replacementCost = ($settlementType === 'fine') 
-            ? (float) ($circulation->bookCopy->price ?? 0) 
-            : 0;
+        $replacementCost = ($settlementType === 'payment') 
+        ? (float) ($circulation->bookCopy->price ?? 0) 
+        : 0;
 
         $processingFee = (float) LibrarySetting::getValue('lost_book_processing_fee', 50);
-        
-        $existingFine = (float) ($circulation->fine ?? 0);
-        $totalFine = $replacementCost + $processingFee + $existingFine;
 
-        DB::transaction(function () use ($circulation, $totalFine, $settlementType) {
-            // Update the circulation record
+        $dueDate = \Carbon\Carbon::parse($circulation->due_date)->startOfDay();
+        $now = now()->startOfDay();
+        $overdueDays = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
+        $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
+        $currentOverdueFine = $overdueDays * $fineRate;
+
+        $totalFine = $replacementCost + $processingFee + $currentOverdueFine;
+
+        DB::transaction(function () use ($circulation, $totalFine, $settlementType, $user) {
             $circulation->update([
                 'status' => 'Lost',
                 'fine' => $totalFine,
                 'overdue_by' => 0, 
-                'lost_resolution' => ($settlementType === 'fine') ? 'Paid' : 'Replaced'
+                'is_paid' => true,
+                'lost_resolution' => ucfirst($settlementType),
+                'user_id' => $user->id,
             ]);
-            $circulation->bookCopy->update(['status' => 'Lost']);
-        });
+        $circulation->bookCopy->update(['status' => 'Lost']);
+    });
 
         // Log the activity
         ActivityLog::create([
@@ -360,29 +364,39 @@ class CirculationController extends Controller
     }
 
     // Get all transactions for a specific patron
-    public function patronTransactions($patronId)
+    public function patronTransactions(Request $request, $patronId)
     {
         $currentFee = (float) LibrarySetting::getValue('lost_book_processing_fee', 50);
 
-        $transactions = Circulation::with(['bookCopy.book'])
+        $transactions = Circulation::with([
+                'bookCopy' => function($query) {
+                    $query->withTrashed()->with('book'); 
+                }, 
+                'user'
+            ])
             ->where('patron_id', $patronId)
             ->get()
             ->map(function ($t) use ($currentFee) {
             $isLost = $t->status === 'Lost';
+
+            $materialPrice = (float) ($t->bookCopy->price ?? 0);
 
                 return [
                     'id'          => $t->id,
                     'book_title'  => $t->bookCopy->book->title ?? 'Unknown',
                     'call_number' => $t->bookCopy->book->call_number ?? 'N/A',
                     'copy_number' => $t->bookCopy->copy_number ?? 'N/A',
+                    'is_withdrawn'=> $t->bookCopy ? $t->bookCopy->trashed() : false,
                     'status'      => $t->status,
                     'date_issued' => $t->issue_date,
                     'due_date'    => $t->due_date,
                     'return_date' => $t->date_returned,
                     'fine'        => $isLost ? 0 : (float) ($t->fine ?? 0),
                     'paid_amount' => $isLost ? (float)$t->fine : 0,
+                    'material_price' => $materialPrice,
                     'processing_fee_used' => $isLost ? $currentFee : 0,
                     'settlement_type' => $t->lost_resolution,
+                    'processed_by' => $t->user->name ?? 'System Admin',
                 ];
             });
 
@@ -549,4 +563,46 @@ class CirculationController extends Controller
     }
 
 
+
+    public function withdraw(Request $request)
+    {
+        // Validate that we received an array of IDs
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:book_copies,id'
+        ]);
+
+        $ids = $request->ids;
+        $withdrawnCount = 0;
+        $errors = [];
+
+        // Fetch the copies with their book titles for the log
+        $copies = BookCopy::with('book')->whereIn('id', $ids)->get();
+
+        foreach ($copies as $copy) {
+            // 1. SECURITY CHECK: Skip if book is currently borrowed
+            if (in_array($copy->status, ['On Loan', 'Overdue'])) {
+                $errors[] = "Accession {$copy->accession_number} is currently active in a transaction.";
+                continue;
+            }
+
+            // 2. Perform Soft Delete
+            $copy->delete();
+            $withdrawnCount++;
+
+            // 3. Log each withdrawal
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'role' => $request->user()->role ?? 'staff',
+                'module' => 'Inventory',
+                'action' => 'Withdrawn',
+                'description' => "Withdrew Copy #{$copy->copy_number} of '{$copy->book->title}' (Accession: {$copy->accession_number})"
+            ]);
+        }
+
+        return response()->json([
+            'message' => "Successfully withdrew $withdrawnCount copies.",
+            'errors' => $errors
+        ], count($errors) > 0 ? 207 : 200); 
+    }
 }

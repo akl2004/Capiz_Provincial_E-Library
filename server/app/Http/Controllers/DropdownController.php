@@ -13,7 +13,7 @@ class DropdownController extends Controller
         return response()->json([
             'sections' => Section::where('is_active', true)->pluck('name'),
             'sources' => Source::where('is_active', true)->pluck('name'),
-            'materialTypes' => MaterialType::where('is_active', true)->pluck('name'),
+            'materialTypes' => MaterialType::where('is_active', true)->get(['id', 'name']),
             'conditions' => Condition::where('is_active', true)->pluck('name'),
         ]);
     }

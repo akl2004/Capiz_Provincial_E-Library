@@ -3,11 +3,16 @@ import { useParams, useNavigate } from "react-router-dom";
 import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
 
+interface MaterialType {
+  id: number;
+  name: string;
+}
+
 interface BookCopy {
   id: number;
   accession_number: string;
   date_added: string;
-  material_type: string;
+  material_type: MaterialType | string;
   source: string;
   price: number;
   source_person: string;
@@ -116,9 +121,7 @@ const CopyInformation: React.FC = () => {
           <tbody>
             <tr>
               <th className="text-left font-semibold">Accession No.</th>
-              <td className="border-l">
-                {copy.accession_number || "-"}
-              </td>
+              <td className="border-l">{copy.accession_number || "-"}</td>
             </tr>
             <tr>
               <th className="text-left font-semibold">Date Acquired</th>
@@ -128,16 +131,20 @@ const CopyInformation: React.FC = () => {
             </tr>
             <tr>
               <th className="text-left font-semibold">Material Type</th>
-              <td className="border-l">{copy.material_type || "-"}</td>
+              <td className="border-l">
+                {typeof copy.material_type === "object"
+                  ? copy.material_type.name
+                  : copy.material_type || "-"}
+              </td>
             </tr>
             <tr>
               <th className="text-left font-semibold">Price</th>
-              <td className="border-l">{copy.price ? `₱${copy.price}` : "-"}</td>
+              <td className="border-l">
+                {copy.price ? `₱${copy.price}` : "-"}
+              </td>
             </tr>
             <tr>
-              <th className="text-left font-semibold">
-                Source of Acquisition
-              </th>
+              <th className="text-left font-semibold">Source of Acquisition</th>
               <td className="border-l">{copy.source || "-"}</td>
             </tr>
             <tr>

@@ -4,17 +4,25 @@ import LoadingSpinner from "../../LoadingSpinner";
 import coverPlaceholder from "/src/assets/cover_placeholder.jpg";
 import * as XLSX from "xlsx";
 
+interface MaterialType {
+  id: number;
+  name: string;
+}
+
 interface BookCopy {
   id: number;
   accession_number: string;
   copy_number: string;
-  material_type: string;
+  material_type_id: number;
+  material_type?: MaterialType;
   barcode: string;
   source: string;
   price: number;
+  condition: string;
   source_person: string;
   cataloging_note: string;
   internal_note: string;
+  status: string;
 }
 
 interface Book {
@@ -32,6 +40,7 @@ interface Book {
 }
 
 interface FlattenedCopy {
+  id: number;
   bookId: number;
   accession_number: string;
   copy_number: string;
@@ -43,9 +52,11 @@ interface FlattenedCopy {
   cover_image?: string | null;
   material_type?: string;
   barcode?: string;
+  condition?: string;
   source_person?: string;
   cataloging_note?: string;
   internal_note?: string;
+  status: string;
 }
 
 const Accession = () => {
@@ -70,6 +81,8 @@ const Accession = () => {
   const [selectedCopy, setSelectedCopy] = useState<FlattenedCopy | null>(null);
   const sliderRef = useRef<HTMLDivElement | null>(null);
 
+  const [selectedAccessions, setSelectedAccessions] = useState<string[]>([]);
+
   // Dropdown states
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -81,8 +94,8 @@ const Accession = () => {
 
   // Date Filter
   const [filterYear, setFilterYear] = useState<number | null>(null);
-  const [filterMonth, setFilterMonth] = useState<number | null>(null); // 0-11
-  const [filterWeek, setFilterWeek] = useState<number | null>(null); // 1-5
+  const [filterMonth, setFilterMonth] = useState<number | null>(null);
+  const [filterWeek, setFilterWeek] = useState<number | null>(null);
   const [showDateOptions, setShowDateOptions] = useState(false);
 
   // Fetch books
@@ -107,6 +120,7 @@ const Accession = () => {
   // Flatten copies
   const flattenedCopies: FlattenedCopy[] = books.flatMap((book) =>
     book.copies.map((copy) => ({
+      id: copy.id,
       bookId: book.id,
       accession_number: copy.accession_number,
       copy_number: copy.copy_number,
@@ -118,11 +132,13 @@ const Accession = () => {
       cover_image: book.cover_image
         ? `http://localhost:8000/storage/${book.cover_image}`
         : null,
-      material_type: copy.material_type,
+      material_type: copy.material_type?.name || "N/A",
       barcode: copy.barcode,
+      condition: copy.condition,
       source_person: copy.source_person,
       cataloging_note: copy.cataloging_note,
       internal_note: copy.internal_note,
+      status: copy.status || "Available",
     }))
   );
 
@@ -188,6 +204,47 @@ const Accession = () => {
   const indexOfFirstCopy = indexOfLastCopy - copiesPerPage;
   const currentCopies = sortedCopies.slice(indexOfFirstCopy, indexOfLastCopy);
 
+  const handleWithdraw = async () => {
+    const idsToWithdraw = currentCopies
+      .filter((copy) => selectedAccessions.includes(copy.accession_number))
+      .map((copy) => copy.id);
+
+    if (window.confirm(`Withdraw ${idsToWithdraw.length} copies?`)) {
+      try {
+        setLoading(true);
+        // Change to POST to allow sending a body with the array of IDs
+        await AxiosInstance.post("/circulations/book-copies/withdraw-bulk", {
+          ids: idsToWithdraw,
+        });
+
+        // Update local state so the books disappear from the UI
+        setBooks((prev) =>
+          prev.map((book) => ({
+            ...book,
+            copies: book.copies.filter((c) => !idsToWithdraw.includes(c.id)),
+          }))
+        );
+
+        setSelectedAccessions([]);
+        alert("Successfully withdrawn.");
+      } catch (error) {
+        console.error(error);
+        alert("Withdrawal failed.");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Toggle single selection
+  const toggleSelect = (accession: string) => {
+    setSelectedAccessions((prev) =>
+      prev.includes(accession)
+        ? prev.filter((a) => a !== accession)
+        : [...prev, accession]
+    );
+  };
+
   // Close menus on outside click
   useEffect(() => {
     document.title = "Accession";
@@ -196,8 +253,6 @@ const Accession = () => {
       if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
         setSortMenuOpen(false);
       }
-
-      // Close filter menu if clicked outside
       if (
         filterRef.current &&
         !filterRef.current.contains(event.target as Node)
@@ -205,7 +260,6 @@ const Accession = () => {
         setFilterMenuOpen(false);
       }
 
-      // Close slider panel if clicked outside
       if (
         sliderRef.current &&
         !sliderRef.current.contains(event.target as Node)
@@ -274,24 +328,70 @@ const Accession = () => {
   };
 
   return (
-    <div className="copies-info mt-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h1 className="text-xl font-semibold mb-0">Accession Record</h1>
-          <p className="mb-0">
-            {" "}
-            <i>
-              Unique identification details for each library item from
-              acquisition to shelving.
-            </i>
-          </p>
+    <>
+      {/* Tally Summary Cards */}
+      <div className="row mb-4">
+        <div className="col-md-3">
+          <div className="card shadow-sm border-0 p-3 bg-light">
+            <div className="d-flex align-items-center">
+              <div className="rounded-circle bg-primary text-white p-3 me-3">
+                <i className="bi bi-bookshelf"></i>
+              </div>
+              <div>
+                <h6 className="text-muted mb-0">Total Copies</h6>
+                <h4 className="fw-bold mb-0">{filteredCopies.length}</h4>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card shadow-sm border-0 p-3 bg-light">
+            <div className="d-flex align-items-center">
+              <div className="rounded-circle bg-success text-white p-3 me-3">
+                <i className="bi bi-check-circle"></i>
+              </div>
+              <div>
+                <h6 className="text-muted mb-0">Available</h6>
+                <h4 className="fw-bold mb-0">
+                  {
+                    filteredCopies.filter((c) => c.status === "Available")
+                      .length
+                  }
+                </h4>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="copies-info mt-4">
+        {/* Header */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h1 className="text-xl font-semibold mb-0">Accession Record</h1>
+            <p className="mb-0">
+              {" "}
+              <i>
+                Unique identification details for each library item from
+                acquisition to shelving.
+              </i>
+            </p>
+          </div>
+
+          {selectedAccessions.length > 0 && (
+            <button
+              className="btn btn-danger d-flex align-items-center"
+              onClick={handleWithdraw}
+            >
+              <i className="bi bi-trash me-2"></i>
+              Withdraw Selected ({selectedAccessions.length})
+            </button>
+          )}
         </div>
 
         {/* Controls */}
-        <div className="d-flex gap-2 align-items-center">
+        <div className="d-flex gap-2 align-items-center w-100">
           {/* Search */}
-          <div className="position-relative" style={{ maxWidth: "300px" }}>
+          <div className="position-relative flex-grow-1">
             <span
               className="position-absolute top-50 translate-middle-y ps-2"
               style={{ left: "10px", color: "#6c757d" }}
@@ -566,139 +666,170 @@ const Accession = () => {
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Table + Pagination */}
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <>
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>Accession No.</th>
-                <th>Title</th>
-                <th>Section</th>
-                <th>Copy No.</th>
-                <th>Date Added</th>
-                <th>Source Acquisition</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentCopies.length === 0 ? (
+        {/* Table + Pagination */}
+        {loading ? (
+          <LoadingSpinner />
+        ) : (
+          <>
+            <table className="custom-table mt-3">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="text-center">
-                    No accession records found.
-                  </td>
+                  <th style={{ width: "40px" }}>
+                    <input
+                      type="checkbox"
+                      onChange={(e) => {
+                        if (e.target.checked)
+                          setSelectedAccessions(
+                            currentCopies.map((c) => c.accession_number)
+                          );
+                        else setSelectedAccessions([]);
+                      }}
+                      checked={
+                        selectedAccessions.length === currentCopies.length &&
+                        currentCopies.length > 0
+                      }
+                    />
+                  </th>
+                  <th>Accession No.</th>
+                  <th>Title</th>
+                  <th>Section</th>
+                  <th>Copy No.</th>
+                  <th>Date Added</th>
+                  <th>Source Acquisition</th>
                 </tr>
-              ) : (
-                currentCopies.map((copy) => (
-                  <tr
-                    key={`${copy.accession_number}-${copy.copy_number}`}
-                    onClick={() => setSelectedCopy(copy)}
-                    style={{ cursor: "pointer" }}
-                  >
-                    <td>{copy.accession_number}</td>
-                    <td>{copy.title}</td>
-                    <td>{copy.section}</td>
-                    <td>{copy.copy_number}</td>
-                    <td>{new Date(copy.created_at).toLocaleDateString()}</td>
-                    <td>{copy.source}</td>
+              </thead>
+              <tbody>
+                {currentCopies.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center">
+                      No accession records found.
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  currentCopies.map((copy) => (
+                    <tr
+                      onClick={() => setSelectedCopy(copy)}
+                      style={{ cursor: "pointer" }}
+                      className={
+                        selectedAccessions.includes(copy.accession_number)
+                          ? "table-active"
+                          : ""
+                      }
+                    >
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedAccessions.includes(
+                            copy.accession_number
+                          )}
+                          onChange={() => toggleSelect(copy.accession_number)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                      <td>{copy.accession_number}</td>
+                      <td>{copy.title}</td>
+                      <td>{copy.section}</td>
+                      <td>{copy.copy_number}</td>
+                      <td>{new Date(copy.created_at).toLocaleDateString()}</td>
+                      <td>{copy.source}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
 
-          <div className="pagination-info text-center mb-2 mt-3">
-            Showing {indexOfFirstCopy + 1} -{" "}
-            {Math.min(indexOfLastCopy, sortedCopies.length)} of{" "}
-            {sortedCopies.length} copies
-          </div>
-
-          {totalPages > 1 && (
-            <div className="pagination mt-1">
-              <button
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => p - 1)}
-              >
-                <i className="bi bi-chevron-double-left"></i> Prev
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i}
-                  className={currentPage === i + 1 ? "active" : ""}
-                  onClick={() => setCurrentPage(i + 1)}
-                >
-                  {i + 1}
-                </button>
-              ))}
-              <button
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-              >
-                Next <i className="bi bi-chevron-double-right"></i>
-              </button>
+            <div className="pagination-info text-center mb-2 mt-3">
+              Showing {indexOfFirstCopy + 1} -{" "}
+              {Math.min(indexOfLastCopy, sortedCopies.length)} of{" "}
+              {sortedCopies.length} copies
             </div>
-          )}
-        </>
-      )}
 
-      {/* Slider Panel */}
-      {selectedCopy && (
-        <div className="slider-panel" ref={sliderRef}>
-          <button className="close-btn" onClick={() => setSelectedCopy(null)}>
-            &times;
-          </button>
-          <div className="slider-image-title">
-            <img
-              src={
-                selectedCopy.cover_image
-                  ? selectedCopy.cover_image
-                  : coverPlaceholder
-              }
-              alt={selectedCopy.title}
-              className="img-fluid"
-              style={{
-                maxHeight: "200px",
-                objectFit: "contain",
-                width: "80%",
-              }}
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = coverPlaceholder;
-              }}
-            />
-
-            <h5>{selectedCopy.title}</h5>
-          </div>
-          <div className="slider-details mt-4">
-            {[
-              ["Accession No", selectedCopy.accession_number],
-              ["Section", selectedCopy.section],
-              ["Copy No", selectedCopy.copy_number],
-              ["Material Type", selectedCopy.material_type || "-"],
-              ["Barcode", selectedCopy.barcode],
-              [
-                "Date Acquired",
-                selectedCopy.created_at
-                  ? new Date(selectedCopy.created_at).toLocaleDateString()
-                  : "-",
-              ],
-              ["Price", selectedCopy.price ? `₱${selectedCopy.price}` : "-"],
-              ["Source of Acquisition", selectedCopy.source || "-"],
-              ["Funding Source", selectedCopy.source_person || "-"],
-              ["Cataloging Note", selectedCopy.cataloging_note || "-"],
-              ["Internal Notes", selectedCopy.internal_note || "-"],
-            ].map(([label, value]) => (
-              <div className="detail-row" key={label}>
-                <span className="detail-label">{label}:</span>
-                <span className="detail-value">{value}</span>
+            {totalPages > 1 && (
+              <div className="pagination mt-1">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  <i className="bi bi-chevron-double-left"></i> Prev
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    className={currentPage === i + 1 ? "active" : ""}
+                    onClick={() => setCurrentPage(i + 1)}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  Next <i className="bi bi-chevron-double-right"></i>
+                </button>
               </div>
-            ))}
+            )}
+          </>
+        )}
+
+        {/* Slider Panel */}
+        {selectedCopy && (
+          <div className="slider-panel" ref={sliderRef}>
+            <button className="close-btn" onClick={() => setSelectedCopy(null)}>
+              &times;
+            </button>
+            <div className="slider-image-title">
+              <img
+                src={
+                  selectedCopy.cover_image
+                    ? selectedCopy.cover_image
+                    : coverPlaceholder
+                }
+                alt={selectedCopy.title}
+                className="img-fluid"
+                style={{
+                  maxHeight: "200px",
+                  objectFit: "contain",
+                  width: "80%",
+                }}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = coverPlaceholder;
+                }}
+              />
+
+              <h5>{selectedCopy.title}</h5>
+            </div>
+            <div className="slider-details mt-4">
+              {[
+                ["Accession No", selectedCopy.accession_number],
+                ["Section", selectedCopy.section],
+                ["Copy No", selectedCopy.copy_number],
+                ["Material Type", selectedCopy.material_type || "-"],
+                ["Condition", selectedCopy.condition],
+                ["Barcode", selectedCopy.barcode],
+                [
+                  "Date Acquired",
+                  selectedCopy.created_at
+                    ? new Date(selectedCopy.created_at).toLocaleDateString()
+                    : "-",
+                ],
+                ["Price", selectedCopy.price ? `₱${selectedCopy.price}` : "-"],
+                ["Source of Acquisition", selectedCopy.source || "-"],
+                ["Funding Source", selectedCopy.source_person || "-"],
+                ["Cataloging Note", selectedCopy.cataloging_note || "-"],
+                ["Internal Notes", selectedCopy.internal_note || "-"],
+              ].map(([label, value]) => (
+                <div className="detail-row" key={label}>
+                  <span className="detail-label">{label}:</span>
+                  <span className="detail-value">{value}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 

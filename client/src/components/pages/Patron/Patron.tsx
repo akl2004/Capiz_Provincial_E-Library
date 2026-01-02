@@ -347,7 +347,7 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
             <div className="inline-row inline-grow">
               <label className="inline-label">Email</label>
               <input
-                type="email"
+                type="text"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter email"
