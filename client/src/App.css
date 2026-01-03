@@ -571,6 +571,74 @@
 
 
 
+/* Tally Card Container */
+.accession-tally-card {
+  flex: 1;
+  background: white;
+  border: 3px solid #5fc3c3; 
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  min-width: 200px;
+}
+
+/* The Teal Gradient Header */
+.accession-tally-header {
+  background: linear-gradient(to bottom, #74ebd5, #5fc3c3);
+  padding: 8px 10px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 1px;
+  border-bottom: 2px solid #5fc3c3;
+  color: #000;
+  text-transform: uppercase;
+}
+
+/* The Body with Icon and Value */
+.accession-tally-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Pushes icon left, number right */
+  padding: 15px 20px;
+  background-color: #fff;
+}
+
+/* Sizing for your imported PNG icons */
+.accession-tally-icon-img {
+  width: 45px;
+  height: 45px;
+  object-fit: contain;
+}
+
+/* Large bold numbers */
+.accession-tally-value {
+  font-size: 3rem;
+  font-weight: 900;
+  color: #000;
+  line-height: 1;
+}
+
+/* Optional: Hover effect */
+.accession-tally-card:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+
+/* The base style for your labels */
+.binding-label {
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 8px;
+    text-align: center;
+    border-radius: 4px;
+    transition: all 0.2s ease-in-out;
+    color: #c05b42; 
+}
+
+
+
 /* Parent container to hold H2 and the Bar side-by-side */
 .copies-header-container {
   display: flex;
@@ -808,7 +876,11 @@
 }
 
 .custom-table tr.table-active {
-  background-color: #526a9a !important;
+  background-color: #e1e1e1 !important;
+}
+
+.accession-checkbox {
+  accent-color: #c05b42;
 }
 
 /* optional: small first column width */
@@ -1340,8 +1412,50 @@ button.back-btn:hover {
 
 .book-checkbox {
   accent-color: #C05B42;
+  height: 20px;
+  width: 20px;
+  margin-right: 10px;
 }
 
+
+.switch-mode-btn {
+    background-color: #ffffff;
+    border: 1px solid #d1d5db;
+    color: #4b5563;
+    padding: 6px 12px;
+    border-radius: 6px;
+    height: 38px;
+    align-self: flex-start;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.switch-mode-btn.compact {
+    padding: 4px 10px;
+    height: 30px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1px;
+    background-color: #f1f3f5;
+}
+
+.switch-mode-btn:hover {
+    background-color: #f9fafb;
+    border-color: #dc684b;
+    color: #dc684b;
+}
+
+.switch-mode-btn:active {
+    background-color: #f3f4f6;
+    transform: translateY(1px);
+}
 
 
 /* Container positioning */

@@ -28,6 +28,9 @@ interface Book {
   other_author_editor?: string;
   edition?: string;
   series_name?: string;
+  isbn_paperback: string;
+  isbn_hardcover: string;
+  issn: string;
   volume?: string;
   cover_image?: string;
   topical_subject?: string[] | string;
@@ -61,6 +64,12 @@ const BookDetails: React.FC = () => {
 
   const navigate = useNavigate();
 
+  const [isbnPaperback, setIsbnPaperback] = useState("");
+  const [isbnHardcover, setIsbnHardcover] = useState("");
+  const [issn, setIssn] = useState("");
+
+  const [selectedBinding, setSelectedBinding] = useState<string>("Paperback");
+
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [newlyAddedCopies, setNewlyAddedCopies] = useState<BookCopy[]>([]);
 
@@ -70,7 +79,7 @@ const BookDetails: React.FC = () => {
     type: "success" as "success" | "error",
   });
 
-  const [copies, setCopies] = useState(1); 
+  const [copies, setCopies] = useState(1);
 
   const generateBarcode = () => {
     const randomNumbers = Math.floor(1000000000 + Math.random() * 9000000000);
@@ -79,7 +88,7 @@ const BookDetails: React.FC = () => {
 
   const handlePrintAllExistingBarcodes = () => {
     if (book && book.copies.length > 0) {
-      setNewlyAddedCopies(book.copies); 
+      setNewlyAddedCopies(book.copies);
       setShowBarcodeModal(true);
     } else {
       setMessageModal({
@@ -133,7 +142,7 @@ const BookDetails: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (showModal) {
+    if (showModal && book) {
       AxiosInstance.get("/dropdown-options")
         .then((res) => {
           const mTypes = res.data.materialTypes || [];
@@ -141,14 +150,16 @@ const BookDetails: React.FC = () => {
           setSources(res.data.sources || []);
           setCondition(res.data.conditions || []);
 
+          setIsbnPaperback(book.isbn_paperback || "");
+          setIsbnHardcover(book.isbn_hardcover || "");
+          setIssn(book.issn || "");
+
           if (book && book.copies && book.copies.length > 0) {
             const firstCopy = book.copies[0];
 
             // Set Price
             setPrice(parseFloat(firstCopy.price?.toString() || "0"));
 
-            // Set Material Type ID
-            // Check if material_type is an object with an id or just an id
             const mTypeId =
               typeof firstCopy.material_type === "object"
                 ? firstCopy.material_type.id
@@ -156,7 +167,6 @@ const BookDetails: React.FC = () => {
 
             setSelectedMaterialTypeId(mTypeId || mTypes[0]?.id || "");
           } else if (mTypes.length > 0) {
-            // If no copies exist, default to the first available type
             setSelectedMaterialTypeId(mTypes[0].id);
           }
         })
@@ -255,13 +265,19 @@ const BookDetails: React.FC = () => {
           </p>
           <p className="subjects mb-4">
             <strong>Subjects:</strong>
-            <span>
+            <div className="d-flex flex-wrap gap-2">
               {topicalSubjects.length > 0
                 ? topicalSubjects.map((subject, idx) => (
-                    <span key={idx}>{subject}</span>
+                    <span
+                      key={idx}
+                      className="badge bg-secondary-subtle text-secondary border px-2 py-1"
+                      style={{ fontWeight: "500" }}
+                    >
+                      {subject}
+                    </span>
                   ))
                 : "N/A"}
-            </span>
+            </div>
           </p>
 
           <p>
@@ -317,37 +333,69 @@ const BookDetails: React.FC = () => {
                 <th>Accession Number</th>
                 <th>Status</th>
                 <th>Book Condition</th>
+                <th>Circulation Restriction</th>
                 <th>Notes</th>
               </tr>
             </thead>
             <tbody>
-              {book.copies.map((copy) => (
-                <tr
-                  key={copy.id}
-                  onClick={() =>
-                    navigate(
-                      `${
-                        localStorage.getItem("role")?.toLowerCase() === "staff"
-                          ? `/staff/cataloging/${book.id}/${copy.id}`
-                          : `/admin/cataloging/${book.id}/${copy.id}`
-                      }`
-                    )
+              {book.copies.map((copy) => {
+                const getRestriction = () => {
+                  const status = copy.status?.toLowerCase();
+                  const condition = copy.condition?.toLowerCase();
+
+                  if (status === "lost") return "-";
+
+                  if (condition === "damaged" || condition === "poor")
+                    return "Library-use-only";
+
+                  if (
+                    (condition === "new" || condition === "fine") &&
+                    (status === "available" || status === "on loan")
+                  ) {
+                    return "Circulating";
                   }
-                  className="book-row"
-                  style={{ cursor: "pointer" }}
-                >
-                  <td>{copy.copy_number}</td>
-                  <td>{copy.barcode}</td>
-                  <td>{copy.accession_number || "N/A"}</td>
-                  <td>
-                    {copy.status?.toLowerCase() === "on loan"
-                      ? "On Loan"
-                      : "Available"}
-                  </td>
-                  <td>{copy.condition || "N/A"}</td>
-                  <td>{copy.internal_note || "N/A"}</td>
-                </tr>
-              ))}
+                  return "Circulating";
+                };
+
+                const restrictionLabel = getRestriction();
+
+                let badgeClass = "text-secondary";
+                if (restrictionLabel === "Circulating")
+                  badgeClass = "bg-success-subtle text-success";
+                if (restrictionLabel === "Library-use-only")
+                  badgeClass = "bg-danger-subtle text-danger";
+
+                return (
+                  <tr
+                    key={copy.id}
+                    onClick={() =>
+                      navigate(
+                        `${
+                          localStorage.getItem("role")?.toLowerCase() ===
+                          "staff"
+                            ? `/staff/cataloging/${book.id}/${copy.id}`
+                            : `/admin/cataloging/${book.id}/${copy.id}`
+                        }`
+                      )
+                    }
+                    className="book-row"
+                    style={{ cursor: "pointer" }}
+                  >
+                    <td>{copy.copy_number}</td>
+                    <td>{copy.barcode}</td>
+                    <td>{copy.accession_number || "N/A"}</td>
+                    <td>{copy.status}</td>
+                    <td>{copy.condition || "N/A"}</td>
+                    <td>
+                      <span className={`badge ${badgeClass}`}>
+                        {restrictionLabel}
+                      </span>
+                    </td>
+
+                    <td>{copy.internal_note || "N/A"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (
@@ -381,6 +429,10 @@ const BookDetails: React.FC = () => {
                       {
                         source: formData.get("source"),
                         material_type_id: formData.get("material_type_id"),
+                        isbn_paperback: isbnPaperback,
+                        isbn_hardcover: isbnHardcover,
+                        issn: issn,
+                        binding: selectedBinding,
                         source_person: formData.get("source_person"),
                         condition: formData.get("condition"),
                         cataloging_note: formData.get("cataloging_note"),
@@ -420,6 +472,79 @@ const BookDetails: React.FC = () => {
                 }}
               >
                 <fieldset className="p-3">
+                  {/* Row: Conditional ISBN or ISSN */}
+                  <div className="accession-grid-row">
+                    {selectedMaterialTypeId != 2 ? (
+                      <div className="accession-field mb-0">
+                        <label>
+                          ISBN <span className="catalog_number">(020)</span>
+                        </label>
+                        <div className="d-flex gap-5">
+                          {/* Paperback Input */}
+                          {/* Paperback Column */}
+                          <div className="flex-col flex-grow">
+                            <input
+                              type="text"
+                              className="form-control mb-0"
+                              value={isbnPaperback} 
+                              onChange={(e) => setIsbnPaperback(e.target.value)}
+                              onFocus={() => setSelectedBinding("Paperback")} 
+                              placeholder="Paperback ISBN"
+                            />
+                            <span
+                              className={`binding-label mt-0 ${
+                                selectedBinding === "Paperback"
+                                  ? "fw-bold"
+                                  : "text-muted"
+                              }`}
+                            >
+                              <i>
+                                Paperback{" "}
+                                {selectedBinding === "Paperback" && "✓"}
+                              </i>
+                            </span>
+                          </div>
+
+                          {/* Hardcover Column */}
+                          <div className="flex-col flex-grow">
+                            <input
+                              type="text"
+                              className="form-control mb-0"
+                              value={isbnHardcover} 
+                              onChange={(e) => setIsbnHardcover(e.target.value)}
+                              onFocus={() => setSelectedBinding("Hardcover")}
+                              placeholder="Hardcover ISBN"
+                            />
+                            <span
+                              className={`binding-label mt-0 ${
+                                selectedBinding === "Hardcover"
+                                  ? "fw-bold"
+                                  : "text-muted"
+                              }`}
+                            >
+                              <i>
+                                Hardcover{" "}
+                                {selectedBinding === "Hardcover" && "✓"}
+                              </i>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="accession-field">
+                        <label>
+                          ISSN <span className="catalog_number">(022)</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-control mb-0"
+                          value={issn}
+                          onChange={(e) => setIssn(e.target.value)}
+                          onFocus={() => setSelectedBinding("Serial")}
+                        />
+                      </div>
+                    )}
+                  </div>
                   {/* Row 1 */}
                   <div className="accession-grid-row">
                     <div className="accession-field">
@@ -427,39 +552,36 @@ const BookDetails: React.FC = () => {
                         Material Type{" "}
                         <span className="catalog_number">(245)</span>
                       </label>
-                      <select
-                        name="material_type_id"
+                      <input
+                        type="text"
                         className="form-control"
-                        value={selectedMaterialTypeId} // Controlled value
-                        onChange={(e) =>
-                          setSelectedMaterialTypeId(e.target.value)
-                        } // Update state on change
-                      >
-                        <option value="" disabled>
-                          Select Material Type
-                        </option>
-                        {materialTypes.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name}
-                          </option>
-                        ))}
-                      </select>
+                        value={
+                          materialTypes.find(
+                            (m) => m.id === selectedMaterialTypeId
+                          )?.name || "Loading..."
+                        }
+                        readOnly
+                        disabled
+                      />
+                      <input
+                        type="hidden"
+                        name="material_type_id"
+                        value={selectedMaterialTypeId}
+                      />
                     </div>
                     <div className="accession-field">
                       <label>
-                        Source <span className="catalog_number">(245)</span>
+                        Price <span className="catalog_number">(020)</span>
                       </label>
-                      <select
-                        name="source"
+                      <input
+                        type="text"
                         className="form-control"
-                        defaultValue={sources[0]}
-                      >
-                        {sources.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
+                        placeholder="0.00"
+                        value={price ? `₱${Number(price).toFixed(2)}` : "-"}
+                        readOnly
+                        disabled
+                      />
+                      <input type="hidden" name="price" value={price} />
                     </div>
                   </div>
 
@@ -483,19 +605,19 @@ const BookDetails: React.FC = () => {
                     </div>
                     <div className="accession-field">
                       <label>
-                        Price <span className="catalog_number">(020)</span>
+                        Source <span className="catalog_number">(245)</span>
                       </label>
-                      <input
-                        type="number" // Change to number for better handling
-                        step="0.01" // Allow decimals
-                        name="price"
+                      <select
+                        name="source"
                         className="form-control"
-                        placeholder="0.00"
-                        value={price} // Controlled component
-                        onChange={(e) =>
-                          setPrice(parseFloat(e.target.value) || 0)
-                        }
-                      />
+                        defaultValue={sources[0]}
+                      >
+                        {sources.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
@@ -558,14 +680,7 @@ const BookDetails: React.FC = () => {
                   </div>
                 </fieldset>
 
-                <div
-                  className="form-actions mt-4"
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: "10px",
-                  }}
-                >
+                <div className="form-actions">
                   <button
                     type="button"
                     className="cancel-btn"

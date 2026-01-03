@@ -17,6 +17,7 @@ interface Copy {
   source_person: string;
   source: string;
   condition: string;
+  binding: string;
   price: string | number;
   material_type: string;
 }
@@ -29,11 +30,16 @@ const BookForm: React.FC = () => {
   const [modalType, setModalType] = useState<"success" | "error">("success");
   const [showModal, setShowModal] = useState(false);
 
+  // Toggle state
+  const [identifierMode, setIdentifierMode] = useState<"ISBN" | "ISSN">("ISBN");
+
   const [personSubject, setPersonSubject] = useState("");
   const [geographicalSubject, setGeographicalSubject] = useState("");
   const [author, setAuthor] = useState("");
   const [editor, setEditor] = useState("");
-  const [isbn, setIsbn] = useState("");
+  const [isbnPaperback, setIsbnPaperback] = useState("");
+  const [isbnHardcover, setIsbnHardcover] = useState("");
+  const [issn, setIssn] = useState("");
   const [deweyDecimal, setDeweyDecimal] = useState("");
   const [authorNumber, setAuthorNumber] = useState("");
   const [title, setTitle] = useState("");
@@ -133,6 +139,7 @@ const BookForm: React.FC = () => {
       source_person: "",
       source: "",
       material_type: "",
+      binding: "Paperback",
     }));
     setBookCopies(generatedCopies);
   }, [copies, defaultCondition, defaultPrice]);
@@ -152,6 +159,16 @@ const BookForm: React.FC = () => {
       formData.append("topical_subject[]", subject);
     });
 
+    if (identifierMode === "ISBN") {
+      formData.append("isbn_paperback", isbnPaperback);
+      formData.append("isbn_hardcover", isbnHardcover);
+      formData.append("issn", "");
+    } else {
+      formData.append("issn", issn);
+      formData.append("isbn_paperback", "");
+      formData.append("isbn_hardcover", "");
+    }
+
     formData.append("geographical_subject", geographicalSubject);
     formData.append("author", author);
     formData.append("editor", editor);
@@ -159,7 +176,6 @@ const BookForm: React.FC = () => {
       "other_author_editor",
       otherAuthorsEditors.filter((oae) => oae.trim() !== "").join(", ")
     );
-    formData.append("isbn", isbn);
     formData.append("dewey_decimal", deweyDecimal);
     formData.append("author_number", authorNumber);
     formData.append("title", title);
@@ -196,6 +212,12 @@ const BookForm: React.FC = () => {
       );
       formData.append(`copies_data[${i}][barcode]`, c.barcode);
       formData.append(`copies_data[${i}][condition]`, c.condition);
+
+      let determinedBinding = "Paperback";
+      if (isbnHardcover.trim() !== "" && isbnPaperback.trim() === "") {
+        determinedBinding = "Hardcover";
+      }
+      formData.append(`copies_data[${i}][binding]`, determinedBinding);
 
       const priceToSubmit = c.price || defaultPrice || "0.00";
       formData.append(`copies_data[${i}][price]`, priceToSubmit.toString());
@@ -241,14 +263,86 @@ const BookForm: React.FC = () => {
             <div className="flex-row" style={{ gap: "40px" }}>
               {/* Left Column: existing input fields */}
               <div className="flex-col" style={{ flex: 1, gap: "10px" }}>
-                <div className="flex-row">
-                  <label>ISBN</label>
-                  <span className="catalog_number">(020)</span>
-                  <input
-                    type="text"
-                    value={isbn}
-                    onChange={(e) => setIsbn(e.target.value)}
-                  />
+                <div
+                  className="flex-row"
+                  style={{ alignItems: "flex-start", gap: "15px" }}
+                >
+                  {/* Left Label & MARC Code */}
+                  <div
+                    className="flex-row"
+                    style={{ width: "160px", flexShrink: 0 }}
+                  >
+                    <label style={{ fontWeight: "bold" }}>
+                      {identifierMode}
+                    </label>
+                    <span
+                      className="catalog_number"
+                      style={{ marginLeft: "10px" }}
+                    >
+                      {identifierMode === "ISBN" ? "(020)" : "(022)"}
+                    </span>
+                  </div>
+
+                  {/* Center: Input Fields */}
+                  <div className="flex-row flex-grow" style={{ gap: "10px" }}>
+                    {identifierMode === "ISBN" ? (
+                      <>
+                        <div className="flex-col flex-grow">
+                          <input
+                            type="text"
+                            value={isbnPaperback}
+                            onChange={(e) => setIsbnPaperback(e.target.value)}
+                          />
+                          <span className="sub-label">
+                            <i>Paperback</i>
+                          </span>
+                        </div>
+                        <div className="flex-col flex-grow">
+                          <input
+                            type="text"
+                            value={isbnHardcover}
+                            onChange={(e) => setIsbnHardcover(e.target.value)}
+                          />
+                          <span className="sub-label">
+                            <i>Hardcover</i>
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-col flex-grow">
+                        <input
+                          type="text"
+                          placeholder="Enter ISSN"
+                          value={issn}
+                          onChange={(e) => setIssn(e.target.value)}
+                        />
+                        <span className="sub-label">
+                          <i>International Standard Serial Number</i>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: The Professional Toggle Button */}
+                  <div
+                    className="flex-col"
+                    style={{ justifyContent: "center", height: "38px" }}
+                  >
+                    <button
+                      type="button"
+                      className="switch-mode-btn compact"
+                      onClick={() =>
+                        setIdentifierMode(
+                          identifierMode === "ISBN" ? "ISSN" : "ISBN"
+                        )
+                      }
+                      title={`Switch to ${
+                        identifierMode === "ISBN" ? "ISSN" : "ISBN"
+                      }`}
+                    >
+                      ⇄ Switch to {identifierMode === "ISBN" ? "ISSN" : "ISBN"}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex-row">
                   <label>Dewey Decimal</label>
@@ -329,17 +423,6 @@ const BookForm: React.FC = () => {
                 />
               </div>
 
-              <div className="flex-row">
-                <label>Edition</label>
-                <span className="catalog_number">(250)</span>
-                <input
-                  type="text"
-                  className="small"
-                  value={edition}
-                  onChange={(e) => setEdition(e.target.value)}
-                />
-              </div>
-
               {/* Publication Row */}
               <div className="flex-row">
                 <label>Publication</label>
@@ -382,10 +465,17 @@ const BookForm: React.FC = () => {
             <div className="flex-row" style={{ gap: "40px" }}>
               {/* Left Column */}
               <div className="flex-col flex-grow" style={{ gap: "10px" }}>
-                <div
-                  className="flex-row"
-                  style={{ gap: "10px", marginTop: "10px" }}
-                >
+                <div className="flex-row">
+                  <label>Edition</label>
+                  <span className="catalog_number">(250)</span>
+                  <input
+                    type="text"
+                    className="small"
+                    value={edition}
+                    onChange={(e) => setEdition(e.target.value)}
+                  />
+                </div>
+                <div className="flex-row">
                   <label>Series</label> {/* single main label for the row */}
                   <span className="catalog_number">(400)</span>
                   <div className="flex-col flex-grow">
@@ -411,7 +501,7 @@ const BookForm: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex-row">
+                {/* <div className="flex-row">
                   <label>Language Code</label>
                   <span className="catalog_number">(041)</span>
                   <input
@@ -419,7 +509,7 @@ const BookForm: React.FC = () => {
                     value={languageCode}
                     onChange={(e) => setLanguageCode(e.target.value)}
                   />
-                </div>
+                </div> */}
 
                 <div className="flex-row">
                   <label>Number of Pages</label>
@@ -796,10 +886,6 @@ const BookForm: React.FC = () => {
         </fieldset>
 
         <div className="form-actions">
-          <button type="submit" className="submit-btn">
-            {loading && <span className="spinner-tiny"></span>}
-            {loading ? "Saving..." : "Save Book"}
-          </button>
           <button
             type="button"
             className="cancel-btn"
@@ -813,6 +899,10 @@ const BookForm: React.FC = () => {
             }}
           >
             Cancel
+          </button>
+          <button type="submit" className="submit-btn">
+            {loading && <span className="spinner-tiny"></span>}
+            {loading ? "Saving..." : "Save Book"}
           </button>
         </div>
       </form>
@@ -861,9 +951,6 @@ const BookForm: React.FC = () => {
             </div>
 
             <div className="form-actions no-print">
-              <button onClick={() => window.print()} className="submit-btn">
-                Print All
-              </button>
               <button
                 onClick={() => {
                   setShowBarcodeModal(false);
@@ -879,6 +966,9 @@ const BookForm: React.FC = () => {
                 className="cancel-btn"
               >
                 Close
+              </button>
+              <button onClick={() => window.print()} className="submit-btn">
+                Print All
               </button>
             </div>
           </div>

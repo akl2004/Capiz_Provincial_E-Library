@@ -17,7 +17,7 @@ return new class extends Migration
             // Link to book
             $table->foreignId('book_id')->constrained()->onDelete('cascade');
 
-            $table->enum('binding', ['Paperback', 'Hardcover', 'Spiral', 'Other'])->default('Paperback');
+            $table->enum('binding', ['Paperback', 'Hardcover', 'Serial', 'Spiral', 'Other'])->default('Paperback');
 
             // Copy-specific info
             $table->string('accession_number')->unique();

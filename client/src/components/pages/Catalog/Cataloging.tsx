@@ -205,7 +205,10 @@ const Cataloging = () => {
         if (book.topical_subject) {
           if (Array.isArray(book.topical_subject)) {
             subjects = book.topical_subject;
-          } else if (typeof book.topical_subject === "string") {
+          } else if (
+            typeof book.topical_subject === "string" &&
+            book.topical_subject.trim() !== ""
+          ) {
             try {
               const parsed = JSON.parse(book.topical_subject);
               subjects = Array.isArray(parsed)
@@ -282,271 +285,269 @@ const Cataloging = () => {
             </i>
           </p>
         </div>
+        <button
+          className="catalog-btn"
+          onClick={() => {
+            const role = localStorage.getItem("role")?.toLowerCase();
+            if (role === "admin") {
+              navigate("/admin/cataloging/addbook");
+            } else if (role === "staff") {
+              navigate("/staff/cataloging/addbook");
+            }
+          }}
+        >
+          Add New
+        </button>
+      </div>
+      <div className="d-flex gap-2 align-items-center">
+        <div className="d-flex gap-2 align-items-center w-100">
+          {/* Search */}
+          <div className="position-relative flex-grow-1">
+            <span
+              className="position-absolute top-50 translate-middle-y ps-2"
+              style={{ left: "10px", color: "#6c757d" }}
+            >
+              <i className="bi bi-search"></i>
+            </span>
+            <input
+              className="form-control ps-5 pe-5"
+              placeholder="Search book"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-        <div className="d-flex gap-2 align-items-center">
-          <div className="d-flex gap-2 align-items-center">
-            {/* Search */}
-            <div className="position-relative" style={{ maxWidth: "300px" }}>
-              <span
-                className="position-absolute top-50 translate-middle-y ps-2"
-                style={{ left: "10px", color: "#6c757d" }}
+          {/* Sort Controls */}
+          <div className="position-relative" ref={sortRef}>
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSortMenuOpen(!sortMenuOpen);
+              }}
+            >
+              <i className="bi bi-sort-alpha-down me-2"></i> Sort
+            </button>
+
+            {sortMenuOpen && (
+              <div
+                className="sort-dropdown"
+                onClick={(e) => e.stopPropagation()}
               >
-                <i className="bi bi-search"></i>
-              </span>
-              <input
-                className="form-control ps-5 pe-5"
-                placeholder="Search book"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+                <div className="sort-fields">
+                  {[
+                    { field: "title", label: "Title" },
+                    { field: "contributor", label: "Contributor" },
+                    { field: "year", label: "Year" },
+                  ].map(({ field, label }) => (
+                    <div
+                      key={field}
+                      className="sort-field"
+                      onClick={() =>
+                        setSortField(
+                          sortField === field ? null : (field as any)
+                        )
+                      }
+                    >
+                      {sortField === field && (
+                        <span className="selected-dot"></span>
+                      )}
+                      {label}
+                    </div>
+                  ))}
+                </div>
 
-            {/* Sort Controls */}
-            <div className="position-relative" ref={sortRef}>
-              <button
-                className="btn btn-outline-secondary d-flex align-items-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSortMenuOpen(!sortMenuOpen);
-                }}
+                <div className="sort-order">
+                  <button
+                    className={`sort-btn ${
+                      sortField && sortOrder === "asc" ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      if (!sortField) return;
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                    }}
+                  >
+                    ASC
+                  </button>
+                  <button
+                    className={`sort-btn ${
+                      sortField && sortOrder === "desc" ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      if (!sortField) return;
+                      setSortOrder(sortOrder === "desc" ? "asc" : "desc");
+                    }}
+                  >
+                    DESC
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Filter Controls */}
+          <div className="position-relative" ref={filterRef}>
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFilterMenuOpen(!filterMenuOpen);
+              }}
+            >
+              <i className="bi bi-sliders me-2"></i> Filter
+            </button>
+
+            {filterMenuOpen && (
+              <div
+                className="filter-dropdown"
+                onClick={(e) => e.stopPropagation()}
               >
-                <i className="bi bi-sort-alpha-down me-2"></i> Sort
-              </button>
-
-              {sortMenuOpen && (
+                {/* Section Filter */}
                 <div
-                  className="sort-dropdown"
-                  onClick={(e) => e.stopPropagation()}
+                  className={`filter-section-header ${
+                    activeFilterSection === "section" ? "active" : ""
+                  }`}
+                  onClick={() =>
+                    setActiveFilterSection(
+                      activeFilterSection === "section" ? null : "section"
+                    )
+                  }
                 >
-                  <div className="sort-fields">
-                    {[
-                      { field: "title", label: "Title" },
-                      { field: "contributor", label: "Contributor" },
-                      { field: "year", label: "Year" },
-                    ].map(({ field, label }) => (
+                  Section{" "}
+                  <i
+                    className={`bi ${
+                      activeFilterSection === "section"
+                        ? "bi-chevron-down"
+                        : "bi-chevron-right"
+                    } ms-2`}
+                  ></i>
+                </div>
+                {activeFilterSection === "section" &&
+                  ["Filipiniana", "Gen. Reference", "Gen. Circulation"].map(
+                    (section) => (
                       <div
-                        key={field}
-                        className="sort-field"
+                        key={section}
+                        className={`filter-item ${
+                          sectionFilter === section ? "active" : ""
+                        }`}
                         onClick={() =>
-                          setSortField(
-                            sortField === field ? null : (field as any)
+                          setSectionFilter(
+                            sectionFilter === section ? null : section
                           )
                         }
                       >
-                        {sortField === field && (
-                          <span className="selected-dot"></span>
-                        )}
-                        {label}
+                        {section}
                       </div>
-                    ))}
-                  </div>
+                    )
+                  )}
 
-                  <div className="sort-order">
-                    <button
-                      className={`sort-btn ${
-                        sortField && sortOrder === "asc" ? "active" : ""
-                      }`}
-                      onClick={() => {
-                        if (!sortField) return;
-                        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                      }}
-                    >
-                      ASC
-                    </button>
-                    <button
-                      className={`sort-btn ${
-                        sortField && sortOrder === "desc" ? "active" : ""
-                      }`}
-                      onClick={() => {
-                        if (!sortField) return;
-                        setSortOrder(sortOrder === "desc" ? "asc" : "desc");
-                      }}
-                    >
-                      DESC
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Filter Controls */}
-            <div className="position-relative" ref={filterRef}>
-              <button
-                className="btn btn-outline-secondary d-flex align-items-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilterMenuOpen(!filterMenuOpen);
-                }}
-              >
-                <i className="bi bi-sliders me-2"></i> Filter
-              </button>
-
-              {filterMenuOpen && (
+                {/* Classification Filter */}
                 <div
-                  className="filter-dropdown"
-                  onClick={(e) => e.stopPropagation()}
+                  className={`filter-section-header ${
+                    activeFilterSection === "classification" ? "active" : ""
+                  }`}
+                  onClick={() =>
+                    setActiveFilterSection(
+                      activeFilterSection === "classification"
+                        ? null
+                        : "classification"
+                    )
+                  }
                 >
-                  {/* Section Filter */}
-                  <div
-                    className={`filter-section-header ${
-                      activeFilterSection === "section" ? "active" : ""
-                    }`}
-                    onClick={() =>
-                      setActiveFilterSection(
-                        activeFilterSection === "section" ? null : "section"
-                      )
-                    }
-                  >
-                    Section{" "}
-                    <i
-                      className={`bi ${
-                        activeFilterSection === "section"
-                          ? "bi-chevron-down"
-                          : "bi-chevron-right"
-                      } ms-2`}
-                    ></i>
-                  </div>
-                  {activeFilterSection === "section" &&
-                    ["Filipiniana", "Gen. Reference", "Gen. Circulation"].map(
-                      (section) => (
-                        <div
-                          key={section}
-                          className={`filter-item ${
-                            sectionFilter === section ? "active" : ""
-                          }`}
-                          onClick={() =>
-                            setSectionFilter(
-                              sectionFilter === section ? null : section
-                            )
-                          }
-                        >
-                          {section}
-                        </div>
-                      )
-                    )}
-
-                  {/* Classification Filter */}
-                  <div
-                    className={`filter-section-header ${
-                      activeFilterSection === "classification" ? "active" : ""
-                    }`}
-                    onClick={() =>
-                      setActiveFilterSection(
-                        activeFilterSection === "classification"
-                          ? null
-                          : "classification"
-                      )
-                    }
-                  >
-                    Classification{" "}
-                    <i
-                      className={`bi ${
-                        activeFilterSection === "classification"
-                          ? "bi-chevron-down"
-                          : "bi-chevron-right"
-                      } ms-2`}
-                    ></i>
-                  </div>
-                  {activeFilterSection === "classification" &&
-                    [
-                      "General Works",
-                      "Philosophy",
-                      "Religion",
-                      "Social Sciences",
-                      "Language",
-                      "Science",
-                      "Technology",
-                      "Arts",
-                      "Literature",
-                      "History & Geography",
-                    ].map((cls) => (
-                      <div
-                        key={cls}
-                        className={`filter-item ${
-                          classificationFilter === cls ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setClassificationFilter(
-                            classificationFilter === cls ? null : cls
-                          )
-                        }
-                      >
-                        {cls}
-                      </div>
-                    ))}
-
-                  {/* Material Type Filter */}
-                  <div
-                    className={`filter-section-header ${
-                      activeFilterSection === "material" ? "active" : ""
-                    }`}
-                    onClick={() =>
-                      setActiveFilterSection(
-                        activeFilterSection === "material" ? null : "material"
-                      )
-                    }
-                  >
-                    Material Type{" "}
-                    <i
-                      className={`bi ${
-                        activeFilterSection === "material"
-                          ? "bi-chevron-down"
-                          : "bi-chevron-right"
-                      } ms-2`}
-                    ></i>
-                  </div>
-                  {activeFilterSection === "material" &&
-                    ["Book", "Journal", "Magazine", "E-Book"].map((mat) => (
-                      <div
-                        key={mat}
-                        className={`filter-item ${
-                          materialFilter === mat ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setMaterialFilter(materialFilter === mat ? null : mat)
-                        }
-                      >
-                        {mat}
-                      </div>
-                    ))}
+                  Classification{" "}
+                  <i
+                    className={`bi ${
+                      activeFilterSection === "classification"
+                        ? "bi-chevron-down"
+                        : "bi-chevron-right"
+                    } ms-2`}
+                  ></i>
                 </div>
-              )}
-            </div>
-          </div>
+                {activeFilterSection === "classification" &&
+                  [
+                    "General Works",
+                    "Philosophy",
+                    "Religion",
+                    "Social Sciences",
+                    "Language",
+                    "Science",
+                    "Technology",
+                    "Arts",
+                    "Literature",
+                    "History & Geography",
+                  ].map((cls) => (
+                    <div
+                      key={cls}
+                      className={`filter-item ${
+                        classificationFilter === cls ? "active" : ""
+                      }`}
+                      onClick={() =>
+                        setClassificationFilter(
+                          classificationFilter === cls ? null : cls
+                        )
+                      }
+                    >
+                      {cls}
+                    </div>
+                  ))}
 
-          <div className="btn-group" role="group">
-            <button
-              type="button"
-              className={`btn ${
-                viewMode === "image" ? "btn-secondary" : "btn-outline-secondary"
-              }`}
-              onClick={() => setViewMode("image")}
-            >
-              <i className="bi bi-list-task"></i>
-            </button>
-            <button
-              type="button"
-              className={`btn ${
-                viewMode === "list" ? "btn-secondary" : "btn-outline-secondary"
-              }`}
-              onClick={() => setViewMode("list")}
-            >
-              <i className="bi bi-list"></i>
-            </button>
+                {/* Material Type Filter */}
+                <div
+                  className={`filter-section-header ${
+                    activeFilterSection === "material" ? "active" : ""
+                  }`}
+                  onClick={() =>
+                    setActiveFilterSection(
+                      activeFilterSection === "material" ? null : "material"
+                    )
+                  }
+                >
+                  Material Type{" "}
+                  <i
+                    className={`bi ${
+                      activeFilterSection === "material"
+                        ? "bi-chevron-down"
+                        : "bi-chevron-right"
+                    } ms-2`}
+                  ></i>
+                </div>
+                {activeFilterSection === "material" &&
+                  ["Book", "Journal", "Magazine", "E-Book"].map((mat) => (
+                    <div
+                      key={mat}
+                      className={`filter-item ${
+                        materialFilter === mat ? "active" : ""
+                      }`}
+                      onClick={() =>
+                        setMaterialFilter(materialFilter === mat ? null : mat)
+                      }
+                    >
+                      {mat}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
+        </div>
 
+        <div className="btn-group" role="group">
           <button
-            className="catalog-btn"
-            onClick={() => {
-              const role = localStorage.getItem("role")?.toLowerCase();
-              if (role === "admin") {
-                navigate("/admin/cataloging/addbook");
-              } else if (role === "staff") {
-                navigate("/staff/cataloging/addbook");
-              }
-            }}
+            type="button"
+            className={`btn ${
+              viewMode === "image" ? "btn-secondary" : "btn-outline-secondary"
+            }`}
+            onClick={() => setViewMode("image")}
           >
-            Add New
+            <i className="bi bi-list-task"></i>
+          </button>
+          <button
+            type="button"
+            className={`btn ${
+              viewMode === "list" ? "btn-secondary" : "btn-outline-secondary"
+            }`}
+            onClick={() => setViewMode("list")}
+          >
+            <i className="bi bi-list"></i>
           </button>
         </div>
       </div>
@@ -618,7 +619,7 @@ const Cataloging = () => {
                     </p>
                     <p className="mb-0">
                       <strong>Subjects:</strong>{" "}
-                      {book.topical_subjects?.length
+                      {book.topical_subjects && book.topical_subjects.length > 0
                         ? book.topical_subjects.join(", ")
                         : "N/A"}
                     </p>
@@ -684,9 +685,12 @@ const Cataloging = () => {
                     <td>{book.edition}</td>
                     <td>{book.year}</td>
                     <td>
-                      {book.topical_subjects?.length
-                        ? book.topical_subjects.join(", ")
-                        : "-"}
+                      <td>
+                        {book.topical_subjects &&
+                        book.topical_subjects.length > 0
+                          ? book.topical_subjects.join(", ")
+                          : "-"}
+                      </td>
                     </td>
                     <td>{book.section}</td>
                     <td>{book.classification}</td>

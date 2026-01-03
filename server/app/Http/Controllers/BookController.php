@@ -38,7 +38,9 @@ class BookController extends Controller
             'includes_appendix' => 'boolean',
             'includes_glossary' => 'boolean',
             'includes_bibliographical_references' => 'boolean',
-            'isbn' => 'nullable|string',
+            'isbn_paperback' => 'nullable|string',
+            'isbn_hardcover' => 'nullable|string',
+            'issn' => 'nullable|string',
             'topical_subject' => 'nullable|array',
             'topical_subject.*' => 'string',
             'geographical_subject' => 'nullable|string',
@@ -91,6 +93,14 @@ class BookController extends Controller
 
             $materialTypeId = $request->material_type_id;
 
+            $determinedBinding = 'Paperback'; 
+
+            if (!empty($request->issn)) {
+                $determinedBinding = 'Serial';
+            } elseif (!empty($request->isbn_hardcover) && empty($request->isbn_paperback)) {
+                $determinedBinding = 'Hardcover';
+            }
+
             $book->copies()->create([
                 'copy_number'      => $copyData['copy_number'], 
                 'barcode'          => $copyData['barcode'],    
@@ -102,6 +112,7 @@ class BookController extends Controller
                 'source_person'    => $request->source_person,
                 'source'           => $request->source,
                 'material_type_id' => $materialTypeId,
+                'binding'          => $determinedBinding,
             ]);
         }
 
@@ -296,12 +307,18 @@ class BookController extends Controller
             'copies' => 'required|integer|min:1',
             'price' => 'nullable|numeric',
             'condition' => 'required|string',
+            'binding' => 'required|string',
+            'isbn_paperback' => 'nullable|string',
+            'isbn_hardcover' => 'nullable|string',
+            'issn' => 'nullable|string',
         ]);
 
         $book = Book::find($id);
         if (!$book) {
             return response()->json(['message' => 'Book not found'], 404);
         }
+
+        $book->update($request->only(['isbn_paperback', 'isbn_hardcover', 'issn']));
 
         $newCopiesCollection = [];
 
@@ -328,6 +345,7 @@ class BookController extends Controller
                 'status' => 'Available',
                 'price' => $request->price,
                 'condition' => $request->condition,
+                'binding' => $request->binding,
             ]);
 
             $newCopiesCollection[] = $copy;

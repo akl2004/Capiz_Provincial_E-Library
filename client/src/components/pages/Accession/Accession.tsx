@@ -3,6 +3,9 @@ import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
 import coverPlaceholder from "/src/assets/cover_placeholder.jpg";
 import * as XLSX from "xlsx";
+import available from "/src/assets/accession-icons/available.png";
+import total from "/src/assets/accession-icons/total.png";
+import repair from "/src/assets/accession-icons/repair.png";
 
 interface MaterialType {
   id: number;
@@ -330,38 +333,42 @@ const Accession = () => {
   return (
     <>
       {/* Tally Summary Cards */}
-      <div className="row mb-4">
-        <div className="col-md-3">
-          <div className="card shadow-sm border-0 p-3 bg-light">
-            <div className="d-flex align-items-center">
-              <div className="rounded-circle bg-primary text-white p-3 me-3">
-                <i className="bi bi-bookshelf"></i>
-              </div>
-              <div>
-                <h6 className="text-muted mb-0">Total Copies</h6>
-                <h4 className="fw-bold mb-0">{filteredCopies.length}</h4>
-              </div>
+      <div className="d-flex justify-content-between gap-3 mb-4">
+        {[
+          {
+            label: "TOTAL COPIES",
+            value: filteredCopies.length,
+            icon: total,
+          },
+          {
+            label: "AVAILABLE FOR USE",
+            value: filteredCopies.filter(
+              (c) =>
+                c.status === "Available" &&
+                !["damaged", "poor"].includes(c.condition?.toLowerCase() || "")
+            ).length,
+            icon: available,
+          },
+          {
+            label: "REPAIR/REVIEW",
+            value: filteredCopies.filter((c) =>
+              ["damaged", "poor"].includes(c.condition?.toLowerCase() || "")
+            ).length,
+            icon: repair,
+          },
+        ].map((item, i) => (
+          <div key={i} className="accession-tally-card">
+            <div className="accession-tally-header">{item.label}</div>
+            <div className="accession-tally-body">
+              <img
+                src={item.icon}
+                alt={item.label}
+                className="accession-tally-icon-img"
+              />
+              <span className="accession-tally-value">{item.value}</span>
             </div>
           </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card shadow-sm border-0 p-3 bg-light">
-            <div className="d-flex align-items-center">
-              <div className="rounded-circle bg-success text-white p-3 me-3">
-                <i className="bi bi-check-circle"></i>
-              </div>
-              <div>
-                <h6 className="text-muted mb-0">Available</h6>
-                <h4 className="fw-bold mb-0">
-                  {
-                    filteredCopies.filter((c) => c.status === "Available")
-                      .length
-                  }
-                </h4>
-              </div>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
       <div className="copies-info mt-4">
         {/* Header */}
@@ -667,7 +674,6 @@ const Accession = () => {
           </div>
         </div>
 
-        {/* Table + Pagination */}
         {loading ? (
           <LoadingSpinner />
         ) : (
@@ -677,6 +683,7 @@ const Accession = () => {
                 <tr>
                   <th style={{ width: "40px" }}>
                     <input
+                      className="accession-checkbox"
                       type="checkbox"
                       onChange={(e) => {
                         if (e.target.checked)
@@ -719,6 +726,7 @@ const Accession = () => {
                     >
                       <td>
                         <input
+                          className="accession-checkbox"
                           type="checkbox"
                           checked={selectedAccessions.includes(
                             copy.accession_number

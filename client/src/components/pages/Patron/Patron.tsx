@@ -382,12 +382,12 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
 
           {/* Buttons row */}
           <div className="form-actions">
+            <button type="button" className="cancel-btn" onClick={onClose}>
+              Cancel
+            </button>
             <button type="submit" className="submit-btn" disabled={isAdding}>
               {isAdding && <span className="spinner-tiny"></span>}
               {isAdding ? "Saving..." : "Save Patron"}
-            </button>
-            <button type="button" className="cancel-btn" onClick={onClose}>
-              Cancel
             </button>
           </div>
         </form>
@@ -395,7 +395,6 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
     </div>
   );
 };
-
 
 // patron table
 const Patron = () => {
@@ -530,7 +529,6 @@ const Patron = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-
   // Pagination slice
   const totalPages = Math.ceil(sortedPatrons.length / patronsPerPage);
   const indexOfLastPatron = currentPage * patronsPerPage;
@@ -555,167 +553,165 @@ const Patron = () => {
             </i>
           </p>
         </div>
-
-        <div className="d-flex gap-2 align-items-center">
-          {/* Controls */}
-          <div className="d-flex gap-2 align-items-center">
-            {/* Search */}
-            <div className="position-relative" style={{ maxWidth: "300px" }}>
-              <span
-                className="position-absolute top-50 translate-middle-y ps-2"
-                style={{ left: "10px", color: "#6c757d" }}
-              >
-                <i className="bi bi-search"></i>
-              </span>
-              <input
-                className="form-control ps-5 pe-5"
-                placeholder="Search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            {/* Sort Controls */}
-            <div className="position-relative" ref={sortRef}>
-              <button
-                className="btn btn-outline-secondary d-flex align-items-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSortMenuOpen(!sortMenuOpen);
-                }}
-              >
-                <i className="bi bi-sort-alpha-down me-2"></i> Sort
-              </button>
-              {sortMenuOpen && (
-                <div
-                  className="sort-dropdown"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="sort-fields">
-                    {[
-                      { field: "name", label: "Name" },
-                      {
-                        field: "registration_date",
-                        label: "Registration Date",
-                      },
-                    ].map(({ field, label }) => (
-                      <div
-                        key={field}
-                        className={`sort-field ${
-                          sortField === field ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setSortField(sortField === field ? null : field)
-                        }
-                      >
-                        {sortField === field && (
-                          <span className="selected-dot"></span>
-                        )}
-                        {label}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="sort-order">
-                    <button
-                      className={`sort-btn ${
-                        sortField && sortOrder === "asc" ? "active" : ""
-                      }`}
-                      onClick={() => {
-                        if (!sortField) return;
-                        if (sortOrder === "asc") setSortField(null);
-                        else setSortOrder("asc");
-                      }}
-                    >
-                      ASC
-                    </button>
-                    <button
-                      className={`sort-btn ${
-                        sortField && sortOrder === "desc" ? "active" : ""
-                      }`}
-                      onClick={() => {
-                        if (!sortField) return;
-                        if (sortOrder === "desc") setSortField(null);
-                        else setSortOrder("desc");
-                      }}
-                    >
-                      DESC
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Filter dropdown */}
-            <div className="position-relative" ref={filterRef}>
-              <button
-                className="btn btn-outline-secondary d-flex align-items-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilterMenuOpen(!filterMenuOpen);
-                }}
-              >
-                <i className="bi bi-sliders me-2"></i> Filter
-              </button>
-
-              {filterMenuOpen && (
-                <div
-                  className="filter-dropdown"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {/* STATUS SECTION */}
-                  <div
-                    className={`filter-section-header ${
-                      activeFilterSection === "status" ? "active" : ""
-                    }`}
-                    onClick={() =>
-                      setActiveFilterSection(
-                        activeFilterSection === "status" ? null : "status"
-                      )
-                    }
-                  >
-                    Status{" "}
-                    <i
-                      className={`bi ${
-                        activeFilterSection === "status"
-                          ? "bi-chevron-down"
-                          : "bi-chevron-right"
-                      } ms-2`}
-                    ></i>
-                  </div>
-
-                  {activeFilterSection === "status" &&
-                    ["Active", "Deactivated", "Expired", "Blocked"].map(
-                      (status) => (
-                        <div
-                          key={status}
-                          className={`filter-item ${
-                            statusFilter === status ? "active" : ""
-                          }`}
-                          onClick={() =>
-                            setStatusFilter(
-                              statusFilter === status ? null : status
-                            )
-                          }
-                        >
-                          {status}
-                        </div>
-                      )
-                    )}
-                </div>
-              )}
-            </div>
+        <button className="patron-btn" onClick={() => setShowModal(true)}>
+          Add Patron
+        </button>
+      </div>
+      <div className="d-flex gap-2 align-items-center">
+        {/* Controls */}
+        <div className="d-flex gap-2 align-items-center w-100">
+          {/* Search */}
+          <div className="position-relative flex-grow-1">
+            <span
+              className="position-absolute top-50 translate-middle-y ps-2"
+              style={{ left: "10px", color: "#6c757d" }}
+            >
+              <i className="bi bi-search"></i>
+            </span>
+            <input
+              className="form-control ps-5 pe-5"
+              placeholder="Search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
 
-          <button className="patron-btn" onClick={() => setShowModal(true)}>
-            Add Patron
-          </button>
+          {/* Sort Controls */}
+          <div className="position-relative" ref={sortRef}>
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSortMenuOpen(!sortMenuOpen);
+              }}
+            >
+              <i className="bi bi-sort-alpha-down me-2"></i> Sort
+            </button>
+            {sortMenuOpen && (
+              <div
+                className="sort-dropdown"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="sort-fields">
+                  {[
+                    { field: "name", label: "Name" },
+                    {
+                      field: "registration_date",
+                      label: "Registration Date",
+                    },
+                  ].map(({ field, label }) => (
+                    <div
+                      key={field}
+                      className={`sort-field ${
+                        sortField === field ? "active" : ""
+                      }`}
+                      onClick={() =>
+                        setSortField(sortField === field ? null : field)
+                      }
+                    >
+                      {sortField === field && (
+                        <span className="selected-dot"></span>
+                      )}
+                      {label}
+                    </div>
+                  ))}
+                </div>
+                <div className="sort-order">
+                  <button
+                    className={`sort-btn ${
+                      sortField && sortOrder === "asc" ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      if (!sortField) return;
+                      if (sortOrder === "asc") setSortField(null);
+                      else setSortOrder("asc");
+                    }}
+                  >
+                    ASC
+                  </button>
+                  <button
+                    className={`sort-btn ${
+                      sortField && sortOrder === "desc" ? "active" : ""
+                    }`}
+                    onClick={() => {
+                      if (!sortField) return;
+                      if (sortOrder === "desc") setSortField(null);
+                      else setSortOrder("desc");
+                    }}
+                  >
+                    DESC
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Filter dropdown */}
+          <div className="position-relative" ref={filterRef}>
+            <button
+              className="btn btn-outline-secondary d-flex align-items-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFilterMenuOpen(!filterMenuOpen);
+              }}
+            >
+              <i className="bi bi-sliders me-2"></i> Filter
+            </button>
+
+            {filterMenuOpen && (
+              <div
+                className="filter-dropdown"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* STATUS SECTION */}
+                <div
+                  className={`filter-section-header ${
+                    activeFilterSection === "status" ? "active" : ""
+                  }`}
+                  onClick={() =>
+                    setActiveFilterSection(
+                      activeFilterSection === "status" ? null : "status"
+                    )
+                  }
+                >
+                  Status{" "}
+                  <i
+                    className={`bi ${
+                      activeFilterSection === "status"
+                        ? "bi-chevron-down"
+                        : "bi-chevron-right"
+                    } ms-2`}
+                  ></i>
+                </div>
+
+                {activeFilterSection === "status" &&
+                  ["Active", "Deactivated", "Expired", "Blocked"].map(
+                    (status) => (
+                      <div
+                        key={status}
+                        className={`filter-item ${
+                          statusFilter === status ? "active" : ""
+                        }`}
+                        onClick={() =>
+                          setStatusFilter(
+                            statusFilter === status ? null : status
+                          )
+                        }
+                      >
+                        {status}
+                      </div>
+                    )
+                  )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {loading ? (
         <LoadingSpinner />
       ) : currentPatrons.length > 0 ? (
-        <table className="patron-table">
+        <table className="patron-table mt-3">
           <thead>
             <tr>
               <th></th>

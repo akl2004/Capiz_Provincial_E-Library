@@ -14,15 +14,21 @@ interface BookCopy {
   date_added: string;
   material_type: MaterialType | string;
   source: string;
+  condition: string;
   price: number;
   source_person: string;
   cataloging_note: string;
+  internal_note: string;
+  binding: string;
 }
 
 interface Book {
   id: number;
   title: string;
   call_number: string;
+  isbn_paperback?: string;
+  isbn_hardcover?: string;
+  issn?: string;
   copies: BookCopy[];
 }
 
@@ -39,6 +45,13 @@ interface CirculationRecord {
 const CopyInformation: React.FC = () => {
   const { id, copyId } = useParams<{ id: string; copyId: string }>();
   const [copy, setCopy] = useState<BookCopy | null>(null);
+
+  const [identifiers, setIdentifiers] = useState<{
+    isbn_paperback?: string;
+    isbn_hardcover?: string;
+    issn?: string;
+  }>({});
+
   const [callNumber, setCallNumber] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<CirculationRecord[]>([]);
@@ -52,6 +65,12 @@ const CopyInformation: React.FC = () => {
         const book: Book = response.data;
 
         setCallNumber(book.call_number);
+
+        setIdentifiers({
+          isbn_paperback: book.isbn_paperback,
+          isbn_hardcover: book.isbn_hardcover,
+          issn: book.issn,
+        });
 
         // find the copy inside book.copies
         const foundCopy = book.copies.find((c) => c.id === Number(copyId));
@@ -138,6 +157,26 @@ const CopyInformation: React.FC = () => {
               </td>
             </tr>
             <tr>
+              <th className="text-left font-semibold">
+                {copy.binding === "Paperback"
+                  ? "ISBN (Paperback)"
+                  : copy.binding === "Hardcover"
+                  ? "ISBN (Hardcover)"
+                  : "ISSN"}
+              </th>
+              <td className="border-l">
+                {copy.binding === "Paperback"
+                  ? identifiers.isbn_paperback || "-"
+                  : copy.binding === "Hardcover"
+                  ? identifiers.isbn_hardcover || "-"
+                  : identifiers.issn || "-"}
+              </td>
+            </tr>
+            <tr>
+              <th className="text-left font-semibold">Condition</th>
+              <td className="border-l">{copy.condition || "-"}</td>
+            </tr>
+            <tr>
               <th className="text-left font-semibold">Price</th>
               <td className="border-l">
                 {copy.price ? `₱${copy.price}` : "-"}
@@ -154,6 +193,10 @@ const CopyInformation: React.FC = () => {
             <tr>
               <th className="text-left font-semibold">Catalog Note</th>
               <td className="border-l">{copy.cataloging_note || "-"}</td>
+            </tr>
+            <tr>
+              <th className="text-left font-semibold">Internal Notes</th>
+              <td className="border-l">{copy.internal_note || "-"}</td>
             </tr>
           </tbody>
         </table>
@@ -172,7 +215,7 @@ const CopyInformation: React.FC = () => {
                 <th>Date Issued</th>
                 <th>Due Date</th>
                 <th>Date Returned</th>
-                <th>Fine</th>
+                <th>Overdue Fine</th>
                 <th>Status</th>
               </tr>
             </thead>
