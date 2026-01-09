@@ -2,95 +2,77 @@ import "./App.css";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// Admin Components
-import AdminDashboard from "./components/pages/Dashboard/AdminDashboard";
-import AdminLayout from "./components/Layout/Admin/AdminLayout";
-import StaffLayout from "./components/Layout/Staff/StaffLayout";
+// Unified Layout
+import AppLayout from "./components/Layout/Admin/AppLayout";
+import GuestLayout from "./components/Layout/Guest/GuestLayout";
 
-// Pages
+// Shared Pages
 import Patron from "./components/pages/Patron/Patron";
+import PatronInfo from "./components/pages/Patron/PatronInfo";
+import EditPatron from "./components/pages/Patron/EditPatron";
+import PatronTransactions from "./components/pages/Patron/PatronTransaction";
 import Cataloging from "./components/pages/Catalog/Cataloging";
-import Accession from "./components/pages/Accession/Accession";
-import Circulation from "./components/pages/Circulation/CirculationPage";
-import Attendance from "./components/pages/Attendance/Attendance";
-import Reports from "./components/pages/Reports/Reports";
+import BookForm from "./components/pages/Catalog/BookForm";
 import BookDetails from "./components/pages/Catalog/BookDetails";
 import CopyInformation from "./components/pages/Catalog/CopyInformation";
-import BookForm from "./components/pages/Catalog/BookForm";
+import Accession from "./components/pages/Accession/Accession";
+import Circulation from "./components/pages/Circulation/CirculationPage";
 import IssueForm from "./components/pages/Circulation/IssueForm";
-import RoleSelection from "./components/pages/Authentication/RoleSelection";
-import PatronInfo from "./components/pages/Patron/PatronInfo";
-import PatronTransactions from "./components/pages/Patron/PatronTransaction";
+import Attendance from "./components/pages/Attendance/Attendance";
+import ReportsPage from "./components/pages/Reports/ReportsPage";
 import DailyAttendancePage from "./components/pages/Attendance/DailyAttendancePage";
-import GuestLayout from "./components/Layout/Guest/GuestLayout";
+
+// Role-Specific Pages
+import Dashboard from "./components/pages/Dashboard/Dashboard";
+import GuestDasboard from "./components/pages/Dashboard/GuestDasboard";
+import RoleSelection from "./components/pages/Authentication/RoleSelection";
+import SearchResults from "./components/pages/Catalog/SearchResults";
+import AboutUs from "./components/pages/Dashboard/AboutUs";
+
+// Admin Only Pages
 import Settings from "./components/pages/Settings/Settings";
 import Accounts from "./components/pages/Accounts/Accounts";
 import PatronProfile from "./components/pages/Accounts/PatronProfile";
 import StaffProfile from "./components/pages/Accounts/StaffProfile";
-import StaffDashboard from "./components/pages/Dashboard/StaffDashboard";
-import GuestDasboard from "./components/pages/Dashboard/GuestDasboard";
-import SearchResults from "./components/pages/Catalog/SearchResults";
 import AdminProfile from "./components/pages/Accounts/AdminProfile";
-import EditPatron from "./components/pages/Patron/EditPatron";
 
 export default function App() {
   return (
     <HashRouter>
       <Routes>
-        {/* Role selection accessible to any logged-in user */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <RoleSelection />
-            </ProtectedRoute>
-          }
-        />
+        {/* Public Landing / Role Selection */}
+        <Route path="/" element={<RoleSelection />} />
 
         {/* Guest Routes */}
         <Route
-          path="/guest/guestdashboard"
+          path="/guest"
           element={
             <ProtectedRoute allowedRoles={["guest"]}>
-              <GuestLayout content={<GuestDasboard />} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/guest/cataloging"
-          element={
-            <ProtectedRoute allowedRoles={["guest"]}>
-              <GuestLayout content={<Cataloging />} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/guest/dailyattendance"
-          element={
-            <ProtectedRoute allowedRoles={["guest"]}>
-              <GuestLayout content={<DailyAttendancePage />} />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="guest/guestdashboard/search"
-          element={
-            <ProtectedRoute allowedRoles={["guest"]}>
-              <GuestLayout content={<SearchResults />} />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Admin Routes */}
-        <Route
-          path="/admin/*"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <AdminLayout content={null} />
+              <GuestLayout />
             </ProtectedRoute>
           }
         >
-          <Route path="admindashboard" element={<AdminDashboard />} />
+          <Route path="guestdashboard" element={<GuestDasboard />} />
+          <Route path="cataloging" element={<Cataloging />} />
+          <Route path="dailyattendance" element={<DailyAttendancePage />} />
+          <Route path="guestdashboard/search" element={<SearchResults />} />
+          <Route path="about" element={<AboutUs />} />
+        </Route>
+
+        {/* Merged Admin & Staff Routes */}
+        {/* We use the same AppLayout for both! */}
+
+        {/* ADMIN SECTION */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={["admin"]}>
+              <AppLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="admindashboard" element={<Dashboard />} />
+          {/* Shared Library Modules */}
           <Route path="patrons" element={<Patron />} />
           <Route path="patrons/:id" element={<PatronInfo />} />
           <Route path="patrons/:id/edit" element={<EditPatron />} />
@@ -105,9 +87,9 @@ export default function App() {
           <Route path="accession" element={<Accession />} />
           <Route path="circulation" element={<Circulation />} />
           <Route path="circulation/issue" element={<IssueForm />} />
-          {/* <Route path="dailyattendance" element={<DailyAttendancePage />} /> */}
           <Route path="attendance" element={<Attendance />} />
-          <Route path="reports" element={<Reports />} />
+          <Route path="reports" element={<ReportsPage />} />
+          {/* Admin Only Modules */}
           <Route path="settings" element={<Settings />} />
           <Route path="accounts" element={<Accounts />} />
           <Route path="accounts/patron/:id" element={<PatronProfile />} />
@@ -115,16 +97,16 @@ export default function App() {
           <Route path="accounts/admin/:id" element={<AdminProfile />} />
         </Route>
 
-        {/* Staff Routes */}
+        {/* STAFF SECTION */}
         <Route
-          path="/staff/*"
+          path="/staff"
           element={
             <ProtectedRoute allowedRoles={["staff"]}>
-              <StaffLayout content={null} />
+              <AppLayout />
             </ProtectedRoute>
           }
         >
-          <Route path="staffdashboard" element={<StaffDashboard />} />
+          <Route path="staffdashboard" element={<Dashboard />} />
           <Route path="patrons" element={<Patron />} />
           <Route path="patrons/:id" element={<PatronInfo />} />
           <Route
@@ -138,9 +120,9 @@ export default function App() {
           <Route path="accession" element={<Accession />} />
           <Route path="circulation" element={<Circulation />} />
           <Route path="circulation/issue" element={<IssueForm />} />
-          {/* <Route path="dailyattendance" element={<DailyAttendancePage />} /> */}
           <Route path="attendance" element={<Attendance />} />
-          <Route path="reports" element={<Reports />} />
+          <Route path="reports" element={<ReportsPage />} />
+          {/* Staff can't see Settings or Accounts because they aren't listed here and are hidden in the Sidebar */}
         </Route>
       </Routes>
     </HashRouter>

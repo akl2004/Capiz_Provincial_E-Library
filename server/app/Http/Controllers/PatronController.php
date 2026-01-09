@@ -15,17 +15,7 @@ class PatronController extends Controller
 {
     public function index()
     {
-        // Get expiration years from settings
-        $expirationYears = (int) LibrarySetting::getValue('patron_expiration_years', 3);
-
-        // Fetch all patrons and add a dynamic expiration_date field
-        $patrons = Patron::all()->map(function ($patron) use ($expirationYears) {
-            $createdAt = $patron->created_at ?? now(); // fallback to now if null
-            $patron->expiration_date = Carbon::parse($createdAt)->addYears($expirationYears);
-            return $patron;
-        });
-
-        return response()->json($patrons);
+        return response()->json(Patron::all());
     }
 
     public function store(Request $request)
@@ -53,15 +43,18 @@ class PatronController extends Controller
             $validated['patron_id'] = Patron::generateUniquePatronId();
         }
 
+        $expirationYears = (int) LibrarySetting::getValue('patron_expiration_years', 3);
+    
+        if (empty($validated['patron_id'])) {
+            $validated['patron_id'] = Patron::generateUniquePatronId();
+        }
+
         // Add registered_by
         $validated['registered_by'] = $user->first_name . ' ' . $user->last_name; 
 
-        $patron = Patron::create($validated);
+        $validated['expires_at'] = now()->addYears($expirationYears);
 
-        // Add expiration_date dynamically
-        $createdAt = $patron->created_at ?? now();
-        $patron->expiration_date = Carbon::parse($createdAt)
-            ->addYears((int) LibrarySetting::getValue('patron_expiration_years', 3));
+        $patron = Patron::create($validated);
 
         // Log activity using the authenticated user
         $this->logActivity('Add Patron', 'Added new patron: ' . $patron->first_name . ' ' . $patron->last_name, $user);
@@ -101,6 +94,27 @@ class PatronController extends Controller
         $this->logActivity('Edit Patron', 'Updated patron: ' . $patron->first_name . ' ' . $patron->last_name, $user);
 
         return response()->json($patron);
+    }
+
+    public function renewPatron(Request $request, $id)
+    {
+        $patron = Patron::findOrFail($id);
+        $years = (int) LibrarySetting::getValue('patron_expiration_years', 3);
+
+        $newExpiry = now()->addYears($years);
+
+        $patron->update([
+            'expires_at' => $newExpiry,
+            'status' => 'Active'
+        ]);
+
+        $this->logActivity(
+            'Renew Patron', 
+            "Renewed {$patron->first_name} until " . $newExpiry->format('Y-m-d'), 
+            $request->user()
+        );
+
+        return response()->json(['message' => 'Renewed successfully', 'patron' => $patron->fresh()]);
     }
 
     public function destroy($id)
@@ -148,7 +162,7 @@ public function stats($id)
         'returnedBooks' => $patron->circulations()->whereIn('status', ['Returned', 'Returned Late'])->count(),
         'lostBooks'     => $patron->circulations()->where('status', 'Lost')->count(),
         'activeLoans'   => $patron->circulations()->whereIn('status', ['On Loan', 'Overdue'])->count(),
-        'totalFine'     => (float) $totalFine, // This will now be 0 if the book is paid
+        'totalFine'     => (float) $totalFine,
         'overdueBooks'  => $patron->circulations()->where('status', 'Overdue')->count(),
     ]);
 }
@@ -278,38 +292,57 @@ public function stats($id)
 
     // paying overdue fines
     public function payFine(Request $request)
-    {
-        $user = $request->user();
-        
-        $request->validate([
-            'patron_id' => 'required', // This should be the primary key ID
-            'amount' => 'required|numeric'
-        ]);
+{
+    $user = $request->user();
+    $request->validate([
+        'patron_id' => 'required',
+        'amount' => 'required|numeric'
+    ]);
 
-        $patron = Patron::where('patron_id', $request->patron_id)->first();
-
-        if (!$patron) {
-            return response()->json(['message' => 'Patron not found.'], 404);
-        }
-
-        // Update ALL on loan records with fines for this patron
-        $affectedRows = Circulation::where('patron_id', $patron->id) // Use the numeric id
-            ->whereIn('status', ['On Loan', 'Overdue'])
-            ->where('fine', '>', 0)
-            ->update([
-                'fine' => 0, 
-                'status' => 'On Loan' ,
-                'is_paid' => true
-            ]);
-
-        if ($affectedRows === 0) {
-            return response()->json(['message' => 'No outstanding fines found.'], 404);
-        }
-
-        $this->logActivity('Pay Fine', "Collected ₱{$request->amount} from {$patron->first_name}", $user);
-
-        return response()->json(['message' => 'Fine paid successfully'], 200);
+    $patron = Patron::where('patron_id', $request->patron_id)->first();
+    if (!$patron) {
+        return response()->json(['message' => 'Patron not found.'], 404);
     }
+
+    // 1. Get the fine rate from settings
+    $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
+    $now = now()->startOfDay();
+
+    // 2. Find all active loans for this patron
+    $loans = Circulation::where('patron_id', $patron->id)
+        ->whereIn('status', ['On Loan', 'Overdue'])
+        ->get();
+
+    $paidCount = 0;
+
+    foreach ($loans as $loan) {
+        $dueDate = \Carbon\Carbon::parse($loan->due_date)->startOfDay();
+        
+        // Calculate what the fine SHOULD be right now
+        $overdueDays = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
+        $calculatedFine = $overdueDays * $fineRate;
+
+        // If there's a fine to pay, clear it
+        if ($calculatedFine > 0) {
+           $loan->update([
+                'fine' => $calculatedFine,
+                'status' => 'On Loan',   
+                'is_paid' => true,          
+                'overdue_by' => $overdueDays,
+                'updated_at' => $now        
+            ]);
+            $paidCount++;
+        }
+    }
+
+    if ($paidCount === 0) {
+        return response()->json(['message' => 'No outstanding fines found.'], 404);
+    }
+
+    $this->logActivity('Pay Fine', "Collected ₱{$request->amount} from {$patron->first_name}", $user);
+
+    return response()->json(['message' => 'Fine paid successfully'], 200);
+}
 
 
 

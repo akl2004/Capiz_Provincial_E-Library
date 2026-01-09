@@ -30,7 +30,7 @@ return new class extends Migration
             $table->foreignId('material_type_id')->constrained('material_types')->onDelete('cascade');
             $table->text('cataloging_note')->nullable();
             $table->text('internal_note')->nullable();
-            $table->enum('source', ['Purchased', 'Donation', 'Replaced', 'Exchange', 'Legal Deposit', 'Other']);
+            $table->enum('source', ['Purchased', 'Donation', 'Replacement', 'Exchange', 'Legal Deposit', 'Other']);
             $table->string('source_person')->nullable();
             $table->string('location_of_book')->nullable();
 

@@ -1,8 +1,7 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
 import coverPlaceholder from "/src/assets/cover_placeholder.jpg";
-import * as XLSX from "xlsx";
 import available from "/src/assets/accession-icons/available.png";
 import total from "/src/assets/accession-icons/total.png";
 import repair from "/src/assets/accession-icons/repair.png";
@@ -70,12 +69,13 @@ const Accession = () => {
   // Filters
   const [sectionFilter, setSectionFilter] = useState<string | null>(null);
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
+  const [conditionFilter, setConditionFilter] = useState<string | null>(null);
 
   // Sorting
   const [sortField, setSortField] = useState<
     "accession" | "title" | "date" | null
-  >(null);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  >("accession");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,7 +92,7 @@ const Accession = () => {
   const sortRef = useRef<HTMLDivElement | null>(null);
   const filterRef = useRef<HTMLDivElement | null>(null);
   const [activeFilterSection, setActiveFilterSection] = useState<
-    "section" | "source" | "date" | null
+    "section" | "condition" | "source" | "date" | null
   >(null);
 
   // Date Filter
@@ -100,6 +100,10 @@ const Accession = () => {
   const [filterMonth, setFilterMonth] = useState<number | null>(null);
   const [filterWeek, setFilterWeek] = useState<number | null>(null);
   const [showDateOptions, setShowDateOptions] = useState(false);
+
+  // View Mode
+  const [viewMode, setViewMode] = useState<"grouped" | "table">("grouped");
+  const [expandedBooks, setExpandedBooks] = useState<number | null>(null);
 
   // Fetch books
   useEffect(() => {
@@ -121,29 +125,35 @@ const Accession = () => {
   }, []);
 
   // Flatten copies
-  const flattenedCopies: FlattenedCopy[] = books.flatMap((book) =>
-    book.copies.map((copy) => ({
-      id: copy.id,
-      bookId: book.id,
-      accession_number: copy.accession_number,
-      copy_number: copy.copy_number,
-      title: book.title,
-      section: book.section,
-      source: copy.source,
-      price: copy.price,
-      created_at: book.created_at,
-      cover_image: book.cover_image
-        ? `http://localhost:8000/storage/${book.cover_image}`
-        : null,
-      material_type: copy.material_type?.name || "N/A",
-      barcode: copy.barcode,
-      condition: copy.condition,
-      source_person: copy.source_person,
-      cataloging_note: copy.cataloging_note,
-      internal_note: copy.internal_note,
-      status: copy.status || "Available",
-    }))
-  );
+  const flattenedCopies: FlattenedCopy[] = books
+    .flatMap((book) =>
+      book.copies.map((copy) => ({
+        id: copy.id,
+        bookId: book.id,
+        accession_number: copy.accession_number,
+        copy_number: copy.copy_number,
+        title: book.title,
+        section: book.section,
+        source: copy.source,
+        price: copy.price,
+        created_at: book.created_at,
+        cover_image: book.cover_image
+          ? `http://localhost:8000/storage/${book.cover_image}`
+          : null,
+        material_type: copy.material_type?.name || "N/A",
+        barcode: copy.barcode,
+        condition: copy.condition,
+        source_person: copy.source_person,
+        cataloging_note: copy.cataloging_note,
+        internal_note: copy.internal_note,
+        status: copy.status || "Available",
+      }))
+    )
+    .sort((a, b) =>
+      b.accession_number.localeCompare(a.accession_number, undefined, {
+        numeric: true,
+      })
+    );
 
   // Filter logic
   const filteredCopies = flattenedCopies.filter((copy) => {
@@ -162,6 +172,9 @@ const Accession = () => {
       ? copy.section === sectionFilter
       : true;
     const matchesSource = sourceFilter ? copy.source === sourceFilter : true;
+    const matchesCondition = conditionFilter
+      ? copy.condition?.toLowerCase() === conditionFilter.toLowerCase()
+      : true;
 
     let matchesDate = true;
     if (filterYear) {
@@ -180,32 +193,46 @@ const Accession = () => {
       }
     }
 
-    return matchesSearch && matchesSection && matchesSource && matchesDate;
+    return (
+      matchesSearch &&
+      matchesSection &&
+      matchesCondition &&
+      matchesSource &&
+      matchesDate
+    );
   });
 
   // Sorting
   const sortedCopies = [...filteredCopies].sort((a, b) => {
     if (!sortField) return 0;
-    if (sortField === "title")
-      return sortOrder === "asc"
-        ? a.title.localeCompare(b.title)
-        : b.title.localeCompare(a.title);
-    if (sortField === "date")
-      return sortOrder === "asc"
-        ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    if (sortField === "accession")
-      return sortOrder === "asc"
-        ? a.accession_number.localeCompare(b.accession_number)
-        : b.accession_number.localeCompare(a.accession_number);
+
+    const order = sortOrder === "asc" ? 1 : -1;
+
+    if (sortField === "title") {
+      return order * a.title.localeCompare(b.title);
+    }
+    if (sortField === "date") {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return order * (dateA - dateB);
+    }
+    if (sortField === "accession") {
+      return (
+        order *
+        a.accession_number.localeCompare(b.accession_number, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        })
+      );
+    }
     return 0;
   });
 
   // Pagination
-  const totalPages = Math.ceil(sortedCopies.length / copiesPerPage);
   const indexOfLastCopy = currentPage * copiesPerPage;
   const indexOfFirstCopy = indexOfLastCopy - copiesPerPage;
   const currentCopies = sortedCopies.slice(indexOfFirstCopy, indexOfLastCopy);
+  const itemsPerPage = 10;
 
   const handleWithdraw = async () => {
     const idsToWithdraw = currentCopies
@@ -215,12 +242,10 @@ const Accession = () => {
     if (window.confirm(`Withdraw ${idsToWithdraw.length} copies?`)) {
       try {
         setLoading(true);
-        // Change to POST to allow sending a body with the array of IDs
         await AxiosInstance.post("/circulations/book-copies/withdraw-bulk", {
           ids: idsToWithdraw,
         });
 
-        // Update local state so the books disappear from the UI
         setBooks((prev) =>
           prev.map((book) => ({
             ...book,
@@ -275,60 +300,27 @@ const Accession = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Export function
-  const handleExportToExcel = () => {
-    if (sortedCopies.length === 0) return;
+  const groupedBooks = books
+    .map((book) => {
+      // Filter the book's copies based on the same logic used for filteredCopies
+      const relevantCopies = filteredCopies.filter((c) => c.bookId === book.id);
+      return {
+        ...book,
+        relevantCopies,
+      };
+    })
+    .filter((b) => b.relevantCopies.length > 0);
 
-    // Prepare the data in a flat object array
-    const dataToExport = sortedCopies.map((copy) => ({
-      "Accession No": copy.accession_number,
-      Title: copy.title,
-      Section: copy.section,
-      "Copy No": copy.copy_number,
-      "Date Added": new Date(copy.created_at).toLocaleDateString(),
-      "Source Acquisition": copy.source,
-    }));
-
-    // Convert JSON to worksheet
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-
-    // Auto column widths
-    type ExportKey =
-      | "Accession No"
-      | "Title"
-      | "Section"
-      | "Copy No"
-      | "Date Added"
-      | "Source Acquisition";
-
-    const colWidths = Object.keys(dataToExport[0]).map((key) => ({
-      wch: Math.max(
-        key.length,
-        ...dataToExport.map((row) =>
-          row[key as ExportKey] ? row[key as ExportKey].toString().length : 0
-        )
-      ),
-    }));
-    worksheet["!cols"] = colWidths;
-
-    // Apply bold style to header row
-    const range = XLSX.utils.decode_range(worksheet["!ref"] || "");
-    for (let C = range.s.c; C <= range.e.c; C++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C }); // First row
-      if (worksheet[cellAddress]) {
-        worksheet[cellAddress].s = {
-          font: { bold: true },
-        };
-      }
-    }
-
-    // Create a new workbook and append worksheet
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Accession Record");
-
-    // Export to Excel file
-    XLSX.writeFile(workbook, "accession_record.xlsx");
+  const toggleBookExpansion = (bookId: number) => {
+    setExpandedBooks((prev) => (prev === bookId ? null : bookId));
   };
+
+  const dataToPaginate = viewMode === "table" ? sortedCopies : groupedBooks;
+
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = dataToPaginate.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(dataToPaginate.length / itemsPerPage);
 
   return (
     <>
@@ -384,15 +376,19 @@ const Accession = () => {
             </p>
           </div>
 
-          {selectedAccessions.length > 0 && (
-            <button
-              className="btn btn-danger d-flex align-items-center"
-              onClick={handleWithdraw}
-            >
-              <i className="bi bi-trash me-2"></i>
-              Withdraw Selected ({selectedAccessions.length})
-            </button>
-          )}
+          <div className="d-flex align-items-center gap-3 custom-actions-bar">
+            {/* WITHDRAW BUTTON - Styled like a floating alert */}
+            {selectedAccessions.length > 0 && (
+              <button
+                className="btn btn-withdraw-action animate-slide-in"
+                onClick={handleWithdraw}
+              >
+                <i className="bi bi-trash3-fill me-2"></i>
+                Withdraw
+                <span className="badge-count">{selectedAccessions.length}</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Controls */}
@@ -536,6 +532,43 @@ const Accession = () => {
                     )
                   )}
 
+                {/* Condition Filter */}
+                <div
+                  className={`filter-section-header ${
+                    activeFilterSection === "condition" ? "active" : ""
+                  }`}
+                  onClick={() =>
+                    setActiveFilterSection(
+                      activeFilterSection === "condition" ? null : "condition"
+                    )
+                  }
+                >
+                  Condition{" "}
+                  <i
+                    className={`bi ${
+                      activeFilterSection === "condition"
+                        ? "bi-chevron-down"
+                        : "bi-chevron-right"
+                    } ms-2`}
+                  ></i>
+                </div>
+                {activeFilterSection === "condition" &&
+                  ["New", "Fine", "Damaged"].map((cond) => (
+                    <div
+                      key={cond}
+                      className={`filter-item ${
+                        conditionFilter === cond ? "active" : ""
+                      }`}
+                      onClick={() =>
+                        setConditionFilter(
+                          conditionFilter === cond ? null : cond
+                        )
+                      }
+                    >
+                      {cond}
+                    </div>
+                  ))}
+
                 {/* Source Filter */}
                 <div
                   className={`filter-section-header ${
@@ -658,18 +691,50 @@ const Accession = () => {
                     </select>
                   </div>
                 )}
+
+                {(sectionFilter ||
+                  sourceFilter ||
+                  conditionFilter ||
+                  filterYear) && (
+                  <div
+                    className="filter-clear-all text-center border-top mt-2 text-danger"
+                    style={{ cursor: "pointer", fontWeight: "bold" }}
+                    onClick={() => {
+                      setSectionFilter(null);
+                      setSourceFilter(null);
+                      setConditionFilter(null);
+                      setFilterYear(null);
+                      setFilterMonth(null);
+                      setFilterWeek(null);
+                    }}
+                  >
+                    Clear All Filters
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Export Controls */}
-          <div className="position-relative">
-            {/* Export / Print */}
+          {/* VIEW TOGGLE BUTTONS */}
+          <div className="btn-group">
             <button
-              className="btn btn-outline-secondary d-flex align-items-center"
-              onClick={handleExportToExcel}
+              className={`btn ${
+                viewMode === "grouped"
+                  ? "btn-secondary"
+                  : "btn-outline-secondary"
+              }`}
+              onClick={() => setViewMode("grouped")}
             >
-              <i className="bi bi-file-earmark-spreadsheet me-2"></i> Export
+              <i className="bi bi-collection"></i>
+            </button>
+            <button
+              type="button"
+              className={`btn ${
+                viewMode === "table" ? "btn-secondary" : "btn-outline-secondary"
+              }`}
+              onClick={() => setViewMode("table")}
+            >
+              <i className="bi bi-list-ul"></i>
             </button>
           </div>
         </div>
@@ -678,79 +743,189 @@ const Accession = () => {
           <LoadingSpinner />
         ) : (
           <>
-            <table className="custom-table mt-3">
-              <thead>
-                <tr>
-                  <th style={{ width: "40px" }}>
-                    <input
-                      className="accession-checkbox"
-                      type="checkbox"
-                      onChange={(e) => {
-                        if (e.target.checked)
-                          setSelectedAccessions(
-                            currentCopies.map((c) => c.accession_number)
-                          );
-                        else setSelectedAccessions([]);
-                      }}
-                      checked={
-                        selectedAccessions.length === currentCopies.length &&
-                        currentCopies.length > 0
-                      }
-                    />
-                  </th>
-                  <th>Accession No.</th>
-                  <th>Title</th>
-                  <th>Section</th>
-                  <th>Copy No.</th>
-                  <th>Date Added</th>
-                  <th>Source Acquisition</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentCopies.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center">
-                      No accession records found.
-                    </td>
-                  </tr>
-                ) : (
-                  currentCopies.map((copy) => (
-                    <tr
-                      onClick={() => setSelectedCopy(copy)}
-                      style={{ cursor: "pointer" }}
-                      className={
-                        selectedAccessions.includes(copy.accession_number)
-                          ? "table-active"
-                          : ""
-                      }
-                    >
-                      <td>
+            <div className="table-container mt-3">
+              <table className="modern-table">
+                <thead>
+                  {viewMode === "table" ? (
+                    <tr>
+                      <th style={{ width: "40px" }}>
                         <input
-                          className="accession-checkbox"
                           type="checkbox"
-                          checked={selectedAccessions.includes(
-                            copy.accession_number
-                          )}
-                          onChange={() => toggleSelect(copy.accession_number)}
-                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            setSelectedAccessions(
+                              e.target.checked
+                                ? currentItems.map(
+                                    (c: any) => c.accession_number
+                                  )
+                                : []
+                            )
+                          }
+                          checked={
+                            selectedAccessions.length === currentItems.length &&
+                            currentItems.length > 0
+                          }
                         />
-                      </td>
-                      <td>{copy.accession_number}</td>
-                      <td>{copy.title}</td>
-                      <td>{copy.section}</td>
-                      <td>{copy.copy_number}</td>
-                      <td>{new Date(copy.created_at).toLocaleDateString()}</td>
-                      <td>{copy.source}</td>
+                      </th>
+                      <th>Accession No.</th>
+                      <th>Title</th>
+                      <th>Section</th>
+                      <th>Copy No.</th>
+                      <th>Date Acquired</th>
+                      <th>Condition</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    <tr>
+                      <th style={{ width: "40px" }}></th>
+                      <th style={{ width: "60px" }}>#</th>
+                      <th>Title</th>
+                      <th>Section</th>
+                      <th>Inventory</th>
+                    </tr>
+                  )}
+                </thead>
+                <tbody>
+                  {currentItems.map((item: any, index: number) => (
+                    <React.Fragment key={item.id || item.accession_number}>
+                      <tr
+                        className={`${
+                          viewMode === "grouped" ? "group-header" : ""
+                        } ${expandedBooks === item.id ? "is-expanded" : ""}`}
+                        onClick={() =>
+                          viewMode === "table"
+                            ? setSelectedCopy(item)
+                            : toggleBookExpansion(item.id)
+                        }
+                      >
+                        {viewMode === "table" ? (
+                          <>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={selectedAccessions.includes(
+                                  item.accession_number
+                                )}
+                                onChange={() =>
+                                  toggleSelect(item.accession_number)
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </td>
+                            <td className="fw-medium">
+                              {item.accession_number}
+                            </td>
+                            <td>{item.title}</td>
+                            <td>
+                              <span className="badge-section">
+                                {item.section}
+                              </span>
+                            </td>
+                            <td>{item.copy_number}</td>
+                            <td>
+                              {new Date(item.created_at).toLocaleDateString()}
+                            </td>
+                            <td>
+                              <span
+                                className={`status-dot dot-${item.condition?.toLowerCase()}`}
+                              ></span>
+                              {item.condition}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td>
+                              <i
+                                className={`bi bi-chevron-${
+                                  expandedBooks === item.id ? "down" : "right"
+                                }`}
+                              ></i>
+                            </td>
+                            <td className="text-muted">
+                              {indexOfFirstItem + index + 1}
+                            </td>
+                            <td className="fw-bold">{item.title}</td>
+                            <td>
+                              <span className="badge-section">
+                                {item.section}
+                              </span>
+                            </td>
+                            <td className="fw-medium">
+                              {item.relevantCopies.length} Copies
+                            </td>
+                          </>
+                        )}
+                      </tr>
 
+                      {/* Nested Table for Grouped View */}
+                      {viewMode === "grouped" && expandedBooks === item.id && (
+                        <tr className="expansion-row">
+                          <td colSpan={5} className="p-0">
+                            <div className="expansion-wrapper">
+                              <table className="inner-table">
+                                <thead>
+                                  <tr>
+                                    <th style={{ width: "40px" }}></th>
+                                    <th>Accession No.</th>
+                                    <th>Copy No.</th>
+                                    <th>Condition</th>
+                                    <th>Date Acquired</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {item.relevantCopies.map((copy: any) => (
+                                    <tr
+                                      key={copy.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedCopy(copy);
+                                      }}
+                                    >
+                                      <td>
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedAccessions.includes(
+                                            copy.accession_number
+                                          )}
+                                          onChange={() =>
+                                            toggleSelect(copy.accession_number)
+                                          }
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      </td>
+                                      <td className="fw-medium">
+                                        {copy.accession_number}
+                                      </td>
+                                      <td>{copy.copy_number}</td>
+                                      <td>
+                                        <span
+                                          className={`status-dot dot-${copy.condition?.toLowerCase()}`}
+                                        ></span>
+                                        {copy.condition}
+                                      </td>
+                                      <td>
+                                        {new Date(
+                                          copy.created_at
+                                        ).toLocaleDateString()}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* SHARED PAGINATION */}
             <div className="pagination-info text-center mb-2 mt-3">
-              Showing {indexOfFirstCopy + 1} -{" "}
-              {Math.min(indexOfLastCopy, sortedCopies.length)} of{" "}
-              {sortedCopies.length} copies
+              Showing {indexOfFirstItem + 1} -{" "}
+              {Math.min(indexOfLastItem, dataToPaginate.length)} of{" "}
+              {dataToPaginate.length}{" "}
+              {viewMode === "table" ? "copies" : "titles"}
             </div>
 
             {totalPages > 1 && (
@@ -761,6 +936,7 @@ const Accession = () => {
                 >
                   <i className="bi bi-chevron-double-left"></i> Prev
                 </button>
+                {/* You might want to limit the number of page buttons shown if totalPages is high */}
                 {Array.from({ length: totalPages }, (_, i) => (
                   <button
                     key={i}
@@ -780,63 +956,63 @@ const Accession = () => {
             )}
           </>
         )}
-
-        {/* Slider Panel */}
-        {selectedCopy && (
-          <div className="slider-panel" ref={sliderRef}>
-            <button className="close-btn" onClick={() => setSelectedCopy(null)}>
-              &times;
-            </button>
-            <div className="slider-image-title">
-              <img
-                src={
-                  selectedCopy.cover_image
-                    ? selectedCopy.cover_image
-                    : coverPlaceholder
-                }
-                alt={selectedCopy.title}
-                className="img-fluid"
-                style={{
-                  maxHeight: "200px",
-                  objectFit: "contain",
-                  width: "80%",
-                }}
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = coverPlaceholder;
-                }}
-              />
-
-              <h5>{selectedCopy.title}</h5>
-            </div>
-            <div className="slider-details mt-4">
-              {[
-                ["Accession No", selectedCopy.accession_number],
-                ["Section", selectedCopy.section],
-                ["Copy No", selectedCopy.copy_number],
-                ["Material Type", selectedCopy.material_type || "-"],
-                ["Condition", selectedCopy.condition],
-                ["Barcode", selectedCopy.barcode],
-                [
-                  "Date Acquired",
-                  selectedCopy.created_at
-                    ? new Date(selectedCopy.created_at).toLocaleDateString()
-                    : "-",
-                ],
-                ["Price", selectedCopy.price ? `₱${selectedCopy.price}` : "-"],
-                ["Source of Acquisition", selectedCopy.source || "-"],
-                ["Funding Source", selectedCopy.source_person || "-"],
-                ["Cataloging Note", selectedCopy.cataloging_note || "-"],
-                ["Internal Notes", selectedCopy.internal_note || "-"],
-              ].map(([label, value]) => (
-                <div className="detail-row" key={label}>
-                  <span className="detail-label">{label}:</span>
-                  <span className="detail-value">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Slider Panel */}
+      {selectedCopy && (
+        <div className="slider-panel" ref={sliderRef}>
+          <button className="close-btn" onClick={() => setSelectedCopy(null)}>
+            &times;
+          </button>
+          <div className="slider-image-title">
+            <img
+              src={
+                selectedCopy.cover_image
+                  ? selectedCopy.cover_image
+                  : coverPlaceholder
+              }
+              alt={selectedCopy.title}
+              className="img-fluid"
+              style={{
+                maxHeight: "200px",
+                objectFit: "contain",
+                width: "80%",
+              }}
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = coverPlaceholder;
+              }}
+            />
+
+            <h5>{selectedCopy.title}</h5>
+          </div>
+          <div className="slider-details mt-4">
+            {[
+              ["Accession No", selectedCopy.accession_number],
+              ["Section", selectedCopy.section],
+              ["Copy No", selectedCopy.copy_number],
+              ["Material Type", selectedCopy.material_type || "-"],
+              ["Condition", selectedCopy.condition],
+              ["Barcode", selectedCopy.barcode],
+              [
+                "Date Acquired",
+                selectedCopy.created_at
+                  ? new Date(selectedCopy.created_at).toLocaleDateString()
+                  : "-",
+              ],
+              ["Price", selectedCopy.price ? `₱${selectedCopy.price}` : "-"],
+              ["Source of Acquisition", selectedCopy.source || "-"],
+              ["Funding Source", selectedCopy.source_person || "-"],
+              ["Cataloging Note", selectedCopy.cataloging_note || "-"],
+              ["Internal Notes", selectedCopy.internal_note || "-"],
+            ].map(([label, value]) => (
+              <div className="detail-row" key={label}>
+                <span className="detail-label">{label}:</span>
+                <span className="detail-value">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 };

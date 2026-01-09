@@ -195,7 +195,7 @@ const BookDetails: React.FC = () => {
   ].filter((contributor) => contributor.value?.trim());
 
   const seriesDisplay =
-    [book.series_name, book.volume].filter(Boolean).join("; ") || "N/A";
+    [book.series_name, book.volume].filter(Boolean).join("; ") || "-";
 
   const topicalSubjects: string[] = Array.isArray(book.topical_subject)
     ? book.topical_subject
@@ -230,7 +230,7 @@ const BookDetails: React.FC = () => {
             Bibliographical Record
           </h1>
           <p>
-            <strong>Title:</strong> {book.title || "N/A"}
+            <strong>Title:</strong> {book.title || "-"}
           </p>
           <p className="contributor">
             <strong>Contributor:</strong>
@@ -241,27 +241,27 @@ const BookDetails: React.FC = () => {
                       {c.label}: {c.value?.trim()}
                     </span>
                   ))
-                : "N/A"}
+                : "-"}
             </span>
           </p>
           <p>
-            <strong>Edition:</strong> {book.edition || "N/A"}
+            <strong>Edition:</strong> {book.edition || "-"}
           </p>
           <p>
             <strong>Published:</strong>{" "}
             {[book.publisher, book.place_of_publication, book.copyright]
               .filter(Boolean)
-              .join(", ") || "N/A"}
+              .join(", ") || "-"}
           </p>
           <p>
-            <strong>Pages:</strong> {book.number_of_pages || "N/A"}
+            <strong>Pages:</strong> {book.number_of_pages || "-"}
           </p>
           <p>
             <strong>Series:</strong> {seriesDisplay}
           </p>
           <p>
             <strong>Notes:</strong>{" "}
-            {notesArray.length ? `Includes ${notesArray.join(", ")}` : "N/A"}
+            {notesArray.length ? `Includes ${notesArray.join(", ")}` : "-"}
           </p>
           <p className="subjects mb-4">
             <strong>Subjects:</strong>
@@ -276,12 +276,12 @@ const BookDetails: React.FC = () => {
                       {subject}
                     </span>
                   ))
-                : "N/A"}
+                : "-"}
             </div>
           </p>
 
           <p>
-            <strong>Call Number:</strong> {book.call_number || "N/A"}
+            <strong>Call Number:</strong> {book.call_number || "-"}
           </p>
         </div>
 
@@ -343,9 +343,15 @@ const BookDetails: React.FC = () => {
                   const status = copy.status?.toLowerCase();
                   const condition = copy.condition?.toLowerCase();
 
+                  const isOnlyCopy = book.copies.length <= 1;
+
                   if (status === "lost") return "-";
 
-                  if (condition === "damaged" || condition === "poor")
+                  if (
+                    condition === "damaged" ||
+                    condition === "poor" ||
+                    isOnlyCopy
+                  )
                     return "Library-use-only";
 
                   if (
@@ -383,16 +389,16 @@ const BookDetails: React.FC = () => {
                   >
                     <td>{copy.copy_number}</td>
                     <td>{copy.barcode}</td>
-                    <td>{copy.accession_number || "N/A"}</td>
+                    <td>{copy.accession_number}</td>
                     <td>{copy.status}</td>
-                    <td>{copy.condition || "N/A"}</td>
+                    <td>{copy.condition || "-"}</td>
                     <td>
                       <span className={`badge ${badgeClass}`}>
                         {restrictionLabel}
                       </span>
                     </td>
 
-                    <td>{copy.internal_note || "N/A"}</td>
+                    <td>{copy.internal_note || "-"}</td>
                   </tr>
                 );
               })}
@@ -429,10 +435,12 @@ const BookDetails: React.FC = () => {
                       {
                         source: formData.get("source"),
                         material_type_id: formData.get("material_type_id"),
-                        isbn_paperback: isbnPaperback,
-                        isbn_hardcover: isbnHardcover,
-                        issn: issn,
+                        isbn_paperback:
+                          isbnPaperback.trim() || book.isbn_paperback,
+                        isbn_hardcover:
+                          isbnHardcover.trim() || book.isbn_hardcover,
                         binding: selectedBinding,
+                        issn: issn,
                         source_person: formData.get("source_person"),
                         condition: formData.get("condition"),
                         cataloging_note: formData.get("cataloging_note"),
@@ -475,58 +483,75 @@ const BookDetails: React.FC = () => {
                   {/* Row: Conditional ISBN or ISSN */}
                   <div className="accession-grid-row">
                     {selectedMaterialTypeId != 2 ? (
-                      <div className="accession-field mb-0">
-                        <label>
-                          ISBN <span className="catalog_number">(020)</span>
+                      <div className="accession-field mb-3">
+                        <label className="fw-bold mb-2">
+                          Copy Binding Format{" "}
+                          <span className="text-danger">*</span>
                         </label>
-                        <div className="d-flex gap-5">
-                          {/* Paperback Input */}
-                          {/* Paperback Column */}
-                          <div className="flex-col flex-grow">
-                            <input
-                              type="text"
-                              className="form-control mb-0"
-                              value={isbnPaperback} 
-                              onChange={(e) => setIsbnPaperback(e.target.value)}
-                              onFocus={() => setSelectedBinding("Paperback")} 
-                              placeholder="Paperback ISBN"
-                            />
-                            <span
-                              className={`binding-label mt-0 ${
-                                selectedBinding === "Paperback"
-                                  ? "fw-bold"
-                                  : "text-muted"
-                              }`}
-                            >
-                              <i>
-                                Paperback{" "}
+
+                        <div className="format-selection-container">
+                          {/* PAPERBACK CARD */}
+                          <div
+                            className={`format-card ${
+                              selectedBinding === "Paperback" ? "selected" : ""
+                            }`}
+                            onClick={() => setSelectedBinding("Paperback")}
+                          >
+                            <div className="format-header">
+                              <span className="format-label">Paperback</span>
+                              <div className="selection-indicator">
                                 {selectedBinding === "Paperback" && "✓"}
-                              </i>
-                            </span>
+                              </div>
+                            </div>
+
+                            {book.isbn_paperback ? (
+                              <span className="isbn-display">
+                                {book.isbn_paperback}
+                              </span>
+                            ) : (
+                              <input
+                                type="text"
+                                placeholder="Enter ISBN..."
+                                className="form-control form-control-sm"
+                                value={isbnPaperback}
+                                onChange={(e) =>
+                                  setIsbnPaperback(e.target.value)
+                                }
+                                onClick={(e) => e.stopPropagation()} // Stop click from triggering card select
+                              />
+                            )}
                           </div>
 
-                          {/* Hardcover Column */}
-                          <div className="flex-col flex-grow">
-                            <input
-                              type="text"
-                              className="form-control mb-0"
-                              value={isbnHardcover} 
-                              onChange={(e) => setIsbnHardcover(e.target.value)}
-                              onFocus={() => setSelectedBinding("Hardcover")}
-                              placeholder="Hardcover ISBN"
-                            />
-                            <span
-                              className={`binding-label mt-0 ${
-                                selectedBinding === "Hardcover"
-                                  ? "fw-bold"
-                                  : "text-muted"
-                              }`}
-                            >
-                              <i>
-                                Hardcover{" "}
+                          {/* HARDCOVER CARD */}
+                          <div
+                            className={`format-card ${
+                              selectedBinding === "Hardcover" ? "selected" : ""
+                            }`}
+                            onClick={() => setSelectedBinding("Hardcover")}
+                          >
+                            <div className="format-header">
+                              <span className="format-label">Hardcover</span>
+                              <div className="selection-indicator">
                                 {selectedBinding === "Hardcover" && "✓"}
-                              </i>
-                            </span>
+                              </div>
+                            </div>
+
+                            {book.isbn_hardcover ? (
+                              <span className="isbn-display">
+                                {book.isbn_hardcover}
+                              </span>
+                            ) : (
+                              <input
+                                type="text"
+                                placeholder="Enter ISBN..."
+                                className="form-control form-control-sm"
+                                value={isbnHardcover}
+                                onChange={(e) =>
+                                  setIsbnHardcover(e.target.value)
+                                }
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -744,14 +769,14 @@ const BookDetails: React.FC = () => {
               </div>
 
               <div className="form-actions no-print">
-                <button onClick={() => window.print()} className="submit-btn">
-                  <i className="bi bi-printer me-2"></i> Print All
-                </button>
                 <button
                   onClick={() => setShowBarcodeModal(false)}
                   className="cancel-btn"
                 >
                   Close
+                </button>
+                <button onClick={() => window.print()} className="submit-btn">
+                  <i className="bi bi-printer me-2"></i> Print All
                 </button>
               </div>
             </div>

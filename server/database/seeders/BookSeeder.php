@@ -20,8 +20,8 @@ class BookSeeder extends Seeder
         // Define section → abbreviation mapping
         $sectionMap = [
             'Filipiniana' => 'FIL',
-            'Gen. Circulation' => 'GC',
-            'Gen. Reference' => 'REF',
+            'General Collection' => 'GC',
+            'General Reference' => 'REF',
         ];
 
         $section = 'Filipiniana'; // Example default section

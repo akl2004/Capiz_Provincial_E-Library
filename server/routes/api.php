@@ -67,11 +67,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/patrons/{id}', [PatronController::class, 'show']);
     Route::put('/patrons/{id}', [PatronController::class, 'update']);
     Route::delete('/patrons/{id}', [PatronController::class, 'destroy']);
+    Route::post('/patrons/{id}/renew', [PatronController::class, 'renewPatron']);
     Route::post('/patrons/pay-fine', [PatronController::class, 'payFine']);
-});
 
-Route::get('/patrons/by-id/{patronId}', [PatronController::class, 'getByPatronId']);
-Route::middleware('auth:sanctum')->put('/patrons/{id}/edit', [PatronController::class, 'updateEditableFields']);
+    Route::put('/patrons/{id}/edit', [PatronController::class, 'updateEditableFields']);
+});
+    
+    Route::get('/patrons/by-id/{patronId}', [PatronController::class, 'getByPatronId']);
 
 
 // Circulation routes
@@ -83,15 +85,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/circulations/book-copies/withdraw-bulk', [CirculationController::class, 'withdraw']);
     
     Route::get('/patrons/{id}/transactions', [CirculationController::class, 'patronTransactions']); // fetch patrons transaction
+    Route::get('/circulations/today-tally', [CirculationController::class, 'todayTallyWithPercentage']);
+    Route::get('/circulations', [CirculationController::class, 'index']);        // list all circulations
+    Route::get('/copies/{copyId}/history', [CirculationController::class, 'copyHistory']); //fetches all transaction of a book
+    Route::get('/circulation/top-books-week', [CirculationController::class, 'topBooksThisWeek']);
+    
+    Route::get('/circulations/borrowed-book/{barcode}', [CirculationController::class, 'getBorrowedBookByBarcode']);
+    Route::get('/circulations/borrowing-policy', [CirculationController::class, 'getBorrowingPolicy']);
+    Route::get('/circulations/active-loans/{patron_id}', [CirculationController::class, 'getActiveLoansByPatron']);
 });
 
-Route::get('/circulations/today-tally', [CirculationController::class, 'todayTallyWithPercentage']);
-Route::get('/circulations', [CirculationController::class, 'index']);        // list all circulations
-Route::get('/copies/{copyId}/history', [CirculationController::class, 'copyHistory']); //fetches all transaction of a book
-Route::get('/circulation/top-books-week', [CirculationController::class, 'topBooksThisWeek']);
-
-Route::get('/circulations/borrowed-book/{barcode}', [CirculationController::class, 'getBorrowedBookByBarcode']);
-Route::get('/circulations/borrowing-policy', [CirculationController::class, 'getBorrowingPolicy']);
 
 
 // Attendance routes
@@ -136,6 +139,16 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
+// Reports routes
+Route::middleware('auth:sanctum')->group(function () {
+
+    Route::get('/reports/collection', [ReportsController::class, 'collection']);
+    Route::get('/reports/collection-masterlist', [ReportsController::class, 'collectionMasterlist']);
+    Route::get('/reports/circulation', [ReportsController::class, 'circulation']);
+    Route::get('/reports/attendance/summary', [ReportsController::class, 'attendanceSummary']);
+    Route::get('/reports/attendance/log', [ReportsController::class, 'attendanceLog']);
+    Route::get('/reports/accounts', [ReportsController::class, 'accounts']);
+});
 
 //Activity Logs
 Route::get('/activity-logs', [ActivityLogController::class, 'index']);
@@ -143,11 +156,4 @@ Route::get('/users/{id}/activity-logs', [ActivityLogController::class, 'getUserL
 Route::post('/activity-logs', [ActivityLogController::class, 'store']);
 
 
-// Reports
-Route::get('/reports/collection', [ReportsController::class, 'collection']);
-Route::get('/reports/collection-masterlist', [ReportsController::class, 'collectionMasterlist']);
-Route::get('/reports/circulation', [ReportsController::class, 'circulation']);
-Route::get('/reports/attendance/summary', [ReportsController::class, 'attendanceSummary']);
-Route::get('/reports/attendance/log', [ReportsController::class, 'attendanceLog']);
-Route::get('/reports/accounts', [ReportsController::class, 'accounts']);
 

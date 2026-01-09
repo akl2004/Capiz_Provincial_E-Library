@@ -5,9 +5,17 @@ import LoadingSpinner from "../../LoadingSpinner";
 import provinceListData from "../../../data/ph_addresses/province.json";
 import cityListData from "../../../data/ph_addresses/city.json";
 import barangayListData from "../../../data/ph_addresses/barangay.json";
+import MessageModal from "../../MessageModal";
+
+let globalScanBuffer = "";
+let globalLastScanTime = 0;
 
 interface Attendance {
   id: number;
+  patron_id: string | number | null;
+  patron?: {
+    patron_id: string;
+  };
   first_name: string;
   middle_name?: string;
   last_name: string;
@@ -17,6 +25,7 @@ interface Attendance {
   barangay: string;
   email?: string;
   number?: string;
+  visitor_type?: string;
   affiliation?: string;
   purpose_of_visit: string;
   time_in: string | null;
@@ -56,7 +65,7 @@ const DailyAttendancePage = () => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
     patronId: "",
-    dbPatronId: null, 
+    dbPatronId: null,
     first_name: "",
     middle_name: "",
     last_name: "",
@@ -66,6 +75,7 @@ const DailyAttendancePage = () => {
     barangay: "",
     email: "",
     number: "",
+    visitor_type: "",
     affiliation: "",
     purpose_of_visit: "",
   });
@@ -106,7 +116,6 @@ const DailyAttendancePage = () => {
       setLoadingAttendances(false);
     }
   };
-
 
   // Suggestion handlers
   const handleProvinceChange = (value: string) => {
@@ -167,6 +176,7 @@ const DailyAttendancePage = () => {
       barangay: "",
       email: "",
       number: "",
+      visitor_type: "",
       affiliation: "",
       purpose_of_visit: "",
     });
@@ -179,7 +189,6 @@ const DailyAttendancePage = () => {
     setCitySuggestions([]);
     setBarangaySuggestions([]);
   };
-
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -213,6 +222,7 @@ const DailyAttendancePage = () => {
         barangay: "",
         email: "",
         number: "",
+        visitor_type: "",
         affiliation: "",
         purpose_of_visit: "",
       });
@@ -226,7 +236,6 @@ const DailyAttendancePage = () => {
       setLoading(false);
     }
   };
-
 
   const handleTimeOut = async (id: number) => {
     try {
@@ -258,6 +267,7 @@ const DailyAttendancePage = () => {
         barangay: patron.barangay || "",
         email: patron.email || "",
         number: patron.number || "",
+        visitor_type: patron.visitor_type || "",
         affiliation: prev.affiliation,
         purpose_of_visit: prev.purpose_of_visit,
         dbPatronId: patron.id,
@@ -282,6 +292,110 @@ const DailyAttendancePage = () => {
         .includes(searchTerm.toLowerCase()) ||
       att.purpose_of_visit.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const [msgModal, setMsgModal] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
+
+  // hands free time out
+  const processAutoScan = async (scannedId: string) => {
+    const cleanId = scannedId.trim().toUpperCase();
+    if (!cleanId) return;
+
+    const activeAttendance = attendances.find((att) => {
+      const barcodeFromDB = att.patron?.patron_id?.toUpperCase();
+      return barcodeFromDB === cleanId && att.time_out === null;
+    });
+
+    if (activeAttendance) {
+      setLoading(true);
+      try {
+        await AxiosInstance.post(`/attendances/${activeAttendance.id}/timeout`);
+        fetchTodayAttendances();
+
+        // TRIGGER SUCCESS MODAL
+        setMsgModal({
+          show: true,
+          type: "success",
+          message: `Goodbye, ${activeAttendance.first_name}! Time-out recorded.`,
+        });
+      } catch (err) {
+        setMsgModal({
+          show: true,
+          type: "error",
+          message: "Failed to process time-out. Please try again.",
+        });
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setMode("patron");
+      setOpen(true);
+      handlePatronIdChange(cleanId);
+    }
+  };
+
+  // 2. FIXED KEYBOARD LISTENER
+  useEffect(() => {
+    let timeoutId: any;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const ignoredKeys = ["Shift", "Control", "Alt", "CapsLock", "Tab"];
+      if (ignoredKeys.includes(e.key)) return;
+      if (open) return;
+
+      const active = document.activeElement;
+      if (
+        active &&
+        (active.tagName === "INPUT" || active.tagName === "TEXTAREA")
+      )
+        return;
+
+      const currentTime = Date.now();
+
+      // 1. If this is the start of a new scan, clear the old buffer
+      if (currentTime - globalLastScanTime > 100) {
+        globalScanBuffer = "";
+      }
+      globalLastScanTime = currentTime;
+
+      // 2. Clear any existing "finish" timer because we just got a new character
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (globalScanBuffer.length > 0) {
+          processAutoScan(globalScanBuffer);
+          globalScanBuffer = "";
+        }
+      } else if (e.key.length === 1) {
+        globalScanBuffer += e.key;
+        console.log("Current Buffer:", globalScanBuffer);
+
+        // 3. SMART TIMER: If no more keys come in for 50ms, process it!
+        timeoutId = setTimeout(() => {
+          if (globalScanBuffer.length > 3) {
+            // Only process if it looks like a real ID
+            console.warn("Timer triggered auto-submit for:", globalScanBuffer);
+            processAutoScan(globalScanBuffer);
+            globalScanBuffer = "";
+          }
+        }, 50);
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleGlobalKeyDown, true);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [attendances, open]);
 
   return (
     <div className="attendance-container">
@@ -322,6 +436,7 @@ const DailyAttendancePage = () => {
               <th>Email</th>
               <th>Address</th>
               <th>Number</th>
+              <th>Visitor Type</th>
               <th>Affiliation</th>
               <th>Purpose</th>
               <th>Time In</th>
@@ -344,6 +459,7 @@ const DailyAttendancePage = () => {
                   <td>{att.email || "-"}</td>
                   <td>{`${att.barangay}, ${att.city}, ${att.province}`}</td>
                   <td>{att.number || "-"}</td>
+                  <td>{att.visitor_type || "-"}</td>
                   <td>{att.affiliation || "-"}</td>
                   <td>{att.purpose_of_visit}</td>
                   <td>
@@ -574,6 +690,13 @@ const DailyAttendancePage = () => {
                   disabled={loading}
                 />
                 <input
+                  name="visitor_type"
+                  value={form.visitor_type}
+                  onChange={handleChange}
+                  placeholder="Visitor Type"
+                  disabled={loading}
+                />
+                <input
                   name="affiliation"
                   value={form.affiliation}
                   onChange={handleChange}
@@ -591,13 +714,6 @@ const DailyAttendancePage = () => {
 
                 <div className="form-actions">
                   <button
-                    type="submit"
-                    className="submit-btn"
-                    disabled={loading}
-                  >
-                    Time In
-                  </button>
-                  <button
                     type="button"
                     className="cancel-btn"
                     onClick={() => setOpen(false)}
@@ -605,11 +721,26 @@ const DailyAttendancePage = () => {
                   >
                     Cancel
                   </button>
+                  <button
+                    type="submit"
+                    className="submit-btn"
+                    disabled={loading}
+                  >
+                    Time In
+                  </button>
                 </div>
               </form>
             )}
           </div>
         </div>
+      )}
+
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
       )}
     </div>
   );

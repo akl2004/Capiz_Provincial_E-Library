@@ -130,9 +130,16 @@ const CirculationPage = () => {
 
     if (period === "This Week") {
       const firstDayOfWeek = new Date(today);
-      firstDayOfWeek.setDate(today.getDate() - today.getDay());
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+
+      firstDayOfWeek.setDate(diff);
+      firstDayOfWeek.setHours(0, 0, 0, 0);
+
       const lastDayOfWeek = new Date(firstDayOfWeek);
       lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
+      lastDayOfWeek.setHours(23, 59, 59, 999);
+
       return issueDate >= firstDayOfWeek && issueDate <= lastDayOfWeek;
     }
 
@@ -166,6 +173,7 @@ const CirculationPage = () => {
   const filteredRecords = records.filter((rec) => {
     const matchesSearch =
       [
+        rec.patron?.patron_id.toString(),
         rec.patron?.first_name,
         rec.patron?.middle_name,
         rec.patron?.last_name,
@@ -201,11 +209,7 @@ const CirculationPage = () => {
         getStatus(r) === "Returned" &&
         filterByPeriod(r, activePeriodMap["Returned"])
     ).length,
-    Overdue: records.filter(
-      (r) =>
-        getStatus(r) === "Overdue" &&
-        filterByPeriod(r, activePeriodMap["Overdue"])
-    ).length,
+    Overdue: records.filter((r) => getStatus(r) === "Overdue").length,
   };
 
   const getStatusColor = (record: Circulation) => {
@@ -217,13 +221,15 @@ const CirculationPage = () => {
         return "#198754"; // green
       case "Overdue":
         return "#dc3545"; // red
+      case "Returned Late":
+        return "#198754"; // green
       default:
         return "#6c757d"; // gray for others
     }
   };
 
   // Apply sorting to filtered records
-  let sortedRecords = [...filteredRecords]; // copy first
+  let sortedRecords = [...filteredRecords];
 
   // If no sortField is selected, default to issue_date descending
   const fieldToSort = sortField || "issue_date";
@@ -507,6 +513,7 @@ const CirculationPage = () => {
                       <th>Barcode</th>
                       <th>Issued Date</th>
                       <th>Due Date</th>
+                      <th>Renewal Count</th>
                       <th>Return Date</th>
                       <th>Status</th>
                     </tr>
@@ -514,7 +521,7 @@ const CirculationPage = () => {
                   <tbody>
                     {currentRecords.length === 0 ? (
                       <tr>
-                        <td className="text-center py-4" colSpan={8}>
+                        <td className="text-center py-4" colSpan={9}>
                           No circulation records found.
                         </td>
                       </tr>
@@ -522,7 +529,7 @@ const CirculationPage = () => {
                       currentRecords.map((rec) => (
                         <Fragment key={rec.id}>
                           <tr onClick={() => toggleRow(rec.id)}>
-                            <td colSpan={8} style={{ padding: 0 }}>
+                            <td colSpan={9} style={{ padding: 0 }}>
                               <div
                                 className="row-card"
                                 style={{ borderColor: getStatusColor(rec) }}
@@ -542,6 +549,7 @@ const CirculationPage = () => {
                                 <div>{rec.book_copy?.barcode}</div>
                                 <div>{rec.issue_date}</div>
                                 <div>{rec.due_date}</div>
+                                <div>{rec.renewal_count || "-"}</div>
                                 <div>{rec.date_returned || "-"}</div>
                                 <div className="fw-semibold">
                                   {getStatus(rec)}
@@ -552,7 +560,7 @@ const CirculationPage = () => {
 
                           {expandedRows.includes(rec.id) && (
                             <tr className="expanded-row">
-                              <td colSpan={8} style={{ padding: 0 }}>
+                              <td colSpan={9} style={{ padding: 0 }}>
                                 <div
                                   className="expanded-table"
                                   style={{ borderColor: getStatusColor(rec) }}

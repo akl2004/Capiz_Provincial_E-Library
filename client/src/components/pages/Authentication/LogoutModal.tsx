@@ -28,7 +28,7 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ onClose }) => {
         justifyContent: "center",
         alignItems: "center",
         height: "100vh",
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
+        backgroundColor: "rgba(0, 0, 0, 0.8)",
         position: "fixed",
         top: 0,
         left: 0,
@@ -42,16 +42,16 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ onClose }) => {
           maxWidth: "90vw",
           width: "320px",
           margin: "auto",
-          padding: "1rem",
+          padding: "2rem",
           boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
           borderRadius: "8px",
           backgroundColor: "white",
           position: "relative",
         }}
       >
-        <h5 className="mb-3 mt-4">Are you sure you want to log out?</h5>
+        <h5 className="mb-3 mt-1">Are you sure you want to log out?</h5>
         <button
-          className="logout-button btn btn-danger w-100 mb-2"
+          className="logout-button btn btn-danger w-100 mb-2 mt-4"
           onClick={handleConfirmLogout}
           style={{ fontSize: "1rem", padding: "0.5rem" }}
         >

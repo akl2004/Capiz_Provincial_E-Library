@@ -59,8 +59,8 @@ class BookController extends Controller
         /// Map section → abbreviation
         $sectionMap = [
             'Filipiniana' => 'FIL',
-            'Gen. Circulation' => 'GC',
-            'Gen. Reference' => 'REF',
+            'General Collection' => 'GC',
+            'General Reference' => 'REF',
         ];
         $sectionAbbr = $sectionMap[$validated['section']];
 
@@ -240,7 +240,7 @@ class BookController extends Controller
     {
         // Get the 7 most recently added books
         $books = Book::orderBy('created_at', 'desc')
-                    ->take(8)
+                    ->take(7)
                     ->get(['id', 'title', 'cover_image', 'copyright']);
 
         if ($books->isEmpty()) {

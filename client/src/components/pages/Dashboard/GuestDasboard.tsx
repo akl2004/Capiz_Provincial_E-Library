@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import AxiosInstance from "../../../AxiosInstance";
-import guestHome1 from "../../../assets/carousel/guest-home1.png";
-import guestHome2 from "../../../assets/carousel/guest-home2.jpg";
-import guestHome3 from "../../../assets/carousel/guest-home3.png";
-import guestHome4 from "../../../assets/carousel/guest-home4.png";
-import guestHome5 from "../../../assets/carousel/guest-home5.png";
+import guestHome0 from "../../../assets/carousel/000.jpg";
+import guestHome1 from "../../../assets/carousel/100.jpg";
+import guestHome2 from "../../../assets/carousel/200.jpg";
+import guestHome3 from "../../../assets/carousel/300.jpg";
+import guestHome4 from "../../../assets/carousel/400.jpg";
+import guestHome5 from "../../../assets/carousel/500.jpg";
+import guestHome6 from "../../../assets/carousel/600.jpg";
+import guestHome7 from "../../../assets/carousel/700.jpg";
+import guestHome8 from "../../../assets/carousel/800.jpg";
+import guestHome9 from "../../../assets/carousel/900.jpg";
 import placeholder from "../../../assets/cover_placeholder.jpg";
 import { useNavigate } from "react-router-dom";
 import LoadingSpinner from "../../LoadingSpinner";
@@ -18,6 +23,8 @@ interface Book {
   editor?: string | null;
   other_author_editor?: string | null;
   edition?: string;
+  author_number: string;
+  dewey_decimal: string;
   number_of_pages?: number;
   classification?: string;
   topical_subject?: string[] | string;
@@ -33,21 +40,23 @@ interface Book {
 }
 
 interface BookCopy {
+  id: number;
   material_type?: string;
   status?: string;
+  condition?: string;
 }
 
 const categories = [
-  { name: "HISTORY & GEOGRAPHY", image: guestHome1, dewey: "900" },
-  { name: "LITERATURE", image: guestHome2, dewey: "800" },
-  { name: "RELIGION", image: guestHome3, dewey: "200" },
-  { name: "SOCIAL SCIENCES", image: guestHome4, dewey: "300" },
-  { name: "PHILOSOPHY", image: guestHome5, dewey: "100" },
-  { name: "GENERAL WORKS", image: guestHome3, dewey: "000" },
+  { name: "GENERAL WORKS", image: guestHome0, dewey: "000" },
+  { name: "PHILOSOPHY", image: guestHome1, dewey: "100" },
+  { name: "RELIGION", image: guestHome2, dewey: "200" },
+  { name: "SOCIAL SCIENCES", image: guestHome3, dewey: "300" },
   { name: "LANGUAGE", image: guestHome4, dewey: "400" },
-  { name: "SCIENCE", image: guestHome3, dewey: "500" },
-  { name: "TECHNOLOGY", image: guestHome1, dewey: "600" },
-  { name: "ARTS", image: guestHome2, dewey: "700" },
+  { name: "SCIENCE", image: guestHome5, dewey: "500" },
+  { name: "TECHNOLOGY", image: guestHome6, dewey: "600" },
+  { name: "ARTS", image: guestHome7, dewey: "700" },
+  { name: "LITERATURE", image: guestHome8, dewey: "800" },
+  { name: "HISTORY & GEOGRAPHY", image: guestHome9, dewey: "900" },
 ];
 
 const GuestDashboard = () => {
@@ -59,6 +68,8 @@ const GuestDashboard = () => {
 
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  const [showGuide, setShowGuide] = useState(false);
 
   const navigate = useNavigate();
 
@@ -203,6 +214,19 @@ const GuestDashboard = () => {
       "bibliographical references",
   ].filter(Boolean);
 
+  const ddcCategories: Record<string, string> = {
+    "000": "General Works",
+    "100": "Philosophy",
+    "200": "Religion",
+    "300": "Social Sciences",
+    "400": "Language",
+    "500": "Science",
+    "600": "Technology",
+    "700": "Arts",
+    "800": "Literature",
+    "900": "History & Geography",
+  };
+
   return (
     <div className="guest-dashboard">
       {/* Search */}
@@ -257,7 +281,8 @@ const GuestDashboard = () => {
                 <li
                   key={book.id}
                   className="list-group-item list-group-item-action"
-                  onClick={() => {
+                  onMouseDown={(e) => {
+                    e.preventDefault();
                     setSearchTerm(book.title);
                     setShowDropdown(false);
                     navigate(
@@ -266,6 +291,7 @@ const GuestDashboard = () => {
                       )}`
                     );
                   }}
+                  style={{ cursor: "pointer" }}
                 >
                   {book.title}
                 </li>
@@ -388,7 +414,14 @@ const GuestDashboard = () => {
                     </span>
                   </h2>
                 )}
-                <span className="info-icon">ⓘ</span>
+                <span
+                  className="info-icon"
+                  onClick={() => setShowGuide(true)}
+                  style={{ cursor: "pointer" }}
+                  title="How to find this book"
+                >
+                  ⓘ
+                </span>
               </div>
 
               <hr className="modal-divider" />
@@ -460,17 +493,32 @@ const GuestDashboard = () => {
                   <div className="availability-box mt-4">
                     <p className="mb-0">
                       <strong>Availability:</strong>{" "}
-                      {selectedBook.copies?.filter(
-                        (c) => c.status === "Available"
-                      ).length || 0}{" "}
-                      out of {selectedBook.copies?.length || 0} copies
+                      {selectedBook.copies?.filter((c) => {
+                        return c.status !== "On Loan" && c.status !== "Lost";
+                      }).length || 0}{" "}
+                      out of {selectedBook.copies?.length || 0} copies in shelf
                     </p>
                     <p>
                       <strong>For Loan:</strong>{" "}
-                      {selectedBook.copies?.filter(
-                        (c) => c.status === "Available"
-                      ).length || 0}{" "}
-                      copies available
+                      {(() => {
+                        const allCopies = selectedBook.copies || [];
+                        const totalOwned = allCopies.length;
+                        const healthyAvailableCopies = allCopies.filter((c) => {
+                          return (
+                            c.status === "Available" &&
+                            c.condition !== "Damaged" &&
+                            c.condition !== "Poor"
+                          );
+                        });
+                        if (totalOwned <= 1) {
+                          return (
+                            <span className="text-danger fw-bold">
+                              0 (Reference Only)
+                            </span>
+                          );
+                        }
+                        return `${healthyAvailableCopies.length} copies available to borrow`;
+                      })()}
                     </p>
                   </div>
                 </div>
@@ -483,6 +531,108 @@ const GuestDashboard = () => {
                 >
                   BACK
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showGuide && (
+        <div
+          className="modal-overlay guide-overlay"
+          onClick={() => setShowGuide(false)}
+        >
+          <div className="guide-card" onClick={(e) => e.stopPropagation()}>
+            <div className="guide-header">
+              <h3>How to Find This Book</h3>
+              <button
+                className="close-guide-btn"
+                onClick={() => setShowGuide(false)}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="guide-body">
+              <section className="guide-section">
+                <h5>
+                  <i className="bi bi-person-badge"></i> Option A: Ask a
+                  Librarian
+                </h5>
+                <p>
+                  Show this screen to any library staff. They will help you find
+                  the shelf!
+                </p>
+              </section>
+
+              <hr className="guide-divider" />
+
+              <section className="guide-section">
+                <h5>
+                  <i className="bi bi-search"></i> Option B: Find It Yourself
+                </h5>
+                <p className="mb-3">
+                  Follow these steps using the <strong>Call Number</strong>:
+                </p>
+
+                <div className="example-tag">{selectedBook?.call_number}</div>
+                {/* DYNAMIC VISUAL TAG */}
+                <div className="call-number-breakdown">
+                  <div className="breakdown-item">
+                    <span className="code-part">
+                      {selectedBook?.section === "Gen. Reference"
+                        ? "REF"
+                        : selectedBook?.section === "Gen. Circulation"
+                        ? "GC"
+                        : selectedBook?.section === "Filipiniana"
+                        ? "FIL"
+                        : selectedBook?.section}
+                    </span>
+                    <span className="desc">
+                      <strong>Section:</strong> Go to the{" "}
+                      {selectedBook?.section} area.
+                    </span>
+                  </div>
+
+                  <div className="breakdown-item">
+                    <span className="code-part">
+                      {selectedBook?.dewey_decimal || "000"}
+                    </span>
+                    <span className="desc">
+                      <strong>Classification:</strong> Look for the shelves
+                      labeled with{" "}
+                      <strong>
+                        {ddcCategories[
+                          selectedBook?.dewey_decimal?.toString().charAt(0) +
+                            "00"
+                        ]?.toUpperCase() || "GENERAL WORKS"}
+                      </strong>{" "}
+                    </span>
+                  </div>
+
+                  <div className="breakdown-item">
+                    <span className="code-part">
+                      {selectedBook?.author_number || "A11"}
+                    </span>
+                    <span className="desc">
+                      <strong>Author:</strong> Arranged alphabetically on that
+                      shelf.
+                    </span>
+                  </div>
+
+                  <div className="breakdown-item">
+                    <span className="code-part">
+                      {selectedBook?.copyright || "0000"}
+                    </span>
+                    <span className="desc">
+                      <strong>Year:</strong> Check this for the correct edition.
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <div className="guide-footer-note">
+                ✨ If anything is confusing, just ask — we’re happy to help!
               </div>
             </div>
           </div>

@@ -26,6 +26,11 @@ class Patron extends Model
         'gender',
         'registered_by',
         'notes',
+        'expires_at',
+    ];
+
+    protected $casts = [
+        'expires_at' => 'date', 
     ];
 
     protected $appends = ['expiry_date', 'full_name'];
@@ -48,16 +53,10 @@ class Patron extends Model
     }
 
 
-    // ✅ Expiry date is dynamically computed
+    // Expiry date is dynamically computed
     public function getExpiryDateAttribute()
     {
-        // Get years from settings, fallback to 3 years
-        $years = LibrarySetting::getValue('patron_expiration_years', 3);
-
-        // Add years to registration date
-        return $this->created_at
-            ? Carbon::parse($this->created_at)->addYears($years)->toDateString()
-            : null;
+        return $this->expires_at ? $this->expires_at->toDateString() : null;
     }
 
 

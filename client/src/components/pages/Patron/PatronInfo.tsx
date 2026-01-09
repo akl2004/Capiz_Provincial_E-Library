@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
+import Barcode from "react-barcode";
 
 interface Patron {
   patron_id?: string;
@@ -41,6 +42,7 @@ interface Transaction {
   due_date?: string;
   return_date?: string;
   fine: number;
+  is_paid: boolean;
   paid_amount?: number;
   settlement_type?: string;
   processed_by?: string;
@@ -57,6 +59,7 @@ const PatronInfo = () => {
   const [loadingPatron, setLoadingPatron] = useState(true);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   // for transaction
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -64,7 +67,29 @@ const PatronInfo = () => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
-    return new Date(dateString).toISOString().split("T")[0]; 
+    return new Date(dateString).toISOString().split("T")[0];
+  };
+
+  const getDisplayStatus = (t: Transaction) => {
+    if (
+      t.status === "Returned" ||
+      t.status === "Returned Late" ||
+      t.status === "Lost"
+    ) {
+      return t.status;
+    }
+    if (t.due_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); 
+      const dueDate = new Date(t.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+
+      if (dueDate < today) {
+        return "Overdue";
+      }
+    }
+
+    return t.status;
   };
 
   useEffect(() => {
@@ -85,46 +110,85 @@ const PatronInfo = () => {
     fetchPatron();
   }, [id]);
 
-
   // fetch transaction
- useEffect(() => {
-   const fetchData = async () => {
-     try {
-       setLoadingTransactions(true);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoadingTransactions(true);
 
-       // 1. Fetch Stats from your Laravel stats() method
-       const statsRes = await AxiosInstance.get(`/patrons/${id}/stats`);
-       setStats({
-         borrowedBooks: statsRes.data.borrowedBooks,
-         returnedBooks: statsRes.data.returnedBooks,
-         totalFine: statsRes.data.totalFine,
-         overdueBooks: statsRes.data.overdueBooks,
-         lostBooks: statsRes.data.lostBooks,
-         activeLoans: statsRes.data.activeLoans,
-       });
+        const statsRes = await AxiosInstance.get(`/patrons/${id}/stats`);
+        setStats({
+          borrowedBooks: statsRes.data.borrowedBooks,
+          returnedBooks: statsRes.data.returnedBooks,
+          totalFine: statsRes.data.totalFine,
+          overdueBooks: statsRes.data.overdueBooks,
+          lostBooks: statsRes.data.lostBooks,
+          activeLoans: statsRes.data.activeLoans,
+        });
 
-       // 2. Fetch Transactions from your patronTransactions() method
-       const transRes = await AxiosInstance.get(`/patrons/${id}/transactions`);
-       setTransactions(transRes.data);
-     } catch (error) {
-       console.error("Error fetching patron data:", error);
-     } finally {
-       setLoadingTransactions(false);
-     }
-   };
+        const transRes = await AxiosInstance.get(`/patrons/${id}/transactions`);
+        setTransactions(transRes.data);
+      } catch (error) {
+        console.error("Error fetching patron data:", error);
+      } finally {
+        setLoadingTransactions(false);
+      }
+    };
 
-   if (id) fetchData();
- }, [id]);
+    if (id) fetchData();
+  }, [id]);
 
- const activeLoans = stats?.activeLoans ?? 0;
+  const [fineRate, setFineRate] = useState(5);
 
- const settlementTransactions = transactions.filter((t) => {
-   const isLost = t.status === "Lost";
-   const wasFinePaid =
-     t.status === "Returned" && (t.fine > 0 || (t.paid_amount ?? 0) > 0);
+  useEffect(() => {
+    const fetchFineRate = async () => {
+      try {
+        const res = await AxiosInstance.get("/settings/fine-per-day");
+        setFineRate(res.data.fine_per_day);
+      } catch (err) {
+        console.error("Could not fetch fine rate", err);
+      }
+    };
+    fetchFineRate();
+  }, []);
 
-   return isLost || wasFinePaid;
- });
+  const calculatedBalance = transactions.reduce((total, t) => {
+    if (t.is_paid === true || Number(t.is_paid) === 1) {
+      return total;
+    }
+
+    if (t.status === "Lost") return total;
+
+    if (t.return_date) {
+      return total;
+    }
+
+    // 4. Calculation for books STILL with the patron (Live Overdue)
+    if (t.due_date && !t.return_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(t.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+
+      if (dueDate < today) {
+        const diffTime = today.getTime() - dueDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return total + diffDays * fineRate;
+      }
+    }
+
+    return total;
+  }, 0);
+
+  const activeLoans = stats?.activeLoans ?? 0;
+
+  const settlementTransactions = transactions.filter((t) => {
+    const isLost = t.status === "Lost";
+    const wasFinePaid =
+      t.status === "Returned" && (t.fine > 0 || (t.paid_amount ?? 0) > 0);
+
+    return isLost || wasFinePaid;
+  });
 
   const sortedTransactions = [...transactions].sort((a, b) => {
     const aDate = new Date(a.date_issued).getTime();
@@ -150,21 +214,111 @@ const PatronInfo = () => {
 
   return (
     <div>
-      <button
-        onClick={() => navigate(-1)}
-        className="py-2 px-4 mb-4 bg-gray-200 hover:bg-gray-300 rounded"
-      >
-        ← Back
-      </button>
+      {/* ===== Barcode Modal for Patron ID ===== */}
+      {showPrintModal && (
+        <div className="modal-overlay">
+          <div className="modal-box" style={{ maxWidth: "450px" }}>
+            <button
+              onClick={() => setShowPrintModal(false)}
+              className="modal-close-btn no-print"
+            >
+              &times;
+            </button>
+
+            <h2 className="text-xl font-semibold mb-4 no-print text-center">
+              Print Patron ID Card
+            </h2>
+
+            {/* Wrapping in the ID your CSS expects */}
+            <div id="printable-patron-barcodes">
+              <div className="patron-card-design barcode-item">
+                <div className="card-accent-border"></div>
+
+                <div className="card-header-main">
+                  <div className="library-title">CAPIZ PROVINCIAL LIBRARY</div>
+                  <div className="card-type">PATRON PASS</div>
+                </div>
+
+                <div className="card-content-grid">
+                  <div className="patron-details">
+                    <div className="detail-group">
+                      <span className="patron-detail-label">NAME</span>
+                      <span className="patron-detail-value">
+                        {fullName.toUpperCase()}
+                      </span>
+                    </div>
+
+                    <div className="id-expiry-row">
+                      <div className="detail-group">
+                        <span className="patron-detail-label">PATRON ID</span>
+                        <span className="patron-detail-value">
+                          {patron.patron_id}
+                        </span>
+                      </div>
+                      <div className="detail-group">
+                        <span className="patron-detail-label">EXPIRY</span>
+                        <span className="patron-detail-value">
+                          {patron.expiry_date?.slice(0, 10) || "N/A"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="barcode-section-card">
+                  <Barcode
+                    value={patron.patron_id || "0000"}
+                    width={1.5}
+                    height={55}
+                    fontSize={12}
+                    margin={2}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="form-actions no-print mt-4">
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="cancel-btn"
+              >
+                Close
+              </button>
+              <button onClick={() => window.print()} className="submit-btn">
+                <i className="bi bi-printer me-2"></i> Print Card
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="patron-top">
         <div className="patron-container">
           {/* Patron Info */}
           <div className="patron-record">
-            <h1 className="text-xl font-semibold mb-0">Patron Record</h1>
-            <p className="mb-6 text-gray-600">
-              <i>Holds the recorded information of the patron</i>
-            </p>
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h1 className="text-xl font-semibold mb-0">
+                  <span
+                    className="me-2"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => navigate(-1)}
+                  >
+                    <i className="bi bi-arrow-left"></i>
+                  </span>
+                  Patron Record
+                </h1>
+                <p className="mb-6 text-gray-600">
+                  <i>Holds the recorded information of the patron</i>
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPrintModal(true)}
+                className="patron-btn"
+              >
+                <i className="bi bi-printer me-2"></i> Print Patron ID
+              </button>
+            </div>
 
             <table>
               <tbody>
@@ -225,7 +379,7 @@ const PatronInfo = () => {
             </div>
             <div className="stat-body">
               <span className="stat-number">
-                ₱{(Number(stats?.totalFine) || 0).toFixed(2)}
+                ₱{calculatedBalance.toFixed(2)}
               </span>
             </div>
 
@@ -304,17 +458,30 @@ const PatronInfo = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedTransactions.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.book_title}</td>
-                  <td>{t.call_number}</td>
-                  <td>{t.copy_number}</td>
-                  <td>{t.status}</td>
-                  <td>{t.date_issued ? t.date_issued.slice(0, 10) : "—"}</td>
-                  <td>{t.due_date ? t.due_date.slice(0, 10) : "—"}</td>
-                  <td>{t.return_date ? t.return_date.slice(0, 10) : "—"}</td>
-                </tr>
-              ))}
+              {sortedTransactions.map((t) => {
+                const displayStatus = getDisplayStatus(t);
+
+                return (
+                  <tr key={t.id}>
+                    <td>{t.book_title}</td>
+                    <td>{t.call_number}</td>
+                    <td>{t.copy_number}</td>
+                    <td
+                      style={{
+                        color:
+                          displayStatus === "Overdue" ? "#dc3545" : "inherit",
+                        fontWeight:
+                          displayStatus === "Overdue" ? "bold" : "normal",
+                      }}
+                    >
+                      {displayStatus}
+                    </td>
+                    <td>{t.date_issued ? t.date_issued.slice(0, 10) : "—"}</td>
+                    <td>{t.due_date ? t.due_date.slice(0, 10) : "—"}</td>
+                    <td>{t.return_date ? t.return_date.slice(0, 10) : "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (
@@ -354,14 +521,12 @@ const PatronInfo = () => {
                   <td>{t.id}</td>
                   <td>{formatDate(t.return_date || t.date_issued)}</td>
                   <td>{t.settlement_type}</td>
-                  <td className="py-3 px-4 border-bottom align-middle text-muted">
+                  <td>
                     {t.settlement_type === "Replacement"
                       ? `Replaced "${t.book_title}" (Copy #${t.copy_number})`
                       : `Paid ₱${t.material_price} book price + ₱${t.processing_fee_used} processing fee`}
                   </td>
-                  <td className="py-3 px-4 border-bottom align-middle text-muted">
-                    {t.processed_by}
-                  </td>
+                  <td>{t.processed_by}</td>
                 </tr>
               ))}
             </tbody>

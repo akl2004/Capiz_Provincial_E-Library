@@ -51,50 +51,71 @@ const RenewalLimitSetting = () => {
   };
 
   return (
-    <div className="mb-4">
-      {/* Header */}
-      <h4 className="font-semibold mb-0 mx-2">Renewal Terms</h4>
+    <div className="renewal-main-container">
+      {alertMessage && (
+        <Alert
+          message={alertMessage}
+          type={alertType}
+          onClose={() => setAlertMessage(null)}
+        />
+      )}
 
-      {/* Form Section */}
-      <div className="settings-form">
-        {/* Alert */}
-        {alertMessage && (
-          <Alert
-            message={alertMessage}
-            type={alertType}
-            onClose={() => setAlertMessage(null)}
-          />
-        )}
-        <div className="settings-row mb-3">
-          <label>Max Renewals per Item</label>
-          <input
-            type="number"
-            value={renewalLimit}
-            onChange={(e) => setRenewalLimit(parseInt(e.target.value))}
-            min={1}
-            max={10}
-          />
+      <div className="renewal-settings-card">
+        <div className="renewal-card-header">
+          <div className="d-flex align-items-center">
+            <div className="renewal-icon-box me-3">
+              <i className="bi bi-arrow-repeat"></i>
+            </div>
+            <div>
+              <h5 className="renewal-card-title mb-0">Renewal Terms</h5>
+              <small className="renewal-card-subtitle">
+                Set how many times patrons can extend their loan period
+              </small>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Actions */}
-      <div className="settings-actions">
-        <button
-          onClick={handleSave}
-          className="btn btn-save"
-          disabled={loading}
-        >
-          {loading ? (
-            "Saving..."
-          ) : (
-            <>
-              <i className="bi bi-save me-1"></i> Save Changes
-            </>
-          )}
-        </button>
-        <button onClick={handleReset} className="btn btn-reset">
-          Reset
-        </button>
+        <div className="card-body p-4">
+          <div className="renewal-setting-row">
+            <div className="renewal-info">
+              <span className="renewal-title">Maximum Renewals</span>
+              <small className="renewal-description">
+                Allowed renewals per item before it must be returned.
+              </small>
+            </div>
+            <div className="renewal-control">
+              <div className="renewal-input-wrapper">
+                <input
+                  type="number"
+                  className="renewal-custom-input"
+                  value={renewalLimit}
+                  onChange={(e) => setRenewalLimit(parseInt(e.target.value))}
+                  min={1}
+                  max={10}
+                />
+                <span className="renewal-unit">Times</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="d-flex justify-content-end gap-2 mt-4">
+            <button onClick={handleReset} className="renewal-reset-button">
+              Reset
+            </button>
+            <button
+              onClick={handleSave}
+              className="renewal-save-button"
+              disabled={loading}
+            >
+              {loading ? (
+                <span className="spinner-border spinner-border-sm me-2"></span>
+              ) : (
+                <i className="bi bi-check2-circle me-2"></i>
+              )}
+              Update Limit
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

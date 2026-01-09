@@ -28,6 +28,7 @@ return new class extends Migration
             $table->string('gender', 10)->nullable();
             $table->string('registered_by')->nullable();
             $table->text('notes')->nullable();
+            $table->date('expires_at')->nullable();
             
             $table->timestamps();
         });

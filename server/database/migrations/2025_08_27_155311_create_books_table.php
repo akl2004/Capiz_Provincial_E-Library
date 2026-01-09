@@ -50,7 +50,7 @@ return new class extends Migration
             $table->string('call_number');
 
             // New fields
-            $table->enum('section', ['Gen. Reference', 'Filipiniana', 'Gen. Circulation']);
+            $table->enum('section', ['General Reference', 'Filipiniana', 'General Collection']);
 
             // Book cover image
             $table->string('cover_image')->nullable();

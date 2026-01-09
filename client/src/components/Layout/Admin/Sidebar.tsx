@@ -1,4 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
+import elibIcon from "../../../assets/cpl_logo.png";
+
+// Gray Icons
 import dashboardIcon from "../../../assets/gray-icons/dashboard.png";
 import patronIcon from "../../../assets/gray-icons/patron.png";
 import catalogingIcon from "../../../assets/gray-icons/cataloging.png";
@@ -9,8 +12,7 @@ import reportsIcon from "../../../assets/gray-icons/reports.png";
 import accountsIcon from "../../../assets/gray-icons/accounts.png";
 import settingsIcon from "../../../assets/gray-icons/settings.png";
 
-import elibIcon from "../../../assets/cpl_logo.png";
-
+// Active (White) Icons
 import dashboardIconActive from "../../../assets/white-icons/dashboard.png";
 import patronIconActive from "../../../assets/white-icons/patron.png";
 import catalogingIconActive from "../../../assets/white-icons/cataloging.png";
@@ -21,135 +23,119 @@ import reportsIconActive from "../../../assets/white-icons/reports.png";
 import accountsIconActive from "../../../assets/white-icons/accounts.png";
 import settingsIconActive from "../../../assets/white-icons/settings.png";
 
-const AdminSidebar = () => {
+const Sidebar = () => {
   const location = useLocation();
+
+  // Get the role from localStorage (fallback to 'staff' if null)
+  const userRole = localStorage.getItem("role")?.toLowerCase() || "staff";
+
+  // Determine the prefix (admin or staff)
+  const prefix = userRole === "admin" ? "admin" : "staff";
 
   const mainNavItems = [
     {
       name: "Dashboard",
-      path: "/admin/admindashboard",
+      path: `/${prefix}/${prefix}dashboard`,
       icon: dashboardIcon,
       activeIcon: dashboardIconActive,
     },
     {
       name: "Patron",
-      path: "/admin/patrons",
+      path: `/${prefix}/patrons`,
       icon: patronIcon,
       activeIcon: patronIconActive,
     },
     {
       name: "Cataloging",
-      path: "/admin/cataloging",
+      path: `/${prefix}/cataloging`,
       icon: catalogingIcon,
       activeIcon: catalogingIconActive,
     },
     {
       name: "Accession",
-      path: "/admin/accession",
+      path: `/${prefix}/accession`,
       icon: accessionIcon,
       activeIcon: accessionIconActive,
     },
     {
       name: "Circulation",
-      path: "/admin/circulation",
+      path: `/${prefix}/circulation`,
       icon: circulationIcon,
       activeIcon: circulationIconActive,
     },
     {
       name: "Attendance",
-      path: "/admin/attendance",
+      path: `/${prefix}/attendance`,
       icon: attendanceIcon,
       activeIcon: attendanceIconActive,
     },
     {
       name: "Reports",
-      path: "/admin/reports",
+      path: `/${prefix}/reports`,
       icon: reportsIcon,
       activeIcon: reportsIconActive,
     },
   ];
 
-  const bottomNavItems = [
+  const adminOnlyItems = [
     {
       name: "Accounts",
-      path: "/admin/accounts",
+      path: `/${prefix}/accounts`,
       icon: accountsIcon,
       activeIcon: accountsIconActive,
     },
     {
       name: "Settings",
-      path: "/admin/settings",
+      path: `/${prefix}/settings`,
       icon: settingsIcon,
       activeIcon: settingsIconActive,
     },
   ];
 
+  // Helper to render links to keep the code clean
+  const renderNavLink = (item: any) => (
+    <Link
+      key={item.name}
+      to={item.path}
+      className={`nav-link mb-1 ${
+        location.pathname === item.path
+          ? "active text-white fw-bold"
+          : "text-gray-300"
+      }`}
+      style={{ fontSize: "1.1rem", transition: "all 0.2s ease-in-out" }}
+    >
+      <img
+        src={location.pathname === item.path ? item.activeIcon : item.icon}
+        alt={item.name}
+        style={{ width: "22px", height: "22px", marginRight: "10px" }}
+      />
+      <span className="flex-grow-1">{item.name}</span>
+    </Link>
+  );
+
   return (
     <div className="p-3 w-64 d-flex flex-column" style={{ height: "100vh" }}>
-      {/* Logo */}
       <h2 className="fs-4 fw-bold mb-0">
         <img className="mx-2" src={elibIcon} alt="" height={40} width={40} />
         CAPIZ E-LIB
       </h2>
 
-      {/* Main nav */}
-      <ul className="nav flex-column fs-5 mx-3 flex-grow-1">
-        {mainNavItems.map((item) => (
-          <Link
-            key={item.name}
-            to={item.path}
-            className={`nav-link mb-1 ${
-              location.pathname === item.path
-                ? "active text-white fw-bold"
-                : "text-gray-300"
-            }`}
-            style={{
-              fontSize: "1.1rem",
-              transition: "all 0.2s ease-in-out",
-            }}
-          >
-            <img
-              src={
-                location.pathname === item.path ? item.activeIcon : item.icon
-              }
-              alt={item.name}
-              style={{ width: "22px", height: "22px", marginRight: "10px" }}
-            />
-            <span className="flex-grow-1">{item.name}</span>
-          </Link>
-        ))}
+      {/* Main Nav Items (Shown to everyone) */}
+      <ul className="nav flex-column fs-5 mx-3 flex-grow-1 mt-4">
+        {mainNavItems.map(renderNavLink)}
       </ul>
 
-      {/* Bottom nav (Settings & Accounts) */}
-      <hr />
-      <ul className="nav flex-column fs-5 mx-3 mt-auto">
-        {bottomNavItems.map((item) => (
-          <Link
-            key={item.name}
-            to={item.path}
-            className={`nav-link mb-1 ${
-              location.pathname === item.path
-                ? "active text-white fw-bold"
-                : "text-gray-300"
-            }`}
-            style={{
-              fontSize: "1.1rem",
-              transition: "all 0.2s ease-in-out",
-            }}
-          >
-            <img
-              src={
-                location.pathname === item.path ? item.activeIcon : item.icon
-              }
-              alt={item.name}
-              style={{ width: "22px", height: "22px", marginRight: "10px" }}
-            />
-            <span className="flex-grow-1">{item.name}</span>
-          </Link>
-        ))}
-      </ul>
+      {/* Admin-Only Section */}
+      {userRole === "admin" && (
+        <>
+          <hr />
+          <ul className="nav flex-column fs-5 mx-3 mt-auto">
+            {adminOnlyItems.map(renderNavLink)}
+          </ul>
+        </>
+      )}
     </div>
   );
 };
 
-export default AdminSidebar;
+export default Sidebar;

@@ -4,51 +4,43 @@ import LoginModal from "./LoginModal";
 
 const roles = [
   { name: "Guest", image: "./src/assets/orange-icons/guest.png" },
-  { name: "Staff", image: "./src/assets/orange-icons/staff.png" },
-  { name: "Admin", image: "./src/assets/orange-icons/admin.png" },
+  { name: "User", image: "./src/assets/orange-icons/staff.png" },
 ];
 
 const RoleSelection: React.FC = () => {
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     document.title = "Login";
   }, []);
 
-  const [loggedInUser, setLoggedInUser] = useState<{
-    name: string;
-    avatar: string;
-    role: string;
-  } | null>(null);
-
   const handleLoginSuccess = (user: {
     name: string;
     avatar: string;
     role: string;
   }) => {
-    // store role in localStorage
     localStorage.setItem("role", user.role.toLowerCase());
+    localStorage.setItem("userName", user.name);
 
-    setLoggedInUser(user);
+    const role = user.role.toLowerCase();
 
-    if (user.role.toLowerCase() === "staff") {
-      navigate("/staff/staffdashboard");
-    } else if (user.role.toLowerCase() === "admin") {
-      navigate("/admin/admindashboard");
-    } else if (user.role.toLowerCase() === "guest") {
-      navigate("/guest/guestdashboard");
+    if (role === "admin") {
+      navigate("/admin/admindashboard"); 
+    } else if (role === "staff") {
+      navigate("/staff/staffdashboard"); 
+    } else {
+      navigate("/");
     }
   };
 
-  const handleRoleClick = (role: string) => {
-    if (role === "Guest") {
+  const handleRoleClick = (roleName: string) => {
+    if (roleName === "Guest") {
       navigate("/guest/guestdashboard");
     } else {
-      setSelectedRole(role);
+      setIsLoginModalOpen(true);
     }
   };
-
 
   return (
     <div className="background">
@@ -71,10 +63,9 @@ const RoleSelection: React.FC = () => {
           ))}
         </div>
 
-        {selectedRole && (
+        {isLoginModalOpen && (
           <LoginModal
-            role={selectedRole} // lowercase role
-            onClose={() => setSelectedRole(null)}
+            onClose={() => setIsLoginModalOpen(false)}
             onLoginSuccess={handleLoginSuccess}
           />
         )}

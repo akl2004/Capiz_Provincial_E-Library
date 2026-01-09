@@ -54,64 +54,83 @@ const FineSetting = () => {
   };
 
   return (
-    <div className="mb-4">
-      {/* Header */}
-      <h4 className="font-semibold mb-0 mx-2">Fees and Penalties</h4>
+    <div className="fine-main-container">
+      {alertMessage && (
+        <Alert
+          message={alertMessage}
+          type={alertType}
+          onClose={() => setAlertMessage(null)}
+        />
+      )}
 
-      {/* Form Section */}
-      <div className="settings-form">
-        {/* Alert */}
-        {alertMessage && (
-          <Alert
-            message={alertMessage}
-            type={alertType}
-            onClose={() => setAlertMessage(null)}
-          />
-        )}
-        <div className="settings-row mb-3">
-          <label>Fine Rate Per Day</label>
-          <input
-            type="text"
-            placeholder="₱ 0.00"
-            value={finePerDay ? `₱${finePerDay}` : ""}
-            onChange={(e) => {
-              const rawValue = e.target.value.replace("₱", "");
-              if (rawValue === "" || /^\d+$/.test(rawValue)) {
-                setFinePerDay(rawValue);
-              }
-            }}
-            onBlur={() => {
-              if (finePerDay === "") setFinePerDay(0);
-            }}
-          />
+      <div className="fine-settings-card">
+        <div className="fine-card-header">
+          <div className="d-flex align-items-center">
+            <div className="fine-icon-box me-3">
+              <i className="bi bi-cash-stack"></i>
+            </div>
+            <div>
+              <h5 className="fine-card-title mb-0">Fees and Penalties</h5>
+              <small className="fine-card-subtitle">
+                Configure overdue fines and item replacement charges
+              </small>
+            </div>
+          </div>
         </div>
-        <div className="settings-row mb-3">
-          <label>Lost Book Processing Fee</label>
-          <input
-            type="text"
-            value={processingFee ? `₱${processingFee}` : ""}
-            placeholder="₱ 0.00"
-            onChange={(e) => {
-              const rawValue = e.target.value.replace("₱", "");
-              if (rawValue === "" || /^\d+$/.test(rawValue)) {
-                setProcessingFee(rawValue);
-              }
-            }}
-            onBlur={() => {
-              if (processingFee === "") setProcessingFee(0);
-            }}
-          />
-        </div>
-      </div>
 
-      {/* Actions */}
-      <div className="settings-actions">
-        <button onClick={handleSave} className="btn btn-save">
-          <i className="bi bi-save me-1"></i> Save Changes
-        </button>
-        <button onClick={handleReset} className="btn btn-reset">
-          Reset
-        </button>
+        <div className="card-body p-4">
+          <div className="fine-setting-row">
+            <div className="fine-info">
+              <span className="fine-title">Fine Rate Per Day</span>
+              <small className="fine-description">
+                Daily penalty amount for items returned past their due date.
+              </small>
+            </div>
+            <div className="fine-control">
+              <div className="fine-input-wrapper">
+                <span className="fine-currency-prefix">₱</span>
+                <input
+                  type="number"
+                  className="fine-custom-input"
+                  value={finePerDay}
+                  onChange={(e) => setFinePerDay(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="fine-setting-row">
+            <div className="fine-info">
+              <span className="fine-title">Lost Book Processing Fee</span>
+              <small className="fine-description">
+                Fixed administrative charge for replacing lost library
+                materials.
+              </small>
+            </div>
+            <div className="fine-control">
+              <div className="fine-input-wrapper">
+                <span className="fine-currency-prefix">₱</span>
+                <input
+                  type="number"
+                  className="fine-custom-input"
+                  value={processingFee}
+                  onChange={(e) => setProcessingFee(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="d-flex justify-content-end gap-2 mt-4">
+            <button onClick={handleReset} className="fine-reset-button">
+              Reset
+            </button>
+            <button onClick={handleSave} className="fine-save-button">
+              <i className="bi bi-save me-2"></i> Save Changes
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

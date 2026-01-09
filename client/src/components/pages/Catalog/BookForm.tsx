@@ -132,7 +132,7 @@ const BookForm: React.FC = () => {
     const generatedCopies: Copy[] = Array.from({ length: copies }, (_, i) => ({
       copy_number: i + 1,
       barcode: generateBarcode(),
-      condition: "Fine",
+      condition: "",
       price: defaultPrice || "",
       cataloging_note: "",
       internal_note: "",
@@ -201,7 +201,7 @@ const BookForm: React.FC = () => {
     formData.append("section", section);
     formData.append("source", source.trim());
     formData.append("material_type_id", materialType);
-    formData.append("condition", defaultCondition[0] || "Fine");
+    formData.append("condition", defaultCondition[0] || "New");
     if (coverImage) formData.append("cover_image", coverImage);
 
     // Append each copy (optional)

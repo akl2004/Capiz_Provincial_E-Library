@@ -60,75 +60,98 @@ const BorrowingPolicySetting = () => {
     setAlertMessage(null);
   };
 
-  return (
-    <div className="mb-4">
-      {/* Header */}
-      <h4 className="font-semibold mb-0 mx-2">Loan Policies</h4>
+ return (
+    <div className="borrow-main-container">
+      {alertMessage && (
+        <Alert
+          message={alertMessage}
+          type={alertType}
+          onClose={() => setAlertMessage(null)}
+        />
+      )}
 
-      {/* Settings Fields */}
-      <div className="settings-form">
-        {/* Alert */}
-        {alertMessage && (
-          <Alert
-            message={alertMessage}
-            type={alertType}
-            onClose={() => setAlertMessage(null)}
-          />
-        )}
-        <div className="settings-row mb-3">
-          <label>Default Loan Days</label>
-          <input
-            type="text"
-            value={loanDays}
-            onChange={(e) => setLoanDays(e.target.value)}
-            min={1}
-            max={60}
-          />
+      <div className="borrow-settings-card">
+        <div className="borrow-card-header">
+          <div className="d-flex align-items-center">
+            <div className="borrow-icon-box me-3">
+              <i className="bi bi-journal-check"></i>
+            </div>
+            <div>
+              <h5 className="borrow-card-title mb-0">Loan Policies</h5>
+              <small className="borrow-card-subtitle">
+                Define duration and item limits for library circulation
+              </small>
+            </div>
+          </div>
         </div>
 
-        <div className="settings-row mb-3">
-          <label>Max Items per Transaction</label>
-          <input
-            type="text"
-            value={maxItems}
-            onChange={(e) => setMaxItems(e.target.value)}
-            min={1}
-            max={20}
-          />
-        </div>
+        <div className="card-body p-4">
+          <div className="borrow-setting-row">
+            <div className="borrow-info">
+              <span className="borrow-title">Default Loan Period</span>
+              <small className="borrow-description">Number of days a book can be kept.</small>
+            </div>
+            <div className="borrow-control">
+              <div className="borrow-input-wrapper">
+                <input
+                  type="number"
+                  className="borrow-custom-input"
+                  value={loanDays}
+                  onChange={(e) => setLoanDays(e.target.value)}
+                />
+                <span className="borrow-unit">Days</span>
+              </div>
+            </div>
+          </div>
 
-        <div className="settings-row mb-3">
-          <label>Borrow Limit per Person</label>
-          <input
-            type="text"
-            value={borrowLimit}
-            onChange={(e) => setBorrowLimit(e.target.value)}
-            min={1}
-            max={50}
-          />
-        </div>
-      </div>
+          <div className="borrow-setting-row">
+            <div className="borrow-info">
+              <span className="borrow-title">Transaction Limit</span>
+              <small className="borrow-description">Max items allowed in a single checkout.</small>
+            </div>
+            <div className="borrow-control">
+              <input
+                type="number"
+                className="borrow-custom-input"
+                value={maxItems}
+                onChange={(e) => setMaxItems(e.target.value)}
+              />
+            </div>
+          </div>
 
-      {/* Actions */}
-      <div className="settings-actions mt-3">
-        <button
-          onClick={handleSaveAll}
-          className="btn btn-save me-2"
-          disabled={saving}
-        >
-          {saving ? (
-            <>
-              <i className="bi bi-hourglass-split me-1"></i> Saving...
-            </>
-          ) : (
-            <>
-              <i className="bi bi-save me-1"></i> Save Changes
-            </>
-          )}
-        </button>
-        <button onClick={handleReset} className="btn btn-reset">
-          Reset
-        </button>
+          <div className="borrow-setting-row">
+            <div className="borrow-info">
+              <span className="borrow-title">Total Borrow Limit</span>
+              <small className="borrow-description">Maximum books a person can hold at once.</small>
+            </div>
+            <div className="borrow-control">
+              <input
+                type="number"
+                className="borrow-custom-input"
+                value={borrowLimit}
+                onChange={(e) => setBorrowLimit(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="d-flex justify-content-end gap-2 mt-4">
+            <button onClick={handleReset} className="borrow-reset-button">
+              Reset
+            </button>
+            <button
+              onClick={handleSaveAll}
+              className="borrow-save-button"
+              disabled={saving}
+            >
+              {saving ? (
+                <span className="spinner-border spinner-border-sm me-2"></span>
+              ) : (
+                <i className="bi bi-save me-2"></i>
+              )}
+              Save Changes
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

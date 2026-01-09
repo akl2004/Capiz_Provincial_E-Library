@@ -58,40 +58,75 @@ const ExpirationYearsSetting = () => {
   };
 
   return (
-    <div className="mb-4">
-      <div className="settings-form">
-        <div className="settings-row mb-3">
-          <label>Expiry Policy</label>
-          <input
-            type="number"
-            value={expirationYears > 0 ? expirationYears : ""}
-            onChange={handleChange}
-            min={1}
-            max={10}
-          />
+    <div className="expiry-main-container">
+      <div className="expiry-settings-card">
+        <div className="expiry-card-header">
+          <div className="d-flex align-items-center">
+            <div className="expiry-icon-box me-3">
+              <i className="bi bi-person-badge"></i>
+            </div>
+            <div>
+              <h5 className="expiry-card-title mb-0">Account Expiration</h5>
+              <small className="expiry-card-subtitle">
+                Set the duration for patron account validity
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <div className="card-body p-4">
+          <div className="expiry-setting-row">
+            <div className="expiry-info">
+              <span className="expiry-title">Membership Validity</span>
+              <small className="expiry-description">
+                Number of years before a patron account expires and requires
+                renewal.
+              </small>
+            </div>
+            <div className="expiry-control">
+              <div className="expiry-input-wrapper">
+                <input
+                  type="number"
+                  className="expiry-custom-input"
+                  value={expirationYears > 0 ? expirationYears : ""}
+                  onChange={handleChange}
+                  min={1}
+                  max={10}
+                />
+                <span className="expiry-unit">Years</span>
+              </div>
+            </div>
+          </div>
+
+          {message && (
+            <div
+              className={`expiry-status-message mt-3 ${
+                message.includes("✅") ? "success" : "error"
+              }`}
+            >
+              {message}
+            </div>
+          )}
+
+          <div className="d-flex justify-content-end gap-2 mt-4">
+            <button onClick={handleReset} className="expiry-reset-button">
+              Reset
+            </button>
+            <button
+              onClick={handleSave}
+              className="expiry-save-button"
+              disabled={saving}
+            >
+              {saving ? (
+                <span className="spinner-border spinner-border-sm me-2"></span>
+              ) : (
+                <i className="bi bi-shield-check me-2"></i>
+              )}
+              Update Policy
+            </button>
+          </div>
         </div>
       </div>
-
-      <div className="settings-actions">
-        <button
-          onClick={handleSave}
-          className="btn btn-save flex items-center justify-center"
-          disabled={saving}
-        >
-          {saving ? (
-            <LoadingSpinner message="Saving..." />
-          ) : (
-            <>
-              <i className="bi bi-save me-1"></i> Save Changes
-            </>
-          )}
-        </button>
-        <button onClick={handleReset} className="btn btn-reset">
-          Reset
-        </button>
-      </div>
-
-      {message && <p className="settings-message mt-3">{message}</p>}
     </div>
   );
 };

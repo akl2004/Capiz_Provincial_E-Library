@@ -9,8 +9,8 @@ class SectionSeeder extends Seeder {
     public function run(): void {
         $sections = [
             ['name' => 'Filipiniana', 'code' => 'FIL'],
-            ['name' => 'Gen. Reference', 'code' => 'REF'],
-            ['name' => 'Gen. Circulation', 'code' => 'GC']
+            ['name' => 'General Reference', 'code' => 'REF'],
+            ['name' => 'General Collection', 'code' => 'GC']
         ];
 
         foreach ($sections as $section) {

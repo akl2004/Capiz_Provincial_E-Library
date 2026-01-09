@@ -22,6 +22,7 @@ class AttendanceController extends Controller
             'barangay' => 'required|string|max:255',
             'email' => 'nullable|email|max:255',
             'number' => 'nullable|string|max:50',
+            'visitor_type' => 'required|string|max:255',
             'affiliation' => 'nullable|string|max:255',
             'purpose_of_visit' => 'required|string|max:255',
         ]);
@@ -53,7 +54,9 @@ class AttendanceController extends Controller
     // Attendance for today
     public function today()
     {
-        return Attendance::whereDate('time_in', today())->get();
+        return Attendance::with('patron')
+        ->whereDate('time_in', today())
+        ->get();
     }
 
     // List all attendance records
@@ -72,6 +75,7 @@ class AttendanceController extends Controller
                 'city' => $log->city,
                 'barangay' => $log->barangay,
                 'number' => $log->number,
+                'visitor_type' => $log->visitor_type,
                 'affiliation' => $log->affiliation,
                 'purpose_of_visit' => $log->purpose_of_visit,
                 'time_in' => $log->time_in,

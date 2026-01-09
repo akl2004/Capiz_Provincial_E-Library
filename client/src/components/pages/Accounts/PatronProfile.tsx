@@ -46,6 +46,9 @@ const PatronProfile: React.FC = () => {
   const [activating, setActivating] = useState(false);
   const [showUnblockModal, setShowUnblockModal] = useState(false);
 
+  const [showRenewModal, setShowRenewModal] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+
   // Alert state
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<"success" | "error">("success");
@@ -128,6 +131,39 @@ const PatronProfile: React.FC = () => {
       return new Date(b.time_in).getTime() - new Date(a.time_in).getTime();
     return 0;
   });
+
+  // Confirming renewal of patron card
+  const handleRenew = async () => {
+    if (!patron) return;
+    setRenewing(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      await AxiosInstance.post(
+        `/patrons/${patron.id}/renew`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setShowRenewModal(false);
+
+      // Refresh patron data to show new expiry and "Active" status
+      const updated = await AxiosInstance.get(`/patrons/${patron.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPatron(updated.data);
+
+      setAlertMessage("Patron membership renewed successfully!");
+      setAlertType("success");
+    } catch (error) {
+      console.error("Error renewing patron:", error);
+      setAlertMessage("Failed to renew patron.");
+      setAlertType("error");
+    } finally {
+      setRenewing(false);
+    }
+  };
 
   // Confirming deactivation
   const handleDeactivate = async () => {
@@ -269,6 +305,21 @@ const PatronProfile: React.FC = () => {
             >
               Edit
             </span>
+            {patron?.status === "Expired" && (
+              <>
+                {" | "}
+                <span
+                  className="action-link"
+                  style={{
+                    cursor: "pointer",
+                    color: "#28a745",
+                  }}
+                  onClick={() => setShowRenewModal(true)}
+                >
+                  Renew
+                </span>
+              </>
+            )}
             {" | "}
             <span
               className={`action-link`}
@@ -457,6 +508,40 @@ const PatronProfile: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* RENEWAL MODAL */}
+      {showRenewModal && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <h2>Renew Membership</h2>
+            <p>
+              Are you sure you want to renew the membership for{" "}
+              <strong>{fullName}</strong>?
+            </p>
+            <p className="text-muted small">
+              This will extend the validity based on library settings and set
+              status to Active.
+            </p>
+            <div className="modal-actions">
+              <button
+                className="btn btn-success"
+                onClick={handleRenew}
+                disabled={renewing}
+              >
+                {renewing && <span className="spinner-tiny"></span>}
+                {renewing ? "Renewing..." : "Confirm Renewal"}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowRenewModal(false)}
+                disabled={renewing}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DEACTIVATION MODAL */}
       {showDeactivateModal && (

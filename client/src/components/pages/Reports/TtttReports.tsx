@@ -10,6 +10,8 @@ import {
   Line,
   XAxis,
   YAxis,
+  AreaChart,
+  Area,
   CartesianGrid,
   Tooltip,
   Legend,
@@ -20,7 +22,7 @@ import {
 } from "recharts";
 import LoadingSpinner from "../../LoadingSpinner";
 
-const Reports = () => {
+const TtttReports = () => {
   useEffect(() => {
     document.title = "Reports";
     fetchCollectionReports();
@@ -230,6 +232,7 @@ const Reports = () => {
     returned: 0,
     renewed: 0,
     overdue: 0,
+    lost: 0,
     fines: 0,
   });
 
@@ -342,6 +345,7 @@ const Reports = () => {
       Returned: row.returned,
       Renewed: row.renewed,
       Overdue: row.overdue,
+      Lost: row.lost,
       Fines: Number(row.fines ?? 0).toFixed(2),
     }));
 
@@ -661,10 +665,15 @@ const Reports = () => {
         return (
           <>
             <div className="charts-grid">
-              {/* Donut Graph */}
               <div className="chart-card">
-                <h2 className="chart-title">Composition by Material Type</h2>
-                <ResponsiveContainer width="100%" height={300}>
+                <div className="chart-header">
+                  <h2 className="chart-title">Composition by Material Type</h2>
+                  <span className="badge bg-light text-dark border chart-badge">
+                    Live Data
+                  </span>
+                </div>
+
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={reportData.materialsByType}
@@ -674,54 +683,138 @@ const Reports = () => {
                       cy="50%"
                       innerRadius={60}
                       outerRadius={100}
-                      paddingAngle={5}
-                      label
+                      paddingAngle={3}
+                      cornerRadius={6}
+                      label={false}
+                      labelLine={false}
                     >
-                      {reportData.materialsByType.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      {reportData.materialsByType.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                          stroke="#fff"
+                          strokeWidth={2}
+                        />
                       ))}
                     </Pie>
-                    <Legend />
-                    <Tooltip />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "none",
+                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                      }}
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      align="center"
+                      iconType="circle"
+                      layout="horizontal"
+                      formatter={(value, entry) => {
+                        const item = reportData.materialsByType.find(
+                          (d) => d.name === value
+                        );
+                        const total = reportData.materialsByType.reduce(
+                          (sum, d) => sum + d.value,
+                          0
+                        );
+                        const percentage = item
+                          ? ((item.value / total) * 100).toFixed(0)
+                          : 0;
+
+                        return (
+                          <span
+                            style={{
+                              color: "#333",
+                              fontSize: "13px",
+                              fontWeight: "500",
+                            }}
+                          >
+                            {value} ({percentage}%)
+                          </span>
+                        );
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Line Graph */}
               <div className="chart-card">
-                <h2 className="chart-title">Collection of Growth Over Time</h2>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={reportData.booksPerMonth}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                <div className="chart-header">
+                  <h2 className="chart-title">Collection Growth Over Time</h2>
+                  <span className="badge bg-light text-dark border chart-badge">
+                    Annual Growth
+                  </span>
+                </div>
+
+                <ResponsiveContainer width="100%" height={320}>
+                  {/* Switched from LineChart to AreaChart */}
+                  <AreaChart
+                    data={reportData.booksPerMonth}
+                    margin={{ top: 10, right: 30, left: -10, bottom: 10 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="colorBooks"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#C05B42"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#C05B42"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f0f0f0"
+                    />
+
                     <XAxis
                       dataKey="month"
-                      tickFormatter={(monthNumber) => {
-                        const monthNames = [
-                          "January",
-                          "February",
-                          "March",
-                          "April",
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#666" }}
+                      dy={10}
+                      tickFormatter={(val) => {
+                        const months = [
+                          "Jan",
+                          "Feb",
+                          "Mar",
+                          "Apr",
                           "May",
-                          "June",
-                          "July",
-                          "August",
-                          "September",
-                          "October",
-                          "November",
-                          "December",
+                          "Jun",
+                          "Jul",
+                          "Aug",
+                          "Sep",
+                          "Oct",
+                          "Nov",
+                          "Dec",
                         ];
-
-                        return (
-                          monthNames[parseInt(monthNumber, 10) - 1] ||
-                          monthNumber
-                        );
+                        return months[parseInt(val, 10) - 1] || val;
                       }}
                     />
 
-                    <YAxis allowDecimals={false} />
+                    <YAxis
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#666" }}
+                    />
+
                     <Tooltip
-                      labelFormatter={(value) => {
-                        const monthNames = [
+                      labelFormatter={(val) => {
+                        const months = [
                           "January",
                           "February",
                           "March",
@@ -735,24 +828,45 @@ const Reports = () => {
                           "November",
                           "December",
                         ];
-                        return monthNames[parseInt(value, 10) - 1] || value;
+                        return months[parseInt(val, 10) - 1] || val;
+                      }}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "none",
+                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
                       }}
                     />
-                    <Legend />
-                    <Line
+
+                    <Area
                       type="monotone"
                       dataKey="books"
+                      name="Total Books"
                       stroke="#C05B42"
-                      strokeWidth={2}
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorBooks)"
+                      dot={{
+                        r: 4,
+                        fill: "#C05B42",
+                        strokeWidth: 2,
+                        stroke: "#fff",
+                      }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Pie Graph */}
               <div className="chart-card">
-                <h2 className="chart-title">Inventory Control</h2>
-                <ResponsiveContainer width="100%" height={300}>
+                <div className="chart-header">
+                  <h2 className="chart-title">Inventory Control</h2>
+                  <span className="badge bg-light text-dark border chart-badge">
+                    Asset Status
+                  </span>
+                </div>
+
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={reportData.sourcesPercentage}
@@ -761,54 +875,110 @@ const Reports = () => {
                       cx="50%"
                       cy="50%"
                       outerRadius={100}
-                      label
+                      paddingAngle={3}
+                      cornerRadius={4}
+                      label={false}
                     >
                       {reportData.sourcesPercentage.map((entry, index) => (
                         <Cell
-                          key={index}
-                          fill={INVENTORY_COLORS[entry.name as keyof typeof INVENTORY_COLORS] || "#8884d8"}
+                          key={`cell-${index}`}
+                          fill={
+                            INVENTORY_COLORS[
+                              entry.name as keyof typeof INVENTORY_COLORS
+                            ] || "#8884d8"
+                          }
+                          stroke="#fff"
+                          strokeWidth={2}
                         />
                       ))}
                     </Pie>
-                    <Legend />
-                    <Tooltip />
+
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "none",
+                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                      }}
+                    />
+
+                    <Legend
+                      verticalAlign="bottom"
+                      align="center"
+                      iconType="circle"
+                      layout="horizontal"
+                      wrapperStyle={{ paddingTop: "20px" }}
+                      formatter={(value) => (
+                        <span
+                          style={{
+                            color: "#333",
+                            fontSize: "13px",
+                            fontWeight: "500",
+                          }}
+                        >
+                          {value}
+                        </span>
+                      )}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
               {/* Bar Graph */}
               <div className="chart-card">
-                <h2 className="chart-title">Books per Category</h2>
-                <ResponsiveContainer width="100%" height={400}>
+                <div className="chart-header">
+                  <h2 className="chart-title">Books per Category</h2>
+                  <span className="badge bg-light text-dark border chart-badge">
+                    DDC Distribution
+                  </span>
+                </div>
+
+                <ResponsiveContainer width="100%" height={450}>
+                  {" "}
                   <BarChart
                     layout="vertical"
                     data={sortedData}
-                    margin={{ top: 20, right: 30, left: 50, bottom: 20 }}
+                    margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+                    barSize={30} 
                   >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      horizontal={false}
+                      stroke="#f0f0f0"
+                    />
+
                     <XAxis
                       type="number"
-                      ticks={Array.from(
-                        {
-                          length:
-                            Math.ceil(
-                              Math.max(
-                                ...reportData.booksPerDDC.map((d) => d.books)
-                              ) / 2
-                            ) + 1,
-                        },
-                        (_, i) => i * 2
-                      )}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#666" }}
+                      domain={[0, "dataMax + 2"]}
                     />
+
                     <YAxis
                       dataKey="category"
                       type="category"
-                      tick={{ width: 160, fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fill: "#444", width: 150 }}
+                      width={150} 
                     />
-                    <Tooltip />
-                    <Bar dataKey="books">
+
+                    <Tooltip
+                      cursor={{ fill: "#f8f9fa" }}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "none",
+                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                      }}
+                    />
+
+                    <Bar
+                      dataKey="books"
+                      radius={[0, 4, 4, 0]} 
+                    >
                       {sortedData.map((entry, index) => (
                         <Cell
-                          key={index}
+                          key={`cell-${index}`}
                           fill={DDC_COLORS[entry.category] || "#10B981"}
                         />
                       ))}
@@ -1036,40 +1206,75 @@ const Reports = () => {
             <div className="circulation-top">
               {/* Left: Bar Chart */}
               <div className="circulation-chart">
-                <h2 className="chart-title">Monthly Circulation Report</h2>
+                <div className="chart-header">
+                  <h2 className="chart-title">Monthly Circulation Report</h2>
+                  <span className="badge bg-secondary chart-badge">
+                    Annual View
+                  </span>
+                </div>
+
                 <ResponsiveContainer width="100%" height={350}>
                   <BarChart
                     data={circulationData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                    margin={{ top: 20, right: 30, left: -10, bottom: 10 }}
+                    barCategoryGap="35%"
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Legend />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f0f0f0"
+                    />
+                    <XAxis
+                      dataKey="month"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#666" }}
+                      dy={10}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#666" }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "#f8f9fa" }}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "none",
+                        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      verticalAlign="bottom"
+                      align="center"
+                    />
                     <Bar
                       dataKey="onLoan"
                       stackId="a"
-                      fill="#3B82F6"
-                      name="OnLoan"
+                      fill="#6366F1" /* Indigo */
+                      name="On Loan"
+                      barSize={40}
                     />
                     <Bar
                       dataKey="returned"
                       stackId="a"
-                      fill="#10B981"
+                      fill="#10B981" /* Emerald */
                       name="Returned"
                     />
                     <Bar
                       dataKey="renewed"
                       stackId="a"
-                      fill="#F59E0B"
+                      fill="#F59E0B" /* Amber */
                       name="Renewed"
                     />
                     <Bar
                       dataKey="overdue"
                       stackId="a"
-                      fill="#EF4444"
+                      fill="#EF4444" /* Rose/Red */
                       name="Overdue"
+                      radius={[4, 4, 0, 0]}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1152,7 +1357,8 @@ const Reports = () => {
                     onClick={exportCirculationToExcel}
                     className="print-button"
                   >
-                    <i className="bi bi-file-earmark-spreadsheet me-2"></i>Export
+                    <i className="bi bi-file-earmark-spreadsheet me-2"></i>
+                    Export
                   </button>
                 </div>
               </div>
@@ -1161,11 +1367,11 @@ const Reports = () => {
                   <thead>
                     <tr>
                       <th>Month</th>
-                      <th>On Loan</th>
+                      <th>Borrowed</th>
                       <th>Returned</th>
-                      <th>Renewed</th>
                       <th>Overdue</th>
-                      <th>Fines</th>
+                      <th>Lost</th>
+                      <th>Total Fees Collected</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1175,8 +1381,8 @@ const Reports = () => {
                           <td>{row.month}</td>
                           <td>{row.onLoan}</td>
                           <td>{row.returned}</td>
-                          <td>{row.renewed}</td>
                           <td>{row.overdue}</td>
+                          <td>{row.lost}</td>
                           <td>₱{Number(row.fines ?? 0).toFixed(2)}</td>
                         </tr>
                       ))
@@ -1251,34 +1457,124 @@ const Reports = () => {
             <div className="attendance-top">
               {/* Left: Charts */}
               <div className="attendance-charts">
-                <div className="chart-container">
-                  <h2>Patron vs Guest Attendance</h2>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="Guest" fill="#8884d8" />
-                      <Bar dataKey="Patron" fill="#82ca9d" />
+                {/* Bar Chart Section */}
+                <div className="attendance-chart-container">
+                  <div className="chart-header">
+                    <h2 className="chart-title">Patron vs Guest Attendance</h2>
+                    <span className="badge bg-primary chart-badge">
+                      Current Week
+                    </span>
+                  </div>
+
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart
+                      data={barChartData}
+                      barGap={0}
+                      barCategoryGap="25%"
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#f0f0f0"
+                      />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 12, fill: "#666" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: "#666" }}
+                      />
+                      <Tooltip
+                        cursor={{ fill: "#f5f5f5" }}
+                        contentStyle={{
+                          borderRadius: "8px",
+                          border: "none",
+                          boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                        }}
+                      />
+                      <Legend
+                        iconType="circle"
+                        layout="horizontal"
+                        verticalAlign="bottom"
+                        align="center"
+                      />
+                      <Bar
+                        dataKey="Guest"
+                        fill="#8884d8"
+                        radius={[4, 4, 0, 0]}
+                        barSize={35}
+                      />
+                      <Bar
+                        dataKey="Patron"
+                        fill="#82ca9d"
+                        radius={[4, 4, 0, 0]}
+                        barSize={35}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
 
-                <div className="chart-container" style={{ marginTop: "20px" }}>
-                  <h2>Daily Visitors</h2>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={lineChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Legend />
+                {/* Line Chart Section */}
+                <div className="attendance-chart-container">
+                  <div className="chart-header">
+                    <h2 className="chart-title">Daily Visitors</h2>
+                    <span className="badge bg-primary chart-badge">
+                      Current Week
+                    </span>
+                  </div>
+
+                  <ResponsiveContainer width="100%" height={250}>
+                    <LineChart
+                      data={lineChartData}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#f0f0f0"
+                      />
+                      <XAxis
+                        dataKey="date"
+                        tick={{ fontSize: 12, fill: "#666" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        allowDecimals={false}
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12, fill: "#666" }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "8px",
+                          border: "none",
+                          boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+                        }}
+                      />
+                      <Legend
+                        iconType="circle"
+                        layout="horizontal"
+                        verticalAlign="bottom"
+                        align="center"
+                      />
                       <Line
                         type="monotone"
                         dataKey="Visitors"
                         stroke="#ff7300"
+                        strokeWidth={3}
+                        dot={{
+                          r: 5,
+                          fill: "#ff7300",
+                          strokeWidth: 2,
+                          stroke: "#fff",
+                        }}
+                        activeDot={{ r: 7, strokeWidth: 0 }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -1300,12 +1596,12 @@ const Reports = () => {
                     </thead>
                     <tbody>
                       {summaryData.length ? (
-                        [...summaryData] // create a shallow copy so we don’t mutate the original
+                        [...summaryData]
                           .sort(
                             (a, b) =>
                               new Date(b.date).getTime() -
                               new Date(a.date).getTime()
-                          ) // sort descending by date
+                          )
                           .map((row, i) => (
                             <tr key={i}>
                               <td>{row.date}</td>
@@ -1360,7 +1656,7 @@ const Reports = () => {
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th>Type</th>
+                      <th>Visitor</th>
                       <th>Full Name</th>
                       <th>Address</th>
                       <th>Contact Number</th>
@@ -1438,7 +1734,7 @@ const Reports = () => {
         // Map backend status to chart key
         const statusMapping: { [key: string]: string } = {
           active: "active",
-          deactivated: "deactivate", // backend "Deactivated" maps to "deactivate"
+          deactivated: "deactivate",
           expired: "expired",
           blocked: "blocked",
         };
@@ -1459,47 +1755,117 @@ const Reports = () => {
           <div className="accounts-section">
             {/* ===== TOP ROW: 3 CHARTS ===== */}
             <div className="charts-row">
-              {/* 1️⃣ Bar Graph */}
-              <div className="chart-card">
-                <h3>Account Status</h3>
-                {/* Simple manual legend */}
-                <div className="legend">
-                  {Object.entries(statusColors).map(([status, color]) => (
-                    <div className="legend-item text-muted" key={status}>
+              {/* Bar Graph */}
+              <div className="chart-card" style={{ padding: "24px" }}>
+                <div
+                  className="chart-header"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    marginBottom: "20px",
+                  }}
+                >
+                  {/* One-line Title */}
+                  <h2
+                    className="chart-title"
+                    style={{
+                      fontSize: "1.5rem",
+                      fontWeight: "700",
+                      color: "#1a1a1a",
+                      margin: "0 0 12px 0",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Account Status
+                  </h2>
+
+                  {/* Professional Integrated Legend */}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: "16px",
+                      padding: "8px 16px",
+                      background: "#f8f9fa",
+                      borderRadius: "20px",
+                      border: "1px solid #eee",
+                    }}
+                  >
+                    {Object.entries(statusColors).map(([status, color]) => (
                       <div
-                        className="legend-color"
+                        key={status}
                         style={{
-                          backgroundColor: color,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
                         }}
-                      />
-                      <span>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </span>
-                    </div>
-                  ))}
+                      >
+                        <div
+                          style={{
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
+                            backgroundColor: color,
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            color: "#666",
+                            fontWeight: "600",
+                            textTransform: "capitalize",
+                          }}
+                        >
+                          {status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={accountStatus}>
-                    <XAxis dataKey="status" />
-                    <YAxis allowDecimals={false} />
 
-                    {/* Tooltip showing only hovered bar */}
-                    <Tooltip
-                      formatter={(value: any, name: string) => [
-                        value,
-                        name.charAt(0).toUpperCase() + name.slice(1),
-                      ]}
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={accountStatus}
+                    margin={{ top: 10, right: 20, left: -25, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f0f0f0"
                     />
-
-                    {/* Single Bar, Cells for coloring */}
-                    <Bar dataKey="total">
+                    <XAxis
+                      dataKey="status"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#999", fontWeight: 500 }}
+                      dy={10}
+                      tickFormatter={(val) =>
+                        val.charAt(0).toUpperCase() + val.slice(1)
+                      }
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#999" }}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "rgba(0,0,0,0.03)" }}
+                      contentStyle={{
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 8px 16px rgba(0,0,0,0.12)",
+                      }}
+                    />
+                    <Bar dataKey="total" barSize={50} radius={[6, 6, 0, 0]}>
                       {accountStatus.map((entry, index) => {
                         const statusKey =
                           statusMapping[entry.status.toLowerCase()] ||
                           entry.status.toLowerCase();
                         return (
                           <Cell
-                            key={index}
+                            key={`cell-${index}`}
                             fill={statusColors[statusKey] || "#4e73df"}
                           />
                         );
@@ -1509,62 +1875,251 @@ const Reports = () => {
                 </ResponsiveContainer>
               </div>
 
-              {/* 2️⃣ Donut Chart */}
+              {/* Donut Chart */}
               <div className="chart-card">
-                <h3>Accounts Distribution</h3>
-                <ResponsiveContainer width="100%" height={300}>
+                <div
+                  className="chart-header"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <h2
+                    className="chart-title"
+                    style={{
+                      fontSize: "1.4rem",
+                      fontWeight: "700",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Accounts Distribution
+                  </h2>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      flexWrap: "wrap",
+                      gap: "16px",
+                      padding: "8px 16px",
+                      background: "#f8f9fa",
+                      borderRadius: "20px",
+                      border: "1px solid #eee",
+                    }}
+                  >
+                    {roleDistribution.map((entry, index) => {
+                      const totalSum = roleDistribution.reduce(
+                        (sum, item) => sum + item.total,
+                        0
+                      );
+                      const percentage =
+                        totalSum > 0
+                          ? ((entry.total / totalSum) * 100).toFixed(1)
+                          : "0.0";
+                      const colors = ["#6366F1", "#F59E0B", "#EF4444"];
+
+                      return (
+                        <div
+                          key={entry.role}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "8px",
+                              height: "8px",
+                              borderRadius: "50%",
+                              backgroundColor: colors[index % colors.length],
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              color: "#666",
+                              fontWeight: "600",
+                            }}
+                          >
+                            {entry.role}{" "}
+                            <span style={{ color: "#999", fontWeight: "400" }}>
+                              {percentage}%
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={roleDistribution}
                       dataKey="total"
                       nameKey="role"
+                      cx="50%"
+                      cy="50%"
                       innerRadius={60}
                       outerRadius={100}
-                      fill="#82ca9d"
-                      label={(props: PieLabelRenderProps) => {
-                        const { name, percent, x, y } = props;
-                        const pct = Number(percent ?? 0);
-                        return (
-                          <text
-                            x={x}
-                            y={y}
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fontSize={12}
-                          >
-                            {name}: {(pct * 100).toFixed(2)}%
-                          </text>
-                        );
-                      }}
+                      paddingAngle={8}
+                      cornerRadius={8}
+                      label={false}
                     >
                       {roleDistribution.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
-                          fill={["#36A2EB", "#FFCE56", "#FF6384"][index % 3]}
+                          fill={["#6366F1", "#F59E0B", "#EF4444"][index % 3]}
+                          stroke="#fff"
+                          strokeWidth={2}
                         />
                       ))}
                     </Pie>
-                    <Tooltip />
-                    <Legend />
+
+                    <Tooltip
+                      formatter={(value: any) => {
+                        const totalSum = roleDistribution.reduce(
+                          (sum, item) => sum + item.total,
+                          0
+                        );
+                        const numericValue = Number(value);
+                        const percentage =
+                          totalSum > 0
+                            ? ((numericValue / totalSum) * 100).toFixed(1)
+                            : "0.0";
+                        return [`${numericValue} (${percentage}%)`, "Total"];
+                      }}
+                      contentStyle={{
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 8px 16px rgba(0,0,0,0.12)",
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* 3️⃣ Line Graph */}
+              {/* Line Graph */}
               <div className="chart-card">
-                <h3>Newly Added Accounts</h3>
-                <ResponsiveContainer width="100%" height={250}>
-                  <LineChart data={newAccountsPerMonth}>
-                    <XAxis dataKey="month" />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip />
-                    <Line
+                <div
+                  className="chart-header"
+                  style={{ textAlign: "center", marginBottom: "15px" }}
+                >
+                  <h2 className="chart-title">Newly Added Accounts</h2>
+                  <span className="badge bg-light text-dark border chart-badge">
+                    Monthly Growth
+                  </span>
+                </div>
+
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart
+                    data={newAccountsPerMonth}
+                    margin={{ top: 10, right: 30, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="colorAccounts"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor="#6366F1"
+                          stopOpacity={0.3}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor="#6366F1"
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#f0f0f0"
+                    />
+
+                    <XAxis
+                      dataKey="month"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#999", fontWeight: 500 }}
+                      dy={10}
+                      tickFormatter={(val) => {
+                        const months = [
+                          "Jan",
+                          "Feb",
+                          "Mar",
+                          "Apr",
+                          "May",
+                          "Jun",
+                          "Jul",
+                          "Aug",
+                          "Sep",
+                          "Oct",
+                          "Nov",
+                          "Dec",
+                        ];
+                        return months[parseInt(val, 10) - 1] || val;
+                      }}
+                    />
+
+                    <YAxis
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: "#999" }}
+                    />
+
+                    <Tooltip
+                      labelFormatter={(val) => {
+                        const months = [
+                          "January",
+                          "February",
+                          "March",
+                          "April",
+                          "May",
+                          "June",
+                          "July",
+                          "August",
+                          "September",
+                          "October",
+                          "November",
+                          "December",
+                        ];
+                        return months[parseInt(val, 10) - 1] || val;
+                      }}
+                      contentStyle={{
+                        borderRadius: "12px",
+                        border: "none",
+                        boxShadow: "0 8px 16px rgba(0,0,0,0.12)",
+                      }}
+                    />
+
+                    <Area
                       type="monotone"
                       dataKey="total"
-                      stroke="#C05B42"
-                      strokeWidth={2}
+                      name="New Accounts"
+                      stroke="#6366F1"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorAccounts)"
+                      dot={{
+                        r: 4,
+                        fill: "#6366F1",
+                        strokeWidth: 2,
+                        stroke: "#fff",
+                      }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -1734,4 +2289,4 @@ const Reports = () => {
   );
 };
 
-export default Reports;
+export default TtttReports;

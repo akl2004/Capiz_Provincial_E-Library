@@ -23,6 +23,9 @@ return new class extends Migration
             $table->string('last_name');
             $table->string('suffix')->nullable();
 
+            // Added Gender
+            $table->string('gender')->nullable();
+
             // Address fields
             $table->string('province');
             $table->string('city');
@@ -31,6 +34,9 @@ return new class extends Migration
             // Contact / info
             $table->string('email')->nullable();
             $table->string('number')->nullable();
+
+            // Categorization for Reports
+            $table->string('visitor_type'); // Student, Public Worker, etc.
             $table->string('affiliation')->nullable();
 
             // Attendance details

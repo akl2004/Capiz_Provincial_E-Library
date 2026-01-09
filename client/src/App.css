@@ -1,11 +1,11 @@
-.admin-layout, .staff-content {
+.admin-layout {
   display: flex;
   height: 100vh;
   overflow: hidden;
 }
 
 /* Main right section (header + content) */
-.admin-main, .guest-main, .staff-main {
+.admin-main, .guest-main {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
@@ -31,8 +31,7 @@
 }
 
 /* Content: scrollable area under header */
-.admin-content,
-.staff-content {
+.admin-content {
   margin-top: 60px;
   padding: 1.5rem;
   height: calc(100vh - 60px);
@@ -42,8 +41,7 @@
 
 /* Mobile adjustments */
 @media (max-width: 768px) {
-  .admin-content,
-  .staff-content {
+  .admin-content {
     padding: 1rem;            
     margin-top: 50px;          
     height: calc(100vh - 50px);
@@ -530,8 +528,11 @@
 .accession-grid-row {
   display: flex;
   gap: 30px;
-  margin-bottom: 12px;
   align-items: center;
+}
+
+.accession-grid-row select.form-control {
+  margin-bottom: 10px;
 }
 
 /* Individual field group (Label + Input) */
@@ -569,6 +570,92 @@
   flex-direction: column;
 }
 
+.accession-note-group label {
+  margin-top: 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+/* Card Container */
+.format-selection-container {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* Individual Card */
+.format-card {
+  flex: 1;
+  padding: 0.5rem 1rem 0.5rem 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  position: relative;
+}
+
+.format-card:hover {
+  border-color: #cbd5e1;
+  background-color: #f1f5f9;
+}
+
+/* Selected State */
+.format-card.selected {
+  border-color: #c05b42;
+  background-color: #eff6ff;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.format-card.selected .format-label {
+  color: #c05b42;
+}
+
+/* Header inside card */
+.format-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.format-label {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+/* ISBN Display (Read-only) */
+.isbn-display {
+  display: block;
+  font-family: monospace;
+  background: #ffffff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+/* Selection Indicator (The Checkmark) */
+.selection-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  background: white;
+}
+
+.selected .selection-indicator {
+  background: #c05b42;
+  border-color: #c05b42;
+  color: white;
+}
 
 
 /* Tally Card Container */
@@ -623,6 +710,164 @@
 .accession-tally-card:hover {
   transform: translateY(-2px);
   transition: transform 0.2s ease;
+}
+
+/* accession module css */
+/* Minimalist Withdraw Button */
+.btn-withdraw-action {
+  background: #fff5f5 !important;
+  border: 1px solid #feb2b2 !important;
+  color: #c53030 !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 16px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.btn-withdraw-action:hover {
+  background: #c53030 !important;
+  color: white !important;
+}
+
+/* The Number Badge inside Withdraw */
+.badge-count {
+  background: #c53030;
+  color: white;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+}
+
+.btn-withdraw-action:hover .badge-count {
+  background: white;
+  color: #c53030;
+}
+
+/* Natural Slide-in Animation */
+.animate-slide-in {
+  animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(-15px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Container styling */
+.table-container {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.modern-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.modern-table thead {
+  background-color: #f9fafb;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.modern-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #4b5563;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.025em;
+}
+
+.modern-table tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.modern-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Grouped View Specifics */
+.group-header {
+  background-color: #ffffff;
+}
+
+.group-header.is-expanded {
+  background-color: rgba(194, 102, 56, 0.62) !important; 
+}
+
+/* Nested Expansion Styling */
+.expansion-wrapper {
+  padding: 15px 20px 15px 100px;
+  background-color: rgba(194, 102, 56, 0.42);
+}
+
+.inner-table {
+  width: 100%;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.inner-table th {
+  background: #f3f4f6;
+  padding: 8px 12px;
+}
+
+.inner-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+/* Tiny UI Details */
+.badge-section {
+  background: #e5e7eb;
+  color: #374151;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Base Dot Style */
+.status-dot {
+  height: 10px;
+  width: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+  background-color: #cbd5e1;
+}
+
+/* Condition Colors */
+.dot-new, .dot-good {
+  background-color: #22c55e; /* Vibrant Green */
+  box-shadow: 0 0 5px rgba(34, 197, 94, 0.4);
+}
+
+.dot-damaged, .dot-poor {
+  background-color: #ef4444; /* Vibrant Red */
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.4);
+}
+
+.dot-fair, .dot-fine {
+  background-color: #daa520; /* Amber/Orange */
+  box-shadow: 0 0 5px rgba(245, 158, 11, 0.4);
+}
+
+.dot-lost {
+  background-color: #64748b; /* Slate Gray */
 }
 
 
@@ -1724,8 +1969,6 @@ select {
 .info-icon {
   color: #e07a5f;
   font-size: 1.5rem;
-  border: 2px solid #e07a5f;
-  border-radius: 50%;
   width: 30px;
   height: 30px;
   display: flex;
@@ -2102,6 +2345,48 @@ select {
 .attendance-table tr:hover {
   background-color: #f3ecff;
   transition: background 0.2s ease;
+}
+
+
+.attendance-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 24px;
+  padding: 20px;
+  background-color: #ffffff; 
+  border-radius: 12px;
+}
+
+.attendance-chart-container {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid #eaeaea;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.chart-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.chart-badge {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
 }
 
 
@@ -2983,12 +3268,11 @@ input:focus {
 
 .row-card {
   display: grid;  
-  grid-template-columns: 0.9fr 1fr 1.1fr 1.2fr 1fr 1fr 1fr 0.9fr;
+  grid-template-columns: 0.8fr 1fr 1.1fr 1.1fr 1fr 1fr 1fr 1fr 0.9fr;
   border: 3px solid #dee2e6;
   border-left: 15px solid;
   border-radius: 10px;
   padding: 1rem;
-  /* margin-bottom: 4px;  */
   transition: background 0.2s;
 }
 
@@ -3548,124 +3832,693 @@ input:focus {
 
 
 /* settings css */
-.settings-container {
-  padding: 1.5rem;
+/* Timezone Settings css */
+.timezone-main-container {
+  margin-bottom: 2rem;
+}
+
+.timezone-settings-card {
   background: #ffffff;
-  border-radius: 1rem;
-  font-family: "Inter", sans-serif;
-  margin-top: 1.5rem;
-  box-shadow: 
-    0 4px 6px rgba(0, 0, 0, 0.1),  
-    0 8px 20px rgba(0, 0, 0, 0.15); 
-  border: 1px solid rgba(255, 255, 255, 0.3); 
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 16px;
+  border: 1px solid #f3ebe8;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
-/* Heading */
-.settings-container h1 {
-  font-size: 1.75rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
+/* Header Styling */
+.timezone-card-header {
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border-bottom: 1px solid #f3ebe8;
 }
 
-.settings-icon {
-  color: #c05b42;
-}
-
-.card:hover{
-  cursor: pointer;
-  transform: scale(1.05);
-  transition: transform 0.3s ease;
-}
-
-/* Subtext under headings */
-.settings-subtext {
-  font-size: 0.9rem;
-  color: #6b7280; /* muted gray */
-  margin-bottom: 1.5rem;
-}
-
-/* Form styles */
-.settings-form {
-  margin: 10px 40px 20px 30px;
-}
-
-.settings-form label {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  display: block;
-  width: 300px;
-}
-
-.settings-form input {
-  width: 120px;
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-}
-
-.settings-row {
+.timezone-icon-box {
+  width: 45px;
+  height: 45px;
+  background-color: #f9f0ee; /* Light tint of your color */
+  color: #C05B42;
   display: flex;
   align-items: center;
-  margin-bottom: 1rem; 
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 1.25rem;
 }
 
-/* Button group */
-.settings-actions {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-end;
+.timezone-card-title {
+  font-weight: 800;
+  color: #3e2e2a;
 }
 
-.settings-actions .btn {
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
+.timezone-card-subtitle {
+  color: #8a7a75;
+  font-size: 0.85rem;
 }
 
-.settings-actions .btn-save {
-  background-color: #198754;
-  color: #fff;
-  border: none;
+/* Input & Select Styling */
+.timezone-input-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #8a7a75;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
 }
 
-.settings-actions .btn-save:hover {
-  background-color: #157347;
-}
-
-.settings-actions .btn-reset {
-  background-color: transparent;
-  border: 1px solid #d1d5db;
-  color: #374151;
-}
-
-.settings-actions .btn-reset:hover {
-  background-color: #f3f4f6;
-}
-
-/* This targets the input and places a ₱ symbol visually */
-.settings-row input {
-  padding-left: 20px !important; /* Makes room for the symbol */
-}
-
-.settings-row .input-container {
+.timezone-select-container {
   position: relative;
-  display: inline-block;
-  width: 100%; /* Keeps it the same size as before */
 }
 
-.settings-row .input-container::before {
-  content: "₱";
+.timezone-select-icon {
   position: absolute;
-  left: 8px;
+  left: 15px;
   top: 50%;
   transform: translateY(-50%);
-  color: #C05B42; /* Your Terracotta color */
-  font-weight: bold;
+  color: #C05B42;
+  z-index: 5;
+}
+
+.timezone-custom-select {
+  width: 100%;
+  padding: 12px 12px 12px 45px;
+  border-radius: 12px;
+  border: 2px solid #f3ebe8;
+  background-color: #fcfaf9;
+  color: #3e2e2a;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23C05B42' class='bi bi-chevron-down' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 15px center;
+}
+
+.timezone-custom-select:focus {
+  outline: none;
+  border-color: #C05B42;
+  box-shadow: 0 0 0 4px rgba(192, 91, 66, 0.1);
+}
+
+/* Preview Box */
+.timezone-preview-box {
+  padding: 12px 16px;
+  background-color: #fcfaf9;
+  border-radius: 10px;
+  border-left: 4px solid #C05B42;
+  font-size: 0.9rem;
+  color: #7a6e6a;
+}
+
+/* Action Button */
+.timezone-save-button {
+  background-color: #C05B42;
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.timezone-save-button:hover:not(:disabled) {
+  background-color: #a84f39;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(192, 91, 66, 0.2);
+}
+
+.timezone-save-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Utils */
+.timezone-fade-in {
+  animation: timezoneFadeIn 0.4s ease-in-out;
+}
+
+@keyframes timezoneFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Skeleton Loading */
+.timezone-skeleton-label { height: 15px; width: 150px; background: #f3ebe8; border-radius: 4px; }
+.timezone-skeleton-input { height: 50px; width: 100%; background: #f3ebe8; border-radius: 12px; }
+.timezone-skeleton-button { height: 45px; width: 180px; background: #f3ebe8; border-radius: 12px; margin-left: auto; }
+
+/* borrowing policy css */
+.borrow-main-container {
+  margin-bottom: 2rem;
+}
+
+.borrow-settings-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f3ebe8;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.borrow-card-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3ebe8;
+}
+
+.borrow-icon-box {
+  width: 45px;
+  height: 45px;
+  background-color: #f9f0ee;
+  color: #C05B42;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 1.25rem;
+}
+
+.borrow-card-title { font-weight: 800; color: #3e2e2a; }
+.borrow-card-subtitle { color: #8a7a75; font-size: 0.85rem; }
+
+/* Inline Row Layout */
+.borrow-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid #fcfaf9;
+}
+
+.borrow-setting-row:last-child { border-bottom: none; }
+
+.borrow-info { flex: 1; padding-right: 2rem; }
+.borrow-title { display: block; font-weight: 700; color: #3e2e2a; font-size: 0.95rem; }
+.borrow-description { font-size: 0.8rem; color: #8a7a75; }
+
+/* Input Styling */
+.borrow-control { width: 180px; }
+
+.borrow-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.borrow-custom-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 2px solid #f3ebe8;
+  background-color: #fcfaf9;
+  font-weight: 600;
+  color: #3e2e2a;
+  transition: all 0.2s;
+}
+
+.borrow-custom-input:focus {
+  outline: none;
+  border-color: #C05B42;
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(192, 91, 66, 0.1);
+}
+
+.borrow-unit {
+  position: absolute;
+  right: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #8a7a75;
   pointer-events: none;
 }
 
+/* Buttons */
+.borrow-save-button {
+  background-color: #C05B42;
+  color: #ffffff;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.borrow-save-button:hover:not(:disabled) {
+  background-color: #a84f39;
+  box-shadow: 0 4px 12px rgba(192, 91, 66, 0.2);
+}
+
+.borrow-reset-button {
+  background: transparent;
+  color: #8a7a75;
+  border: none;
+  font-weight: 600;
+  padding: 10px 15px;
+  font-size: 0.9rem;
+}
+
+.borrow-reset-button:hover { color: #C05B42; }
+
+
+/* renewal settings css */
+.renewal-main-container {
+  margin-bottom: 2rem;
+}
+
+.renewal-settings-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f3ebe8;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.renewal-card-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3ebe8;
+}
+
+.renewal-icon-box {
+  width: 45px;
+  height: 45px;
+  background-color: #f9f0ee;
+  color: #C05B42;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 1.25rem;
+}
+
+.renewal-card-title { font-weight: 800; color: #3e2e2a; }
+.renewal-card-subtitle { color: #8a7a75; font-size: 0.85rem; }
+
+/* Inline Layout Logic */
+.renewal-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+}
+
+.renewal-info { flex: 1; padding-right: 2rem; }
+.renewal-title { display: block; font-weight: 700; color: #3e2e2a; font-size: 0.95rem; }
+.renewal-description { font-size: 0.8rem; color: #8a7a75; }
+
+/* Input Styling */
+.renewal-control { width: 160px; }
+
+.renewal-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.renewal-custom-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 2px solid #f3ebe8;
+  background-color: #fcfaf9;
+  font-weight: 600;
+  color: #3e2e2a;
+  transition: all 0.2s;
+}
+
+.renewal-custom-input:focus {
+  outline: none;
+  border-color: #C05B42;
+  box-shadow: 0 0 0 4px rgba(192, 91, 66, 0.1);
+}
+
+.renewal-unit {
+  position: absolute;
+  right: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #8a7a75;
+}
+
+/* Action Buttons */
+.renewal-save-button {
+  background-color: #C05B42;
+  color: #ffffff;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.renewal-save-button:hover:not(:disabled) {
+  background-color: #a84f39;
+  box-shadow: 0 4px 12px rgba(192, 91, 66, 0.2);
+}
+
+.renewal-reset-button {
+  background: transparent;
+  color: #8a7a75;
+  border: none;
+  font-weight: 600;
+  padding: 10px 15px;
+  font-size: 0.9rem;
+}
+
+.renewal-reset-button:hover { color: #C05B42; }
+
+/* fine settings css */
+.fine-main-container {
+  margin-bottom: 2rem;
+}
+
+.fine-settings-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f3ebe8;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.fine-card-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3ebe8;
+}
+
+.fine-icon-box {
+  width: 45px;
+  height: 45px;
+  background-color: #f9f0ee;
+  color: #C05B42;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 1.25rem;
+}
+
+.fine-card-title { font-weight: 800; color: #3e2e2a; }
+.fine-card-subtitle { color: #8a7a75; font-size: 0.85rem; }
+
+/* Inline Layout */
+.fine-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid #fcfaf9;
+}
+
+.fine-setting-row:last-child { border-bottom: none; }
+
+.fine-info { flex: 1; padding-right: 2rem; }
+.fine-title { display: block; font-weight: 700; color: #3e2e2a; font-size: 0.95rem; }
+.fine-description { font-size: 0.8rem; color: #8a7a75; }
+
+/* Currency Input Styling */
+.fine-control { width: 160px; }
+
+.fine-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fine-currency-prefix {
+  position: absolute;
+  left: 14px;
+  font-weight: 700;
+  color: #C05B42;
+}
+
+.fine-custom-input {
+  width: 100%;
+  padding: 10px 14px 10px 32px; /* Extra left padding for the ₱ */
+  border-radius: 10px;
+  padding-left: 30px !important;
+  border: 2px solid #f3ebe8;
+  background-color: #fcfaf9;
+  font-weight: 600;
+  color: #3e2e2a;
+  transition: all 0.2s;
+}
+
+.fine-custom-input:focus {
+  outline: none;
+  border-color: #C05B42;
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(192, 91, 66, 0.1);
+}
+
+/* Actions */
+.fine-save-button {
+  background-color: #C05B42;
+  color: #ffffff;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.fine-save-button:hover {
+  background-color: #a84f39;
+  box-shadow: 0 4px 12px rgba(192, 91, 66, 0.2);
+}
+
+.fine-reset-button {
+  background: transparent;
+  color: #8a7a75;
+  border: none;
+  font-weight: 600;
+  padding: 10px 15px;
+}
+
+.fine-reset-button:hover { color: #C05B42; }
+
+/* expiration settings css */
+.expiry-main-container {
+  margin-bottom: 2rem;
+}
+
+.expiry-settings-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #f3ebe8;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.expiry-card-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #f3ebe8;
+}
+
+.expiry-icon-box {
+  width: 45px;
+  height: 45px;
+  background-color: #f9f0ee;
+  color: #C05B42;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 1.25rem;
+}
+
+.expiry-card-title { font-weight: 800; color: #3e2e2a; }
+.expiry-card-subtitle { color: #8a7a75; font-size: 0.85rem; }
+
+/* Inline Layout */
+.expiry-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 0;
+}
+
+.expiry-info { flex: 1; padding-right: 2rem; }
+.expiry-title { display: block; font-weight: 700; color: #3e2e2a; font-size: 0.95rem; }
+.expiry-description { font-size: 0.8rem; color: #8a7a75; }
+
+/* Input Styling */
+.expiry-control { width: 150px; }
+
+.expiry-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.expiry-custom-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 2px solid #f3ebe8;
+  background-color: #fcfaf9;
+  font-weight: 600;
+  color: #3e2e2a;
+  transition: all 0.2s;
+}
+
+.expiry-custom-input:focus {
+  outline: none;
+  border-color: #C05B42;
+  box-shadow: 0 0 0 4px rgba(192, 91, 66, 0.1);
+}
+
+.expiry-unit {
+  position: absolute;
+  right: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #8a7a75;
+}
+
+/* Status Message */
+.expiry-status-message {
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.expiry-status-message.success { background: #f0fdf4; color: #166534; }
+.expiry-status-message.error { background: #fef2f2; color: #991b1b; }
+
+/* Buttons */
+.expiry-save-button {
+  background-color: #C05B42;
+  color: #ffffff;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.expiry-save-button:hover:not(:disabled) {
+  background-color: #a84f39;
+  box-shadow: 0 4px 12px rgba(192, 91, 66, 0.2);
+}
+
+.expiry-reset-button {
+  background: transparent;
+  color: #8a7a75;
+  border: none;
+  font-weight: 600;
+  padding: 10px 15px;
+}
+
+
+
+/* settings container css */
+.settings-master-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  /* Use 100% or vh to ensure it fills the parent container */
+  height: calc(90vh - 50px); 
+  overflow: hidden; /* This stops the WHOLE page from scrolling */
+  background-color: #fcfaf9; 
+  border-radius: 20px;
+  border: 1px solid #f1f5f9;
+}
+
+.settings-sidebar {
+  width: 280px;
+  padding: 2.5rem 1.5rem;
+  background: white;
+  border-right: 1px solid #f3ebe8;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-category-label {
+  font-size: 0.7rem;
+  font-weight: 900;
+  color: #8a7a75;
+  letter-spacing: 0.15em;
+  padding-left: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.nav-link-chic {
+  background: transparent;
+  border: none;
+  padding: 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 12px;
+  text-align: left;
+  transition: all 0.3s ease;
+  color: #7a6e6a;
+  width: 100%;
+}
+
+.nav-link-chic:hover:not(.active) {
+  background-color: #f9f0ee;
+  color: #C05B42;
+}
+
+/* Active State - Terracotta */
+.nav-link-chic.active {
+  background: #C05B42; 
+  color: white !important;
+  box-shadow: 0 10px 15px -3px rgba(192, 91, 66, 0.3);
+}
+
+.nav-link-chic.active .nav-icon,
+.nav-link-chic.active .nav-text {
+  color: white;
+}
+
+.nav-content-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-icon {
+  font-size: 1.2rem;
+}
+
+.nav-text {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+/* SCROLL FIX IS HERE */
+.settings-content-scroll {
+  padding: 2rem 4rem;
+  overflow-y: auto; /* This MUST be auto or scroll */
+  height: 100%;    /* Ensures it fills the grid column */
+  scroll-behavior: smooth;
+  display: block;  /* Ensures content stacks vertically */
+}
+
+.settings-section {
+  padding: 3rem 0;
+  max-width: 800px;
+  min-height: fit-content;
+}
+
+.section-header h3 {
+  font-weight: 800;
+  color: #3e2e2a;
+}
+
+.bottom-spacer {
+  /* Increased height to ensure the last section can reach the top */
+  height: 500px; 
+}
+
+/* Button style updated to match your color */
+.btn-chic-primary {
+  background: #C05B42;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: opacity 0.2s;
+}
+
+.btn-chic-primary:hover {
+  opacity: 0.9;
+}
 
 /* Tabs container */
 .nav-tabs {
@@ -4431,6 +5284,8 @@ input:focus {
   min-width: 100%;
   border-collapse: collapse;
   table-layout: auto !important;
+  color: #374151;
+  background-color: #fff;
 }
 
 .masterlist-table th,
@@ -4446,6 +5301,14 @@ input:focus {
 .masterlist-table th, .attendance-log-table th, .accounts-table th {
   white-space: nowrap;
   min-width: 120px;
+
+  background-color: #f3f4f6;
+  color: #111827;
+  text-align: left;
+  padding: 14px 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
 }
 
 .masterlist-table td, .attendance-log-table td, .accounts-table td {
@@ -4453,6 +5316,9 @@ input:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+
+  border-bottom: 1px solid #f1f5f9;
+  border-right: 1px solid #e5e7eb;
 }
 
 /* 5. MOBILE OVERRIDES (Responsive) */
@@ -4596,7 +5462,7 @@ input:focus {
 .circulation-chart {
   flex: 2;
   background: #fff;
-  padding: 20px;
+  padding: 24px;
   border-radius: 12px;
 
   box-shadow: 
@@ -4604,6 +5470,14 @@ input:focus {
     0 8px 20px rgba(0, 0, 0, 0.138); 
   border: 1px solid rgba(91, 91, 91, 0.075); 
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.custom-tooltip-stacked {
+  background: #fff;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 10px;
 }
 
 /* Tally cards on the right */
@@ -4715,7 +5589,7 @@ input:focus {
   flex-direction: column;
   background-color: #D1694F;
   height: fit-content;
-  margin-top: 40px;
+  margin-top: 20px;
   background-color: #D1694F;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
   padding: 20px 10px 10px 10px;
@@ -5161,3 +6035,333 @@ input:focus {
   font-size: 0.9rem;
   color: #666;
 }
+
+
+
+/* --- Patron ID Card Design --- */
+.patron-card-design {
+  width: 100%;
+  max-width: 380px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb !important; /* Overriding your grid border if needed */
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  margin: 0 auto;
+}
+
+.card-accent-border {
+  height: 6px;
+  background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%);
+}
+
+.card-header-main {
+  padding: 15px 20px 0px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.library-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1e40af;
+  letter-spacing: 0.5px;
+}
+
+.card-type {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.card-content-grid {
+  padding: 10px 20px;
+  flex-grow: 1;
+}
+
+.detail-group {
+  margin-bottom: 10px;
+}
+
+.patron-detail-label {
+  display: block;
+  font-size: 8px;
+  color: #9ca3af;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.patron-detail-value {
+  font-size: 15px;
+  color: #111827;
+  font-weight: 700;
+}
+
+.id-expiry-row {
+  display: flex;
+  gap: 30px;
+}
+
+.barcode-section-card {
+  background: #ffffff;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid #ffffff;
+}
+
+/* Force colors during print */
+@media print {
+  .patron-card-design {
+    box-shadow: none !important;
+    border: 1px solid #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  /* Ensure the grid doesn't break the single card layout */
+  #printable-patron-barcodes {
+    display: block !important; 
+    padding: 0 !important;
+  }
+}
+
+
+
+/* Guide Modal Specifics */
+.guide-card {
+  background: white;
+  width: 90%;
+  max-width: 550px;
+  border-radius: 20px; 
+  padding: 20px 30px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+  animation: slideIn 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+  border: 1px solid #eee;
+}
+
+.guide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.close-guide-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+}
+
+.guide-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.guide-section h5 {
+  color: #C05B42;
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.guide-section p {
+  color: #555;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.guide-divider {
+  border: 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+/* Call Number Box Design */
+.call-number-breakdown {
+  background: #fff9f8; /* Very light orange tint */
+  border: 1px solid #f9ebe8;
+  border-left: 5px solid #C05B42;
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.example-tag {
+  font-family: 'Courier New', Courier, monospace;
+  background: #2d3436; 
+  color: #ff9f89; 
+  padding: 8px 15px;
+  display: inline-block;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  letter-spacing: 2px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.breakdown-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  margin-bottom: 14px;
+}
+
+.code-part {
+  min-width: 65px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #C05B42;
+  color: white;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  font-family: monospace;
+}
+
+.desc {
+  font-size: 0.9rem;
+  color: #444;
+  line-height: 1.4;
+}
+
+.desc strong {
+  color: #C05B42;
+}
+
+.guide-footer-note {
+  margin-top: 25px;
+  text-align: center;
+  font-weight: 600;
+  color: #C05B42;
+  background: #fef4f2;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+
+@keyframes slideIn {
+  from { transform: scale(0.95) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* About Us Page CSS */
+.about-container {
+  background-color: #ffffff;
+  max-width: 80%;
+  margin: 40px auto;
+  padding: 60px 80px;
+  border-radius: 60px;
+  border: 10px solid #C05B42;
+  text-align: center;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.05);
+  position: relative;
+}
+
+/* Fancy Header */
+.about-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 3rem;
+  font-weight: 900;
+  color: #1a1a1a;
+  margin-bottom: 50px;
+  letter-spacing: 4px;
+  font-style: italic;
+  text-transform: uppercase;
+  /* Subtle orange shadow behind title */
+  text-shadow: 2px 2px 0px rgba(192, 91, 66, 0.1);
+}
+
+.about-text {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* Paragraph Styling */
+.fancy-para {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.10rem;
+  line-height: 1.5;
+  color: #333;
+  margin: 0;
+  text-align: justify;
+}
+
+/* Orange date highlights */
+.text-highlight {
+  color: #C05B42;
+  font-weight: 800;
+  border-bottom: 2px solid rgba(192, 91, 66, 0.2);
+}
+
+/* The fancy "Location" box at the bottom */
+.location-box {
+  background: #fff9f8;
+  padding: 25px;
+  border-radius: 20px;
+  border: 1px dashed #C05B42;
+}
+
+.emphasized-location {
+  color: #C05B42;
+  font-weight: 900;
+  margin-top: 5px;
+  font-size: 1.2rem;
+}
+
+/* Aesthetic footer mark */
+.about-footer-mark {
+  margin-top: 40px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #C05B42;
+  letter-spacing: 8px;
+  opacity: 0.5;
+}
+
+.fancy-para:first-child::first-letter {
+  font-size: 3rem;
+  font-weight: 900;
+  color: #C05B42;
+  float: left;
+  line-height: 1;
+  padding-right: 12px;
+  padding-top: 4px;
+}
+
+.card, .chart-card {
+  transform: none !important;
+  transition: none !important;
+  zoom: 1 !important;
+}
+
+.card:hover, .chart-card:hover {
+  transform: none !important;
+  box-shadow: none !important; 
+}
+
+
+
+
+
+
+
+
+
+
+

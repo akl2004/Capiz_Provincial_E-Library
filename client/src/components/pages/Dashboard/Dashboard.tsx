@@ -4,6 +4,9 @@ import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import AxiosInstance from "../../../AxiosInstance";
+import { useNavigate } from "react-router-dom";
+
+// Assets
 import attendance from "../../../assets/icons/g-green.png";
 import borrow from "../../../assets/icons/g-blue.png";
 import returned from "../../../assets/icons/g-orange.png";
@@ -14,39 +17,19 @@ dayjs.extend(isoWeek);
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
 
-interface StaffDashboardProps {
-  user?: {
-    first_name: string;
-    middle_name?: string | null;
-    last_name: string;
-    suffix?: string | null;
-    avatar?: string;
-    role?: string;
-    name?: string | null;
-  };
-}
-
-interface PatronVisit {
-  name: string;
-  visits: number;
-}
-
-interface BorrowedBook {
-  title: string;
-  borrowed_count: number;
-}
-
+// Types
 interface TallyWithPercentage {
   count: number;
   percent: number;
 }
-
-interface CirculationTally {
-  borrowed: TallyWithPercentage;
-  returned: TallyWithPercentage;
-  overdue: TallyWithPercentage;
+interface PatronVisit {
+  name: string;
+  visits: number;
 }
-
+interface BorrowedBook {
+  title: string;
+  borrowed_count: number;
+}
 interface Book {
   id: number;
   title: string;
@@ -54,37 +37,139 @@ interface Book {
   copyright?: string | null;
 }
 
-const StaffDashboard = ({ user }: StaffDashboardProps) => {
+const Dashboard = () => {
+  const navigate = useNavigate();
+  const userRole = localStorage.getItem("role")?.toLowerCase() || "guest";
+
+  // State
   const [currentDate, setCurrentDate] = useState(dayjs());
+  const [userName, setUserName] = useState("User");
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [attendanceToday, setAttendanceToday] = useState<TallyWithPercentage>({
     count: 0,
     percent: 0,
   });
-  const [circulationToday, setCirculationToday] = useState<CirculationTally>({
+  const [circulationToday, setCirculationToday] = useState({
     borrowed: { count: 0, percent: 0 },
     returned: { count: 0, percent: 0 },
     overdue: { count: 0, percent: 0 },
   });
+
   const [topPatrons, setTopPatrons] = useState<PatronVisit[]>([]);
   const [topBooks, setTopBooks] = useState<BorrowedBook[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [userName, setUserName] = useState("Guest");
-  const [loadingUser, setLoadingUser] = useState(true);
   const [latestBooks, setLatestBooks] = useState<Book[]>([]);
-  const [initialLoading, setInitialLoading] = useState(true);
 
-  // loading components
-  const [loadingTally, setLoadingTally] = useState(false);
-  const [loadingTopPatrons, setLoadingTopPatrons] = useState(false);
-  const [loadingTopBooks, setLoadingTopBooks] = useState(false);
-  const [loadingLatestBooks, setLoadingLatestBooks] = useState(false);
+  // Skeletons State
+  const [loadingTally, setLoadingTally] = useState(true);
+  const [loadingLists, setLoadingLists] = useState(true);
 
-  //for tally loading look
+  // 1. Set Page Title and Fetch User
+  useEffect(() => {
+    document.title = `${
+      userRole.charAt(0).toUpperCase() + userRole.slice(1)
+    } Dashboard`;
+
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+
+    AxiosInstance.get("/user", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        const u = res.data;
+        const name = [u.first_name, u.last_name].filter(Boolean).join(" ");
+        setUserName(name || "User");
+      })
+      .catch((err) => console.error(err))
+      .finally(() => setLoadingUser(false));
+  }, [userRole]);
+
+  // 2. Fetch Dashboard Statistics
+  const fetchDashboardData = async (isInitial = false) => {
+    if (isInitial) {
+      setLoadingTally(true);
+      setLoadingLists(true);
+    }
+    try {
+      const [attRes, circRes, topBooksRes, latestRes, patronsRes] =
+        await Promise.all([
+          AxiosInstance.get("/attendances/today-tally"),
+          AxiosInstance.get("/circulations/today-tally"),
+          AxiosInstance.get("/circulation/top-books-week"),
+          AxiosInstance.get("/books/latest"),
+          AxiosInstance.get("/attendances/patrons-this-week"),
+        ]);
+
+      setAttendanceToday({
+        count: attRes.data.attendanceToday,
+        percent: attRes.data.percent,
+      });
+      setLatestBooks(latestRes.data);
+      setTopBooks(topBooksRes.data);
+
+      setCirculationToday({
+        borrowed: {
+          count:
+            circRes.data["On Loan"]?.count || circRes.data.Borrowed?.count || 0,
+          percent:
+            circRes.data["On Loan"]?.percent ||
+            circRes.data.Borrowed?.percent ||
+            0,
+        },
+        returned: {
+          count: circRes.data.Returned?.count || 0,
+          percent: circRes.data.Returned?.percent || 0,
+        },
+        overdue: {
+          count: circRes.data.Overdue?.count || 0,
+          percent: circRes.data.Overdue?.percent || 0,
+        },
+      });
+
+      // Process Weekly Patrons
+      const startOfWeek = dayjs().startOf("isoWeek");
+      const endOfWeek = dayjs().endOf("isoWeek");
+      const patronMap: Record<string, number> = {};
+      patronsRes.data.forEach((att: any) => {
+        const visitDate = dayjs(att.time_in);
+        if (
+          visitDate.isSameOrAfter(startOfWeek) &&
+          visitDate.isSameOrBefore(endOfWeek)
+        ) {
+          const name = `${att.first_name} ${att.last_name}`;
+          patronMap[name] = (patronMap[name] || 0) + 1;
+        }
+      });
+      setTopPatrons(
+        Object.entries(patronMap)
+          .map(([name, visits]) => ({ name, visits }))
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, 5)
+      );
+    } catch (err) {
+      console.error("Dashboard error:", err);
+    } finally {
+      setLoadingTally(false);
+      setLoadingLists(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData(true);
+    const interval = setInterval(() => {
+      setCurrentDate(dayjs());
+      fetchDashboardData();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Skeleton Components (Local)
   const TallySkeleton = () => (
-    <div>
+    <div className="skeleton-tally-wrapper">
       <div className="skeleton-tally icon"></div>
       <div className="skeleton-tally title"></div>
-      <div className="skeleton-tally subtitle"></div>
     </div>
   );
 
@@ -124,135 +209,6 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
     </div>
   );
 
-  // Fetch current user info
-  useEffect(() => {
-    document.title = "Staff Dashboard";
-    const token = localStorage.getItem("authToken");
-    if (!token) return;
-
-    AxiosInstance.get("/user", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        const u = res.data;
-        const name = [u.first_name, u.middle_name, u.last_name, u.suffix]
-          .filter(Boolean)
-          .join(" ");
-        setUserName(name || "Guest");
-      })
-      .catch((err) => console.error("Failed to fetch user:", err))
-      .finally(() => setLoadingUser(false));
-  }, []);
-
-  const fetchDashboardData = async (isInitial = false) => {
-    if (isInitial) {
-      setLoadingTally(true);
-      setLoadingTopPatrons(true);
-      setLoadingTopBooks(true);
-      setLoadingLatestBooks(true);
-    }
-
-    try {
-      // Attendance today
-      const attendanceRes = await AxiosInstance.get("/attendances/today-tally");
-      setAttendanceToday({
-        count: attendanceRes.data.attendanceToday ?? 0,
-        percent: attendanceRes.data.percent ?? 0,
-      });
-
-      // Top patrons
-      const patronsRes = await AxiosInstance.get(
-        "/attendances/patrons-this-week"
-      );
-      // process patronsRes same as before
-      const startOfWeek = dayjs().startOf("isoWeek");
-      const endOfWeek = dayjs().endOf("isoWeek");
-      const weekly = patronsRes.data.filter((a: any) => {
-        const date = dayjs(a.time_in);
-        return (
-          date.isSameOrAfter(startOfWeek) && date.isSameOrBefore(endOfWeek)
-        );
-      });
-      const patronMap: Record<string, number> = {};
-      weekly.forEach((att: any) => {
-        const name = [
-          att.first_name,
-          att.middle_name,
-          att.last_name,
-          att.suffix,
-        ]
-          .filter(Boolean)
-          .join(" ");
-        patronMap[name] = (patronMap[name] || 0) + 1;
-      });
-      const top = Object.entries(patronMap)
-        .map(([name, visits]) => ({ name, visits }))
-        .sort((a, b) => b.visits - a.visits)
-        .slice(0, 5);
-      setTopPatrons(top);
-
-      // Circulation today
-      const circulationRes = await AxiosInstance.get(
-        "/circulations/today-tally"
-      );
-      setCirculationToday({
-        borrowed: {
-          count: circulationRes.data.Borrowed?.count ?? 0,
-          percent: circulationRes.data.Borrowed?.percent ?? 0,
-        },
-        returned: {
-          count: circulationRes.data.Returned?.count ?? 0,
-          percent: circulationRes.data.Returned?.percent ?? 0,
-        },
-        overdue: {
-          count: circulationRes.data.Overdue?.count ?? 0,
-          percent: circulationRes.data.Overdue?.percent ?? 0,
-        },
-      });
-
-      // Top borrowed books
-      const topBooksRes = await AxiosInstance.get(
-        "/circulation/top-books-week"
-      );
-      setTopBooks(topBooksRes.data);
-
-      // Latest books
-      const latestBooksRes = await AxiosInstance.get("/books/latest");
-      setLatestBooks(latestBooksRes.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (isInitial) {
-        setLoadingTally(false);
-        setLoadingTopPatrons(false);
-        setLoadingTopBooks(false);
-        setLoadingLatestBooks(false);
-        setInitialLoading(false);
-      }
-    }
-  };
-
-  // On mount, show skeleton
-  useEffect(() => {
-    fetchDashboardData(true);
-
-    const interval = setInterval(() => {
-      setCurrentDate(dayjs());
-      fetchDashboardData();
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fetch latest 7 books from backend
-  useEffect(() => {
-    setLoadingLatestBooks(true);
-    AxiosInstance.get("/books/latest")
-      .then((res) => setLatestBooks(res.data))
-      .catch((err) => console.error(err))
-      .finally(() => setLoadingLatestBooks(false));
-  }, []);
-
   return (
     <div className="dashboard-container">
       {/* Top Row */}
@@ -280,7 +236,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
           <p>{currentDate.format("MMMM D, YYYY | dddd, h:mm a")}</p>
         </div>
         {/* Search Bar */}
-        {/* <div className="position-relative" style={{ maxWidth: "900px" }}>
+        <div className="position-relative" style={{ maxWidth: "900px" }}>
           <span
             className="position-absolute top-50 translate-middle-y ps-2"
             style={{ left: "10px", color: "#6c757d" }}
@@ -293,7 +249,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
-        </div> */}
+        </div>
       </div>
 
       {/* Tally Row */}
@@ -376,7 +332,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
       {/* Top 5 Row */}
       <div className="top5-row">
         <div className="top5-card">
-          {loadingTopPatrons ? (
+          {loadingLists ? (
             <TableSkeleton />
           ) : (
             <>
@@ -398,7 +354,7 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
         </div>
 
         <div className="top5-card">
-          {loadingTopBooks ? (
+          {loadingLists ? (
             <TableSkeleton />
           ) : (
             <>
@@ -422,14 +378,29 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
 
       {/* Latest Books */}
       <div className="guestdashboard">
-        <h1>Circulation</h1>
+        <h1>Newly Added</h1>
         <div className="book-cards">
-          {loadingLatestBooks
+          {loadingLists
             ? Array.from({ length: 7 }).map((_, i) => (
                 <BookCardSkeleton key={i} />
               ))
             : latestBooks.map((book) => (
-                <div className="book-card" key={book.id}>
+                <div
+                  className="book-card"
+                  key={book.id}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    if (!book.id) return;
+                    const role = localStorage.getItem("role")?.toLowerCase();
+                    const path =
+                      role === "admin"
+                        ? `/admin/cataloging/${book.id}`
+                        : role === "staff"
+                        ? `/staff/cataloging/${book.id}`
+                        : null;
+                    if (path) navigate(path);
+                  }}
+                >
                   <img
                     src={
                       book.cover_image
@@ -451,4 +422,4 @@ const StaffDashboard = ({ user }: StaffDashboardProps) => {
   );
 };
 
-export default StaffDashboard;
+export default Dashboard;

@@ -22,6 +22,7 @@ class Attendance extends Model
         'barangay',
         'number',
         'email',
+        'visitor_type',
         'affiliation',
         'purpose_of_visit',
         'time_in',

@@ -105,8 +105,26 @@ class CirculationController extends Controller
 
         // Check patron status
         if ($patron->status !== 'Active') {
+            $errorMessage = 'Cannot issue book: ';
+
+            switch ($patron->status) {
+                case 'Expired':
+                    $errorMessage .= 'Patron membership has expired. Please renew the account first.';
+                    break;
+                case 'Blocked':
+                    $errorMessage .= 'Patron is currently blocked due to library violations.';
+                    break;
+                case 'Deactivated':
+                    $errorMessage .= 'Patron account is deactivated.';
+                    break;
+                default:
+                    $errorMessage .= 'Patron account is not in an active state.';
+                    break;
+            }
+
             return response()->json([
-                'message' => 'Cannot issue book: Patron is deactivated or blocked.'
+                'message' => $errorMessage,
+                'status' => $patron->status
             ], 403);
         }
 
@@ -114,6 +132,13 @@ class CirculationController extends Controller
         if ($bookCopy->condition === 'Damaged') {
             return response()->json([
                 'message' => 'This copy is damaged and cannot be loaned out.'
+            ], 400);
+        }
+
+        $totalCopiesCount = BookCopy::where('book_id', $bookCopy->book_id)->count();
+        if ($totalCopiesCount <= 1) {
+            return response()->json([
+                'message' => 'Cannot borrow: This is the library\'s only copy. It must remain in the library for reference.'
             ], 400);
         }
 
@@ -288,6 +313,42 @@ class CirculationController extends Controller
         ]);
     }
 
+    public function getActiveLoansByPatron($patronId)
+{
+    $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
+    $now = now()->startOfDay();
+
+    $activeLoans = Circulation::with(['bookCopy.book'])
+        ->where('patron_id', $patronId)
+        ->whereIn('status', ['On Loan', 'Overdue'])
+        ->get()
+        ->map(function ($loan) use ($fineRate, $now) {
+            $dueDate = \Carbon\Carbon::parse($loan->due_date)->startOfDay();
+            
+            // Calculate real-time fine if overdue
+            $overdueDays = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
+            $calculatedFine = $overdueDays * $fineRate;
+
+            return [
+                'id' => $loan->bookCopy->id, 
+                'barcode' => $loan->bookCopy->barcode,
+                'price' => $loan->bookCopy->price,
+                'copy_number' => $loan->bookCopy->copy_number,
+                'accession_no' => $loan->bookCopy->accession_number, 
+                'issue_date' => \Carbon\Carbon::parse($loan->issue_date)->format('Y-m-d'),
+                'due_date' => \Carbon\Carbon::parse($loan->due_date)->format('Y-m-d'),
+                'days_overdue' => $overdueDays,
+                'fine' => number_format($calculatedFine, 2, '.', ''),
+                'book' => [
+                    'title' => $loan->bookCopy->book->title,
+                    'call_number' => $loan->bookCopy->book->call_number,
+                ]
+            ];
+        });
+
+    return response()->json($activeLoans);
+}
+
 
     // Renew a loaned book copy (extend due date)
     public function renew(Request $request)
@@ -352,7 +413,7 @@ class CirculationController extends Controller
         ]);
     }
 
-    // Reports: number of on loan, returned, overdue
+    
     public function reports()
     {
         return response()->json([

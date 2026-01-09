@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import { useNavigate } from "react-router-dom";
+import Barcode from "react-barcode";
 
 import provinceListData from "../../../data/ph_addresses/province.json";
 import cityListData from "../../../data/ph_addresses/city.json";
@@ -81,6 +82,10 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
   );
 
   const [isAdding, setIsAdding] = useState(false);
+  const [savedPatron, setSavedPatron] = useState<Patron | null>(null);
+  const [showIdPreview, setShowIdPreview] = useState(false);
+
+  const fullName = `${firstName} ${middleName} ${lastName} ${suffix}`.trim();
 
   // Fetch a new Patron ID when modal opens
   useEffect(() => {
@@ -146,11 +151,9 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
     setIsAdding(true);
     try {
       const token = localStorage.getItem("authToken");
-      if (!token) {
-        console.error("No auth token found!");
-        return;
-      }
-      await AxiosInstance.post(
+      if (!token) return;
+
+      const response = await AxiosInstance.post(
         "/patrons",
         {
           patron_id: patronId,
@@ -168,20 +171,94 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
           address: `${barangay}, ${city}, ${province}`,
           notes,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      onSave();
-      onClose();
+
+      const patronData = response.data.patron || response.data;
+
+      if (patronData && patronData.patron_id) {
+        setSavedPatron(patronData);
+        setShowIdPreview(true); // This will now trigger the "Print View"
+        onSave(); // Refresh the background table
+      } else {
+        console.error("Unexpected response structure:", response.data);
+        throw new Error("Invalid response from server");
+      }
     } catch (error) {
       console.error("Error adding patron:", error);
+      alert("Failed to save patron.");
     } finally {
       setIsAdding(false);
     }
   };
+
+  // This block handles the "Print View"
+  if (showIdPreview && savedPatron) {
+    return (
+      <div className="modal-overlay">
+        <div className="modal-box" style={{ maxWidth: "450px" }}>
+          <h2
+            className="text-xl font-bold mb-4 text-center no-print"
+            style={{ color: "#2c3e50" }}
+          >
+            Patron Registered!
+          </h2>
+
+          <div id="printable-patron-barcodes">
+            <div className="patron-card-design barcode-item">
+              <div className="card-accent-border"></div>
+              <div className="card-header-main">
+                <div className="library-title">CAPIZ PROVINCIAL LIBRARY</div>
+                <div className="card-type">PATRON PASS</div>
+              </div>
+              <div className="card-content-grid">
+                <div className="patron-details">
+                  <div className="detail-group">
+                    <span className="patron-detail-label">NAME</span>
+                    <span className="patron-detail-value">
+                      {(savedPatron.full_name || fullName).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="id-expiry-row">
+                    <div className="detail-group">
+                      <span className="patron-detail-label">PATRON ID</span>
+                      <span className="patron-detail-value">
+                        {savedPatron.patron_id}
+                      </span>
+                    </div>
+                    <div className="detail-group">
+                      <span className="patron-detail-label">EXPIRY</span>
+                      <span className="patron-detail-value">
+                        {savedPatron.expiry_date?.slice(0, 10) || "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="barcode-section-card">
+                <Barcode
+                  value={savedPatron.patron_id || "0000"}
+                  width={1.5}
+                  height={55}
+                  fontSize={12}
+                  margin={0}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-actions mt-4 no-print">
+            <button onClick={onClose} className="cancel-btn">
+              Close
+            </button>
+            <button onClick={() => window.print()} className="submit-btn">
+              <i className="bi bi-printer me-2"></i> Print Card
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="modal-overlay">
@@ -538,7 +615,6 @@ const Patron = () => {
     indexOfLastPatron
   );
 
-  // Get user role (example: from localStorage, adjust as needed)
   const role = localStorage.getItem("role") || "";
 
   return (
@@ -849,9 +925,6 @@ const Patron = () => {
             }}
           >
             <i className="bi bi-eye"></i> View
-          </button>
-          <button>
-            <i className="bi bi-pencil-square"></i> Edit
           </button>
           <button
             onClick={async () => {

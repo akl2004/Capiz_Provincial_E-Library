@@ -624,10 +624,10 @@ const Cataloging = () => {
                         : "N/A"}
                     </p>
                     <p className="mb-0">
-                      <strong>Section:</strong> {book.section}
+                      <strong>Classification:</strong> {book.classification}
                     </p>
                     <p className="mb-0">
-                      <strong>Classification:</strong> {book.classification}
+                      <strong>Section:</strong> {book.section}
                     </p>
                   </div>
                 </div>
@@ -644,8 +644,8 @@ const Cataloging = () => {
                 <th>Edition</th>
                 <th>Year</th>
                 <th>Subjects</th>
-                <th>Section</th>
                 <th>Classification</th>
+                <th>Section</th>
               </tr>
             </thead>
             <tbody>
@@ -692,8 +692,8 @@ const Cataloging = () => {
                           : "-"}
                       </td>
                     </td>
-                    <td>{book.section}</td>
                     <td>{book.classification}</td>
+                    <td>{book.section}</td>
                   </tr>
                 ))
               )}
@@ -710,7 +710,7 @@ const Cataloging = () => {
           </div>
         )}
 
-        {/* ✅ Pagination controls */}
+        {/* Pagination controls */}
         {totalPages > 1 && (
           <div className="pagination mt-1">
             <button

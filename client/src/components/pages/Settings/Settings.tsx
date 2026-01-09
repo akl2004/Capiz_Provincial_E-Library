@@ -1,91 +1,122 @@
-import { useEffect, useState } from "react";
-
-// Import all your setting components
-import FineSetting from "./FineSetting";
-import BorrowingPolicy from "./BorrowingPolicySettings";
-import RenewalLimitSetting from "./RenewalLimitSetting";
-import ExpirationYearsSetting from "./ExpirationYearsSetting";
+import React, { useState, useEffect, useRef } from "react";
 import TimezoneSettings from "./TimezoneSettings";
+import BorrowingPolicySetting from "./BorrowingPolicySettings";
+import RenewalLimitSetting from "./RenewalLimitSetting";
+import FineSetting from "./FineSetting";
+import ExpirationYearsSetting from "./ExpirationYearsSetting";
 
-const Settings = () => {
-  const [activeTab, setActiveTab] = useState("System Settings");
+const Settings: React.FC = () => {
+  const [activeTab, setActiveTab] = useState("system");
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    document.title = "Settings";
-  }, []);
-
-  const settingsTabs = [
-    {
-      tab: "System Settings",
-      label: "System Settings",
-      sublabel:
-        "Configure system-wide formats such as date, time, and timezone to keep all modules consistent.",
-      components: [<TimezoneSettings key="timezone" />],
-    },
-    {
-      tab: "Circulation Policy",
-      label: "Circulation Policy",
-      sublabel:
-        "Set rules for borrowing, renewals, and fines to manage how materials are issued and returned.",
-      components: [
-        <BorrowingPolicy key="borrow" />,
-        <RenewalLimitSetting key="renewal" />,
-        <FineSetting key="fine" />,
-      ],
-    },
-    {
-      tab: "Account & Roles Settings",
-      label: "Account & Roles Settings",
-      sublabel:
-        "Manage user roles, permissions, and account lifecycles to secure the system and assign responsibilities.",
-      components: [<ExpirationYearsSetting key="expiration" />],
-    },
+  const sections = [
+    { id: "system", label: "System Settings", icon: "bi-gear-fill" },
+    { id: "circulation", label: "Circulation Policy", icon: "bi-arrow-repeat" },
+    { id: "accounts", label: "Accounts & Roles", icon: "bi-people-fill" },
   ];
 
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: "-20% 0px -70% 0px", // Trigger when section is near top
+      threshold: 0,
+    };
+
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveTab(entry.target.id);
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(
+      observerCallback,
+      observerOptions
+    );
+    sections.forEach((section) => {
+      const element = document.getElementById(section.id);
+      if (element) observer.observe(element);
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
-    <div className="settings-container p-4">
-      <h1 className="text-xl font-semibold mb-0">Settings</h1>
-      <p className="mb-4">
-        <i>
-          Configure and manage all core rules and preferences of the e-library
-          system to ensure smooth operation and consistent policies.
-        </i>
-      </p>
-
-      {/* Tabs */}
-      <ul className="nav nav-tabs mb-4">
-        {settingsTabs.map((tab) => (
-          <li className="nav-item" key={tab.tab}>
+    <div className="settings-master-layout">
+      {/* Sidebar Navigation */}
+      <aside className="settings-sidebar">
+        <div className="sidebar-header-area">
+          <span className="sidebar-category-label">SETTINGS</span>
+        </div>
+        <nav className="nav flex-column mt-3">
+          {sections.map((section) => (
             <button
-              className={`nav-link ${activeTab === tab.tab ? "active" : ""}`}
-              onClick={() => setActiveTab(tab.tab)}
+              key={section.id}
+              className={`nav-link-chic ${
+                activeTab === section.id ? "active" : ""
+              }`}
+              onClick={() => scrollToSection(section.id)}
             >
-              {tab.tab}
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      <div>
-        {settingsTabs.map(
-          (tab) =>
-            activeTab === tab.tab && (
-              <div key={tab.tab} className="tab-pane fade show active">
-                {/* Tab label + sublabel */}
-                <div className="settings-container">
-                  <div className="mb-4">
-                    <h2 className="text-lg font-semibold">{tab.label}</h2>
-                    <p className="text-muted">{tab.sublabel}</p>
-                    <hr />
-                  </div>
-                  {tab.components.map((Component, i) => (
-                    <div key={i}>{Component}</div>
-                  ))}
-                </div>
+              <div className="nav-content-wrapper">
+                <i className={`bi ${section.icon} nav-icon`}></i>
+                <span className="nav-text">{section.label}</span>
               </div>
-            )
-        )}
-      </div>
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="settings-content-scroll" ref={scrollContainerRef}>
+        {/* SECTION: SYSTEM SETTINGS */}
+        <section id="system" className="settings-section">
+          <div className="section-header">
+            <h3>System Settings</h3>
+            <p className="text-muted">
+              Manage global library configurations and localization.
+            </p>
+          </div>
+          <TimezoneSettings />
+        </section>
+
+        <hr className="section-divider" />
+
+        {/* SECTION: CIRCULATION POLICY */}
+        <section id="circulation" className="settings-section">
+          <div className="section-header">
+            <h3>Circulation Policy</h3>
+            <p className="text-muted">
+              Define rules for borrowing, renewals, and financial penalties.
+            </p>
+          </div>
+          <BorrowingPolicySetting />
+          <RenewalLimitSetting />
+          <FineSetting />
+        </section>
+
+        <hr className="section-divider" />
+
+        {/* SECTION: ACCOUNTS & ROLES */}
+        <section id="accounts" className="settings-section">
+          <div className="section-header">
+            <h3>Accounts & Roles</h3>
+            <p className="text-muted">
+              Set security policies and patron account expiration terms.
+            </p>
+          </div>
+          <ExpirationYearsSetting />
+        </section>
+
+        <div className="bottom-spacer" />
+      </main>
     </div>
   );
 };

@@ -6,6 +6,7 @@ import Alert from "../../Alert";
 const TimezoneSettings: React.FC = () => {
   const [selectedTimezone, setSelectedTimezone] = useState("Asia/Manila");
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<"success" | "error" | "info">(
     "info"
@@ -20,9 +21,10 @@ const TimezoneSettings: React.FC = () => {
         });
         setSelectedTimezone(res.data.default_timezone);
       } catch (err) {
-        console.error("Error fetching timezone:", err);
         setAlertMessage("Failed to fetch timezone.");
         setAlertType("error");
+      } finally {
+        setTimeout(() => setFetching(false), 600);
       }
     };
     fetchTimezone();
@@ -36,16 +38,12 @@ const TimezoneSettings: React.FC = () => {
         "/settings/timezone",
         { timezone: selectedTimezone },
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
       setAlertMessage("Timezone updated successfully!");
       setAlertType("success");
     } catch (err) {
-      console.error("Error updating timezone:", err);
       setAlertMessage("Failed to update timezone.");
       setAlertType("error");
     } finally {
@@ -54,46 +52,90 @@ const TimezoneSettings: React.FC = () => {
   };
 
   return (
-    <div className="mb-4">
-      <div className="timezone-settings">
-        {/* Display alert */}
-        {alertMessage && (
-          <Alert
-            message={alertMessage}
-            type={alertType}
-            onClose={() => setAlertMessage("")}
-          />
-        )}
-        <div className="settings-row mb-3">
-          <label>Timezone</label>
-          <select
-            value={selectedTimezone}
-            onChange={(e) => setSelectedTimezone(e.target.value)}
-          >
-            {timezones.flatMap((country) =>
-              country.timezones.map((tzEntry) => (
-                <option key={`${country.name}-${tzEntry}`} value={tzEntry}>
-                  {tzEntry}
-                </option>
-              ))
-            )}
-          </select>
+    <div className="timezone-main-container">
+      {alertMessage && (
+        <Alert
+          message={alertMessage}
+          type={alertType}
+          onClose={() => setAlertMessage("")}
+        />
+      )}
+
+      <div className="timezone-settings-card">
+        <div className="timezone-card-header">
+          <div className="d-flex align-items-center">
+            <div className="timezone-icon-box me-3">
+              <i className="bi bi-clock-history"></i>
+            </div>
+            <div>
+              <h5 className="timezone-card-title mb-0">Regional Settings</h5>
+              <small className="timezone-card-subtitle">
+                Configure the system default timezone
+              </small>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="settings-actions">
-        <button
-          onClick={handleSave}
-          className="btn btn-save"
-          disabled={loading}
-        >
-          {loading ? (
-            "Saving..."
+
+        <div className="card-body p-4">
+          {fetching ? (
+            <div className="timezone-skeleton-wrapper">
+              <div className="timezone-skeleton-label mb-2"></div>
+              <div className="timezone-skeleton-input mb-4"></div>
+              <div className="timezone-skeleton-button"></div>
+            </div>
           ) : (
-            <>
-              <i className="bi bi-save me-1"></i> Save Changes
-            </>
+            <div className="timezone-fade-in">
+              <div className="timezone-input-group mb-4">
+                <label className="timezone-input-label">
+                  SELECT SYSTEM TIMEZONE
+                </label>
+                <div className="timezone-select-container">
+                  <i className="bi bi-globe-americas timezone-select-icon"></i>
+                  <select
+                    className="timezone-custom-select"
+                    value={selectedTimezone}
+                    onChange={(e) => setSelectedTimezone(e.target.value)}
+                  >
+                    {timezones.map((country) => (
+                      <optgroup key={country.name} label={country.name}>
+                        {country.timezones.map((tz) => (
+                          <option key={tz} value={tz}>
+                            {tz.replace(/_/g, " ")}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="timezone-preview-box mt-3">
+                  <i className="bi bi-info-circle me-2"></i>
+                  The system currently treats "now" as:{" "}
+                  <strong>
+                    {new Date().toLocaleTimeString("en-US", {
+                      timeZone: selectedTimezone,
+                    })}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="d-flex justify-content-end">
+                <button
+                  onClick={handleSave}
+                  className="timezone-save-button"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="spinner-border spinner-border-sm me-2"></span>
+                  ) : (
+                    <i className="bi bi-check2-circle me-2"></i>
+                  )}
+                  Save Configuration
+                </button>
+              </div>
+            </div>
           )}
-        </button>
+        </div>
       </div>
     </div>
   );

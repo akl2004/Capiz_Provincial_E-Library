@@ -25,7 +25,7 @@ class User extends Authenticatable
         'role',
         'registered_by',
         'status',
-        'authToken', // optional: for compatibility
+        'authToken',
     ];
 
     protected $hidden = [

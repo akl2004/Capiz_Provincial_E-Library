@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 
 interface LoginModalProps {
-  // Removed 'role: string' since we determine it after login
+  role: string;
   onClose: () => void;
   onLoginSuccess: (user: {
     name: string;
@@ -11,47 +11,48 @@ interface LoginModalProps {
   }) => void;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
+const LoginModal2: React.FC<LoginModalProps> = ({
+  role,
+  onClose,
+  onLoginSuccess,
+}) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // new state
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setLoading(true); 
 
     try {
-      // We no longer send 'role' in the body.
-      // The backend will find the user by email and return their role.
       const response = await AxiosInstance.post("/login", {
         email,
         password,
+        role: role.toLowerCase(),
       });
 
-      // Inside handleLogin in LoginModal.tsx
       if (response.status === 200) {
-        const role = response.data.role.toLowerCase();
-
+        // Save token
         localStorage.setItem("authToken", response.data.token || "");
-        localStorage.setItem("role", role); 
 
+        // Pass user info to parent
         const user = {
           name: response.data.name,
-          avatar: "./src/assets/lib-logo.png",
-          role: role,
+          avatar: "./src/assets/lib-logo.png", // Or use real avatar if available
+          role: response.data.role,
         };
 
-        onLoginSuccess(user);
+        onLoginSuccess(user); // send user info instead of just role
       }
     } catch (err: any) {
       setError(
         err.response?.data?.message || "Invalid credentials. Please try again."
       );
     } finally {
-      setLoading(false);
+      setLoading(false); // always stop spinner
     }
   };
 
@@ -61,8 +62,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
         <button className="close-btn" onClick={onClose}>
           &times;
         </button>
-        <h3>Login</h3>
-        <hr className="mt-0 mb-0" />
+        <h3>{role} Login</h3>
+        <hr className="mt-0 mb-0"/>
         <p className="subtitle">Enter your credentials</p>
 
         {error && <p style={{ color: "red", fontSize: "0.9rem" }}>{error}</p>}
@@ -88,7 +89,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder=" "
-              autoComplete="current-password"
             />
             <label htmlFor="password">Password</label>
           </div>
@@ -117,4 +117,4 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
   );
 };
 
-export default LoginModal;
+export default LoginModal2;

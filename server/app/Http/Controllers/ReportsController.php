@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\Book;
+use App\Models\Circulation;
 use App\Models\LibrarySetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -131,142 +132,126 @@ class ReportsController extends Controller
     }
 
 
-    // for the circulation report
     public function circulation()
     {
-        // get current fine per day
-        $finePerDay = (int) \App\Models\LibrarySetting::getValue('fine_per_day', 5);
-
-        // We'll return last 12 months (including current)
-        $months = [];
+        $totalInventory = DB::table('book_copies')->whereNull('deleted_at')->count();
         $now = Carbon::now();
+        $today = $now->toDateString();
+
+        $actualOverdueCount = DB::table('circulations')
+            ->where('status', '!=', 'Lost')
+            ->where(function($q) use ($today) {
+                $q->whereIn('status', ['Overdue', 'Returned Late'])
+                ->orWhere(function($q2) use ($today) {
+                    $q2->where('status', 'On Loan')
+                        ->whereDate('due_date', '<', $today);
+                });
+            })
+            ->count();
+
+        $actualLostCount = DB::table('circulations')->where('status', 'Lost')->count();
+        $actualTotalFines = DB::table('circulations')->where('is_paid', true)->sum('fine');
+
+        // --- MONTHLY ROWS ---
+        $months = [];
         for ($i = 11; $i >= 0; $i--) {
             $m = $now->copy()->subMonths($i);
             $months[] = [
-                'label' => $m->format('Y-m'), 
-                'display' => $m->format('M Y'), 
+                'display' => $m->format('M Y'),
                 'year' => (int)$m->format('Y'),
                 'month' => (int)$m->format('n'),
+                'year_month' => $m->format('Y-m'), 
+                'full_date' => $m->endOfMonth()->toDateString(),
             ];
         }
 
         $rows = [];
-        $totals = [
-            'onLoan' => 0,
-            'returned' => 0,
-            'renewed' => 0,
-            'overdue' => 0,
-            'fines' => 0.0,
-        ];
-
         foreach ($months as $m) {
             $y = $m['year'];
             $mo = $m['month'];
+            $monthEnd = Carbon::parse($m['full_date']);
 
-            // on loan = circulations issued in that month
+            // Monthly Borrowed
             $onLoan = DB::table('circulations')
                 ->whereYear('issue_date', $y)
                 ->whereMonth('issue_date', $mo)
                 ->count();
 
-            // Returned = circulations returned in that month
+            // Monthly Returned
             $returned = DB::table('circulations')
                 ->whereNotNull('date_returned')
                 ->whereYear('date_returned', $y)
                 ->whereMonth('date_returned', $mo)
                 ->count();
 
-            // Renewed = circulations with renewal_date in that month
-            $renewed = DB::table('circulations')
-                ->whereNotNull('renewal_date')
-                ->whereYear('renewal_date', $y)
-                ->whereMonth('renewal_date', $mo)
-                ->count();
-
-            // Overdue:
-            $overdue = DB::table('circulations')
-                ->where(function($query) use ($y, $mo) {
-                    // Case A: Still overdue and the due date was in this month
-                    $query->where('status', 'Overdue')
-                        ->whereYear('due_date', $y)
-                        ->whereMonth('due_date', $mo);
-                })
-                ->orWhere(function($query) use ($y, $mo) {
-                    // Case B: Returned in this month but was late
-                    $query->whereNotNull('date_returned')
-                        ->whereYear('date_returned', $y)
-                        ->whereMonth('date_returned', $mo)
-                        ->whereRaw('date_returned > due_date');
-                })
-                ->count();
-
-            // Fines: calculate dynamically
-            $finesSum = DB::table('circulations')
-                ->select(DB::raw("
-                    SUM(
-                        CASE 
-                            WHEN date_returned IS NOT NULL AND date_returned > due_date 
-                                THEN DATEDIFF(date_returned, due_date) * $finePerDay
-                            WHEN date_returned IS NULL AND due_date < NOW()
-                                THEN DATEDIFF(NOW(), due_date) * $finePerDay
-                            ELSE 0
-                        END
-                    ) as total_fines
-                "))
+            // Monthly Overdue (Snapshot at month end)
+            $monthlyOverdue = DB::table('circulations')
                 ->whereYear('due_date', $y)
                 ->whereMonth('due_date', $mo)
-                ->value('total_fines');
+                ->where(function($q) {
+                    $q->where(function($sub) {
+                        $sub->whereNull('date_returned')
+                            ->where('due_date', '<', now()); 
+                    })
+                    ->orWhereColumn('date_returned', '>', 'due_date'); 
+                })
+                ->where('status', '!=', 'Lost') 
+                ->count();
 
+            // Monthly Lost
+            $lost = DB::table('circulations')
+                ->where('status', 'Lost')
+                ->whereYear('updated_at', $y)
+                ->whereMonth('updated_at', $mo)
+                ->count();
 
-            $finesSum = (float) $finesSum;
-
-            // Add to totals
-            $totals['onLoan'] += $onLoan;
-            $totals['returned'] += $returned;
-            $totals['renewed'] += $renewed;
-            $totals['overdue'] += $overdue;
-            $totals['fines'] += $finesSum;
+            // Monthly Fines
+            $fines = DB::table('circulations')
+                ->where('is_paid', true)
+                ->whereYear('updated_at', $y)
+                ->whereMonth('updated_at', $mo)
+                ->sum('fine');
 
             $rows[] = [
                 'month' => $m['display'],
-                'year_month' => $m['label'],
+                'year_month' => $m['year_month'], 
                 'onLoan' => (int)$onLoan,
                 'returned' => (int)$returned,
-                'renewed' => (int)$renewed,
-                'overdue' => (int)$overdue,
-                'fines' => $finesSum,
+                'overdue' => (int)$monthlyOverdue,
+                'lost' => (int)$lost,
+                'fines' => (float)$fines,
             ];
         }
 
-        // summary
-        $summary = [
-            'onLoan' => $totals['onLoan'],
-            'returned' => $totals['returned'],
-            'renewed' => $totals['renewed'],
-            'overdue' => $totals['overdue'],
-            'fines' => $totals['fines'],
-        ];
-
         return response()->json([
             'rows' => $rows,
-            'summary' => $summary,
+            'summary' => [
+                'totalInventory' => $totalInventory,
+                'lost' => (int)$actualLostCount,
+                'finesPaid' => (float)$actualTotalFines,
+                'overdue' => (int)$actualOverdueCount,
+            ],
         ]);
     }
 
     // Attendance Report Endpoints
     public function attendanceSummary()
     {
+        $startOfWeek = Carbon::now()->startOfWeek();
+        $endOfWeek = Carbon::now()->endOfWeek();
+
         // Group by date
         $rows = Attendance::selectRaw('DATE(time_in) as date')
             ->selectRaw("SUM(CASE WHEN patron_id IS NULL THEN 1 ELSE 0 END) as guest")
             ->selectRaw("SUM(CASE WHEN patron_id IS NOT NULL THEN 1 ELSE 0 END) as patron")
             ->selectRaw("COUNT(*) as total")
+            ->whereBetween('time_in', [$startOfWeek, $endOfWeek])
             ->groupBy('date')
             ->orderBy('date', 'asc')
             ->get()
             ->map(function ($item) {
                 return [
-                    'date' => $item->date,
+                    'date' => Carbon::parse($item->date)->format('D'),
                     'guest' => (int)$item->guest,
                     'patron' => (int)$item->patron,
                     'total' => (int)$item->total,
@@ -331,7 +316,7 @@ class ReportsController extends Controller
 
                 return [
                     'id' => $log->id,
-                    'type' => $log->patron_id ? 'patron' : 'guest',
+                    'type' => $log->patron_id ? 'Patron' : 'Guest',
                     'fullname' => $fullname,
                     'address' => $fullAddress ?: null,
                     'contact_number' => $log->number ?? null,
