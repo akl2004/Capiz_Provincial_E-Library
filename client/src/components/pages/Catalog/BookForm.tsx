@@ -22,6 +22,44 @@ interface Copy {
   material_type: string;
 }
 
+interface BookSession {
+  id: string; // unique ID for React keys
+  title: string;
+  author: string;
+  editor: string;
+  isbn_paperback: string;
+  isbn_hardcover: string;
+  issn: string;
+  deweyDecimal: string;
+  authorNumber: string;
+  edition: string;
+  placeOfPublication: string;
+  publisher: string;
+  yearCopyright: string;
+  seriesName: string;
+  volume: string;
+  numberOfPages: number | "";
+  personSubject: string;
+  geographicalSubject: string;
+  topicalSubjects: string[];
+  otherAuthorsEditors: string[];
+  includesIndex: boolean;
+  includesAppendix: boolean;
+  includesGlossary: boolean;
+  includesBibliographicalReferences: boolean;
+  // Accession specific to this book
+  copies: number;
+  bookCopies: Copy[];
+  coverImage: File | null;
+  section: string;
+  source: string;
+  sourcePerson: string;
+  cataloging_note: string;
+  internal_note: string;
+  materialType: string;
+  price: string | number;
+}
+
 const BookForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
@@ -33,53 +71,14 @@ const BookForm: React.FC = () => {
   // Toggle state
   const [identifierMode, setIdentifierMode] = useState<"ISBN" | "ISSN">("ISBN");
 
-  const [personSubject, setPersonSubject] = useState("");
-  const [geographicalSubject, setGeographicalSubject] = useState("");
-  const [author, setAuthor] = useState("");
-  const [editor, setEditor] = useState("");
-  const [isbnPaperback, setIsbnPaperback] = useState("");
-  const [isbnHardcover, setIsbnHardcover] = useState("");
-  const [issn, setIssn] = useState("");
-  const [deweyDecimal, setDeweyDecimal] = useState("");
-  const [authorNumber, setAuthorNumber] = useState("");
-  const [title, setTitle] = useState("");
-  const [edition, setEdition] = useState("");
-  const [placeOfPublication, setPlaceOfPublication] = useState("");
-  const [publisher, setPublisher] = useState("");
-  const [yearCopyright, setYearCopyright] = useState("");
-  const [seriesName, setSeriesName] = useState("");
-  const [volume, setVolume] = useState("");
-  const [languageCode, setLanguageCode] = useState("");
-  const [numberOfPages, setNumberOfPages] = useState<number | "">("");
-
-  // Checklist
-  const [includesIndex, setIncludesIndex] = useState(false);
-  const [includesAppendix, setIncludesAppendix] = useState(false);
-  const [includesGlossary, setIncludesGlossary] = useState(false);
-  const [
-    includesBibliographicalReferences,
-    setIncludesBibliographicalReferences,
-  ] = useState(false);
-
-  // ===== Accession Record =====
-  const [sourcePerson, setSourcePerson] = useState("");
-  const [catalogingNote, setCatalogingNote] = useState("");
-  const [internalNote, setInternalNote] = useState("");
-  const [copies, setCopies] = useState(1);
-  const [section, setSection] = useState("");
-  const [source, setSource] = useState("");
-  const [materialType, setMaterialType] = useState("");
-  const [materialTypes, setMaterialTypes] = useState<MaterialType[]>([]);
+  const [conditions, setConditions] = useState<string[]>([]);
   const [sections, setSections] = useState<string[]>([]);
   const [sources, setSources] = useState<string[]>([]);
-  const [coverImage, setCoverImage] = useState<File | null>(null);
-
-  const [defaultCondition, setDefaultCondition] = useState<string[]>([]);
-  const [defaultPrice, setDefaultPrice] = useState<string | number>("");
+  const [materialTypes, setMaterialTypes] = useState<MaterialType[]>([]);
+  const [bookCopies, setBookCopies] = useState<Copy[]>([]); // For the Print Modal
 
   // Barcode modal
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
-  const [bookCopies, setBookCopies] = useState<Copy[]>([]);
 
   // Topical subjects
   const [topicalSubjects, setTopicalSubjects] = useState<string[]>([
@@ -87,10 +86,92 @@ const BookForm: React.FC = () => {
     "",
     "",
   ]);
-  const handleTopicalChange = (index: number, value: string) => {
-    const updated = [...topicalSubjects];
-    updated[index] = value;
-    setTopicalSubjects(updated);
+
+  // 1. Tracks which tab is currently visible
+  const [activeTab, setActiveTab] = useState(0);
+  const [allBooks, setAllBooks] = useState<BookSession[]>([createEmptyBook()]);
+
+  function createEmptyBook(
+    initSections?: string[],
+    initMTypes?: MaterialType[],
+    initSources?: string[]
+  ): BookSession {
+    const defaultSource = initSources?.[0] || sources[0] || "";
+    return {
+      id: Math.random().toString(36).substr(2, 9),
+      title: "",
+      author: "",
+      editor: "",
+      isbn_paperback: "",
+      isbn_hardcover: "",
+      issn: "",
+      deweyDecimal: "",
+      authorNumber: "",
+      edition: "",
+      placeOfPublication: "",
+      publisher: "",
+      yearCopyright: "",
+      seriesName: "",
+      volume: "",
+      numberOfPages: "" as number | "", // Cast to match interface
+      personSubject: "",
+      geographicalSubject: "",
+      topicalSubjects: ["", "", ""],
+      otherAuthorsEditors: [""],
+      includesIndex: false,
+      includesAppendix: false,
+      includesGlossary: false,
+      includesBibliographicalReferences: false,
+      copies: 1,
+      bookCopies: [
+        {
+          copy_number: 1,
+          barcode: "",
+          cataloging_note: "",
+          internal_note: "",
+          source_person: "",
+          source: defaultSource,
+          condition: "New",
+          binding: "",
+          price: "",
+          material_type:
+            initMTypes?.[0]?.id.toString() ||
+            materialTypes[0]?.id.toString() ||
+            "",
+        },
+      ],
+      coverImage: null,
+      section: initSections?.[0] || sections[0] || "",
+      source: defaultSource,
+      sourcePerson: "",
+      cataloging_note: "",
+      internal_note: "",
+      materialType:
+        initMTypes?.[0]?.id.toString() || materialTypes[0]?.id.toString() || "",
+      price: "" as string | number,
+    };
+  }
+
+  const updateActiveBook = (field: keyof BookSession, value: any) => {
+    setAllBooks((prev) => {
+      const updated = [...prev];
+      updated[activeTab] = { ...updated[activeTab], [field]: value };
+      return updated;
+    });
+  };
+
+  const addNewTab = () => {
+    // Pass the existing dropdown states to the new book
+    const newBook = createEmptyBook(sections, materialTypes, sources);
+    setAllBooks([...allBooks, newBook]);
+    setActiveTab(allBooks.length);
+  };
+
+  const removeTab = (index: number) => {
+    if (allBooks.length === 1) return; // Don't remove the last tab
+    const updated = allBooks.filter((_, i) => i !== index);
+    setAllBooks(updated);
+    setActiveTab(Math.max(0, index - 1));
   };
 
   // Other Authors/Editors
@@ -107,120 +188,167 @@ const BookForm: React.FC = () => {
 
   // Fetch dropdown options
   useEffect(() => {
-    document.title = "Add Book";
     AxiosInstance.get("/dropdown-options").then((res) => {
-      setSections(res.data.sections || []);
-      setSources(res.data.sources || []);
-      const mTypes: MaterialType[] = res.data.materialTypes || [];
-      setMaterialTypes(mTypes);
-      const fetchedConditions = res.data.conditions || [];
-      setDefaultCondition(fetchedConditions);
-      if (res.data.sections?.length) setSection(res.data.sections[0]);
-      if (res.data.sources?.length) setSource(res.data.sources[0]);
-      if (mTypes.length) {
-        setMaterialType(mTypes[0].id.toString());
-      }
+      const fetchedSources = res.data.sources || [];
+      const fetchedSections = res.data.sections || [];
+      const fetchedMTypes = res.data.materialTypes || [];
+
+      setSources(fetchedSources);
+      setSections(fetchedSections);
+      setConditions(res.data.conditions || []);
+      setMaterialTypes(fetchedMTypes);
+
+      // Pass all three arrays to create the initial book correctly
+      setAllBooks([
+        createEmptyBook(fetchedSections, fetchedMTypes, fetchedSources),
+      ]);
     });
   }, []);
 
-  const generateBarcode = () => {
-    const randomNumbers = Math.floor(1000000000 + Math.random() * 9000000000);
-    return `BC${randomNumbers}`;
-  };
-
   useEffect(() => {
-    const generatedCopies: Copy[] = Array.from({ length: copies }, (_, i) => ({
-      copy_number: i + 1,
-      barcode: generateBarcode(),
-      condition: "",
-      price: defaultPrice || "",
-      cataloging_note: "",
-      internal_note: "",
-      source_person: "",
-      source: "",
-      material_type: "",
-      binding: "Paperback",
-    }));
-    setBookCopies(generatedCopies);
-  }, [copies, defaultCondition, defaultPrice]);
+    if (allBooks.length === 0) return;
+
+    const currentBook = allBooks[activeTab];
+    const generated: Copy[] = Array.from(
+      { length: currentBook.copies },
+      (_, i) => ({
+        copy_number: i + 1,
+        barcode: `BC${Math.floor(1000000000 + Math.random() * 9000000000)}`,
+        condition: "New",
+        price: currentBook.price || "0.00",
+        cataloging_note: "",
+        internal_note: "",
+        source_person: "",
+        source: currentBook.source,
+        material_type: currentBook.materialType,
+        binding: currentBook.isbn_hardcover ? "Hardcover" : "Paperback",
+      })
+    );
+    setAllBooks((prev) => {
+      const updated = [...prev];
+      updated[activeTab].bookCopies = generated;
+      return updated;
+    });
+  }, [allBooks[activeTab]?.copies, allBooks[activeTab]?.price]);
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setShowModal(false);
 
     const formData = new FormData();
-    formData.append("person_as_subject", personSubject);
 
-    // Only non-empty topical subjects
-    const filteredSubjects = topicalSubjects.filter((s) => s.trim() !== "");
-    filteredSubjects.forEach((subject) => {
-      formData.append("topical_subject[]", subject);
-    });
-
-    if (identifierMode === "ISBN") {
-      formData.append("isbn_paperback", isbnPaperback);
-      formData.append("isbn_hardcover", isbnHardcover);
-      formData.append("issn", "");
-    } else {
-      formData.append("issn", issn);
-      formData.append("isbn_paperback", "");
-      formData.append("isbn_hardcover", "");
-    }
-
-    formData.append("geographical_subject", geographicalSubject);
-    formData.append("author", author);
-    formData.append("editor", editor);
-    formData.append(
-      "other_author_editor",
-      otherAuthorsEditors.filter((oae) => oae.trim() !== "").join(", ")
-    );
-    formData.append("dewey_decimal", deweyDecimal);
-    formData.append("author_number", authorNumber);
-    formData.append("title", title);
-    formData.append("edition", edition);
-    formData.append("place_of_publication", placeOfPublication);
-    formData.append("publisher", publisher);
-    formData.append("copyright", yearCopyright);
-    formData.append("series_name", seriesName);
-    formData.append("volume", volume);
-    formData.append("book_language", languageCode);
-    formData.append("number_of_pages", numberOfPages.toString());
-    formData.append("includes_index", includesIndex ? "1" : "0");
-    formData.append("includes_appendix", includesAppendix ? "1" : "0");
-    formData.append("includes_glossary", includesGlossary ? "1" : "0");
-    formData.append(
-      "includes_bibliographical_references",
-      includesBibliographicalReferences ? "1" : "0"
-    );
-    formData.append("source_person", sourcePerson);
-    formData.append("cataloging_note", catalogingNote);
-    formData.append("internal_note", internalNote);
-    formData.append("copies", copies.toString());
-    formData.append("section", section);
-    formData.append("source", source.trim());
-    formData.append("material_type_id", materialType);
-    formData.append("condition", defaultCondition[0] || "New");
-    if (coverImage) formData.append("cover_image", coverImage);
-
-    // Append each copy (optional)
-    bookCopies.forEach((c, i) => {
+    allBooks.forEach((book, bIdx) => {
+      // Basic Text Fields
+      formData.append(`books[${bIdx}][title]`, book.title);
+      formData.append(`books[${bIdx}][author]`, book.author);
+      formData.append(`books[${bIdx}][editor]`, book.editor);
+      formData.append(`books[${bIdx}][isbn_paperback]`, book.isbn_paperback);
+      formData.append(`books[${bIdx}][isbn_hardcover]`, book.isbn_hardcover);
+      formData.append(`books[${bIdx}][issn]`, book.issn);
+      formData.append(`books[${bIdx}][deweyDecimal]`, book.deweyDecimal);
+      formData.append(`books[${bIdx}][author_number]`, book.authorNumber);
+      formData.append(`books[${bIdx}][edition]`, book.edition);
       formData.append(
-        `copies_data[${i}][copy_number]`,
-        c.copy_number.toString()
+        `books[${bIdx}][place_of_publication]`,
+        book.placeOfPublication
       );
-      formData.append(`copies_data[${i}][barcode]`, c.barcode);
-      formData.append(`copies_data[${i}][condition]`, c.condition);
+      formData.append(`books[${bIdx}][publisher]`, book.publisher);
+      formData.append(`books[${bIdx}][copyright]`, book.yearCopyright);
+      formData.append(`books[${bIdx}][series_name]`, book.seriesName);
+      formData.append(`books[${bIdx}][volume]`, book.volume);
+      formData.append(
+        `books[${bIdx}][number_of_pages]`,
+        book.numberOfPages ? book.numberOfPages.toString() : "0"
+      );
 
-      let determinedBinding = "Paperback";
-      if (isbnHardcover.trim() !== "" && isbnPaperback.trim() === "") {
-        determinedBinding = "Hardcover";
+      // Booleans (Checkboxes) - Convert to 1/0 for Database
+      formData.append(
+        `books[${bIdx}][includes_index]`,
+        book.includesIndex ? "1" : "0"
+      );
+      formData.append(
+        `books[${bIdx}][includes_appendix]`,
+        book.includesAppendix ? "1" : "0"
+      );
+      formData.append(
+        `books[${bIdx}][includes_glossary]`,
+        book.includesGlossary ? "1" : "0"
+      );
+      formData.append(
+        `books[${bIdx}][includes_bibliographical_references]`,
+        book.includesBibliographicalReferences ? "1" : "0"
+      );
+
+      formData.append(
+        `books[${bIdx}][cataloging_note]`,
+        book.cataloging_note || ""
+      );
+      formData.append(
+        `books[${bIdx}][internal_note]`,
+        book.internal_note || ""
+      );
+
+      // Arrays (Subjects and Contributors)
+      book.topicalSubjects
+        .filter((s) => s.trim())
+        .forEach((subject, sIdx) => {
+          formData.append(`books[${bIdx}][topical_subject][${sIdx}]`, subject);
+        });
+
+      formData.append(
+        `books[${bIdx}][geographical_subject]`,
+        book.geographicalSubject || ""
+      );
+      formData.append(
+        `books[${bIdx}][person_as_subject]`,
+        book.personSubject || ""
+      );
+
+      formData.append(
+        `books[${bIdx}][other_author_editor]`,
+        otherAuthorsEditors.filter((oae) => oae.trim() !== "").join(", ")
+      );
+
+      // Accession Record Fields
+      formData.append(`books[${bIdx}][section]`, book.section);
+      formData.append(`books[${bIdx}][source]`, book.source);
+      formData.append(`books[${bIdx}][materialType]`, book.materialType);
+      formData.append(`books[${bIdx}][source_person]`, book.sourcePerson);
+      formData.append(`books[${bIdx}][copies]`, book.copies.toString());
+
+      // Image file
+      if (book.coverImage) {
+        formData.append(`books[${bIdx}][cover_image]`, book.coverImage);
       }
-      formData.append(`copies_data[${i}][binding]`, determinedBinding);
 
-      const priceToSubmit = c.price || defaultPrice || "0.00";
-      formData.append(`copies_data[${i}][price]`, priceToSubmit.toString());
+      // Copy Data (Nested Array)
+      book.bookCopies.forEach((c, cIdx) => {
+        formData.append(
+          `books[${bIdx}][bookCopies][${cIdx}][copy_number]`,
+          c.copy_number.toString()
+        );
+        formData.append(
+          `books[${bIdx}][bookCopies][${cIdx}][barcode]`,
+          c.barcode
+        );
+        formData.append(
+          `books[${bIdx}][bookCopies][${cIdx}][condition]`,
+          c.condition || "New"
+        );
+        formData.append(
+          `books[${bIdx}][bookCopies][${cIdx}][price]`,
+          c.price.toString()
+        );
+        formData.append(
+          `books[${bIdx}][bookCopies][${cIdx}][cataloging_note]`,
+          book.cataloging_note || ""
+        );
+        formData.append(
+          `books[${bIdx}][bookCopies][${cIdx}][internal_note]`,
+          book.internal_note || ""
+        );
+      });
     });
 
     try {
@@ -229,13 +357,17 @@ const BookForm: React.FC = () => {
       });
 
       setModalType("success");
-      setModalMessage("Book saved successfully! Generating barcodes...");
+      setModalMessage(
+        `${allBooks.length} books saved successfully! Preparing barcodes...`
+      );
       setShowModal(true);
 
-      if (res.data.book && res.data.book.copies) {
-        setBookCopies(res.data.book.copies);
+      if (res.data.books && Array.isArray(res.data.books)) {
+        const allGeneratedBarcodes = res.data.books.flatMap(
+          (book: any) => book.copies
+        );
+        setBookCopies(allGeneratedBarcodes);
       }
-
       setTimeout(() => {
         setShowModal(false);
         setShowBarcodeModal(true);
@@ -243,7 +375,8 @@ const BookForm: React.FC = () => {
     } catch (error: any) {
       setModalType("error");
       setModalMessage(
-        "Failed to save book. Please check the fields and try again."
+        error.response?.data?.message ||
+          "Failed to save batch. Please check all tabs for errors."
       );
       setShowModal(true);
     } finally {
@@ -252,8 +385,40 @@ const BookForm: React.FC = () => {
   };
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="book-form">
+    <div className="catalog-wrapper">
+      {/* Folder-style Tabs */}
+      <div className="tabs-outer-container">
+        <div className="tabs-container">
+          {allBooks.map((book, index) => (
+            <div
+              key={book.id}
+              className={`folder-tab ${activeTab === index ? "active" : ""}`}
+              onClick={() => setActiveTab(index)}
+            >
+              <span className="tab-text">
+                {book.title || `Book ${index + 1}`}
+              </span>
+              {allBooks.length > 1 && (
+                <button
+                  className="remove-tab-x"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeTab(index);
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+
+          <button type="button" onClick={addNewTab} className="add-book-tab">
+            + Add Book
+          </button>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="book-form folder-content">
         {/* ===== Catalog Record ===== */}
         <fieldset>
           <legend className="record text-white">CATALOG RECORD</legend>
@@ -290,8 +455,10 @@ const BookForm: React.FC = () => {
                         <div className="flex-col flex-grow">
                           <input
                             type="text"
-                            value={isbnPaperback}
-                            onChange={(e) => setIsbnPaperback(e.target.value)}
+                            value={allBooks[activeTab]?.isbn_paperback || ""}
+                            onChange={(e) =>
+                              updateActiveBook("isbn_paperback", e.target.value)
+                            }
                           />
                           <span className="sub-label">
                             <i>Paperback</i>
@@ -300,8 +467,10 @@ const BookForm: React.FC = () => {
                         <div className="flex-col flex-grow">
                           <input
                             type="text"
-                            value={isbnHardcover}
-                            onChange={(e) => setIsbnHardcover(e.target.value)}
+                            value={allBooks[activeTab]?.isbn_hardcover || ""}
+                            onChange={(e) =>
+                              updateActiveBook("isbn_hardcover", e.target.value)
+                            }
                           />
                           <span className="sub-label">
                             <i>Hardcover</i>
@@ -313,8 +482,10 @@ const BookForm: React.FC = () => {
                         <input
                           type="text"
                           placeholder="Enter ISSN"
-                          value={issn}
-                          onChange={(e) => setIssn(e.target.value)}
+                          value={allBooks[activeTab]?.issn || ""}
+                          onChange={(e) =>
+                            updateActiveBook("issn", e.target.value)
+                          }
                         />
                         <span className="sub-label">
                           <i>International Standard Serial Number</i>
@@ -349,8 +520,10 @@ const BookForm: React.FC = () => {
                   <span className="catalog_number">(082)</span>
                   <input
                     type="text"
-                    value={deweyDecimal}
-                    onChange={(e) => setDeweyDecimal(e.target.value)}
+                    value={allBooks[activeTab]?.deweyDecimal || ""}
+                    onChange={(e) =>
+                      updateActiveBook("deweyDecimal", e.target.value)
+                    }
                   />
                 </div>
                 <div className="flex-row">
@@ -358,8 +531,10 @@ const BookForm: React.FC = () => {
                   <span className="catalog_number">(949)</span>
                   <input
                     type="text"
-                    value={authorNumber}
-                    onChange={(e) => setAuthorNumber(e.target.value)}
+                    value={allBooks[activeTab]?.authorNumber || ""}
+                    onChange={(e) =>
+                      updateActiveBook("authorNumber", e.target.value)
+                    }
                   />
                 </div>
               </div>
@@ -369,12 +544,16 @@ const BookForm: React.FC = () => {
                 <label className="cover-image-label">Cover Image</label>
                 <div
                   className="cover-image-box"
-                  onClick={() => document.getElementById("coverInput")?.click()}
+                  onClick={() =>
+                    document.getElementById(`coverInput-${activeTab}`)?.click()
+                  }
                 >
-                  {coverImage ? (
+                  {allBooks[activeTab]?.coverImage ? (
                     <img
-                      src={URL.createObjectURL(coverImage)}
-                      alt="Cover Preview"
+                      src={URL.createObjectURL(
+                        allBooks[activeTab].coverImage as File
+                      )}
+                      alt="Preview"
                     />
                   ) : (
                     <span className="cover-image-placeholder">Add Image</span>
@@ -395,9 +574,8 @@ const BookForm: React.FC = () => {
                     className="cover-image-input"
                     accept="image/*"
                     onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setCoverImage(e.target.files[0]);
-                      }
+                      if (e.target.files?.[0])
+                        updateActiveBook("coverImage", e.target.files[0]);
                     }}
                   />
                 </div>
@@ -418,8 +596,8 @@ const BookForm: React.FC = () => {
                 <span className="catalog_number">(245)</span>
                 <input
                   type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  value={allBooks[activeTab]?.title || ""}
+                  onChange={(e) => updateActiveBook("title", e.target.value)}
                 />
               </div>
 
@@ -430,8 +608,10 @@ const BookForm: React.FC = () => {
                 <div className="flex-col flex-grow">
                   <input
                     type="text"
-                    value={placeOfPublication}
-                    onChange={(e) => setPlaceOfPublication(e.target.value)}
+                    value={allBooks[activeTab]?.placeOfPublication || ""}
+                    onChange={(e) =>
+                      updateActiveBook("placeOfPublication", e.target.value)
+                    }
                   />
                   <span className="sub-label">
                     <i>Place</i>
@@ -440,8 +620,10 @@ const BookForm: React.FC = () => {
                 <div className="flex-col flex-grow">
                   <input
                     type="text"
-                    value={publisher}
-                    onChange={(e) => setPublisher(e.target.value)}
+                    value={allBooks[activeTab]?.publisher || ""}
+                    onChange={(e) =>
+                      updateActiveBook("publisher", e.target.value)
+                    }
                   />
                   <span className="sub-label">
                     <i>Publisher</i>
@@ -451,8 +633,10 @@ const BookForm: React.FC = () => {
                   <input
                     type="text"
                     className="small"
-                    value={yearCopyright}
-                    onChange={(e) => setYearCopyright(e.target.value)}
+                    value={allBooks[activeTab]?.yearCopyright || ""}
+                    onChange={(e) =>
+                      updateActiveBook("yearCopyright", e.target.value)
+                    }
                   />
                   <span className="sub-label">
                     <i>Year</i>
@@ -461,7 +645,7 @@ const BookForm: React.FC = () => {
               </div>
             </div>
 
-            {/* Bottom Two-Column Layout: Left = Series, Language Code, Pages; Right = Checklist */}
+            {/* Bottom Two-Column Layout: Left = Series, Pages; Right = Checklist */}
             <div className="flex-row" style={{ gap: "40px" }}>
               {/* Left Column */}
               <div className="flex-col flex-grow" style={{ gap: "10px" }}>
@@ -471,8 +655,10 @@ const BookForm: React.FC = () => {
                   <input
                     type="text"
                     className="small"
-                    value={edition}
-                    onChange={(e) => setEdition(e.target.value)}
+                    value={allBooks[activeTab]?.edition || ""}
+                    onChange={(e) =>
+                      updateActiveBook("edition", e.target.value)
+                    }
                   />
                 </div>
                 <div className="flex-row">
@@ -481,8 +667,10 @@ const BookForm: React.FC = () => {
                   <div className="flex-col flex-grow">
                     <input
                       type="text"
-                      value={seriesName}
-                      onChange={(e) => setSeriesName(e.target.value)}
+                      value={allBooks[activeTab]?.seriesName || ""}
+                      onChange={(e) =>
+                        updateActiveBook("seriesName", e.target.value)
+                      }
                     />
                     <span className="sub-label">
                       <i>Series Name</i>
@@ -492,8 +680,10 @@ const BookForm: React.FC = () => {
                     <input
                       type="text"
                       className="small"
-                      value={volume}
-                      onChange={(e) => setVolume(e.target.value)}
+                      value={allBooks[activeTab]?.volume || ""}
+                      onChange={(e) =>
+                        updateActiveBook("volume", e.target.value)
+                      }
                     />
                     <span className="sub-label">
                       <i>Volume</i>
@@ -501,24 +691,16 @@ const BookForm: React.FC = () => {
                   </div>
                 </div>
 
-                {/* <div className="flex-row">
-                  <label>Language Code</label>
-                  <span className="catalog_number">(041)</span>
-                  <input
-                    type="text"
-                    value={languageCode}
-                    onChange={(e) => setLanguageCode(e.target.value)}
-                  />
-                </div> */}
-
                 <div className="flex-row">
                   <label>Number of Pages</label>
                   <span className="catalog_number">(300)</span>
                   <input
                     type="text"
                     className="small"
-                    value={numberOfPages}
-                    onChange={(e) => setNumberOfPages(Number(e.target.value))}
+                    value={allBooks[activeTab]?.numberOfPages || ""}
+                    onChange={(e) =>
+                      updateActiveBook("numberOfPages", e.target.value)
+                    }
                   />
                 </div>
               </div>
@@ -531,40 +713,59 @@ const BookForm: React.FC = () => {
                     <input
                       type="checkbox"
                       className="book-checkbox"
-                      checked={includesIndex}
-                      onChange={() => setIncludesIndex(!includesIndex)}
-                    />
+                      checked={allBooks[activeTab]?.includesIndex || false}
+                      onChange={() =>
+                        updateActiveBook(
+                          "includesIndex",
+                          !allBooks[activeTab].includesIndex
+                        )
+                      }
+                    />{" "}
                     Includes Index
                   </p>
                   <p>
                     <input
                       type="checkbox"
                       className="book-checkbox"
-                      checked={includesAppendix}
-                      onChange={() => setIncludesAppendix(!includesAppendix)}
-                    />
+                      checked={allBooks[activeTab]?.includesAppendix || false}
+                      onChange={() =>
+                        updateActiveBook(
+                          "includesAppendix",
+                          !allBooks[activeTab].includesAppendix
+                        )
+                      }
+                    />{" "}
                     Includes Appendix
                   </p>
                   <p>
                     <input
                       type="checkbox"
                       className="book-checkbox"
-                      checked={includesGlossary}
-                      onChange={() => setIncludesGlossary(!includesGlossary)}
-                    />
+                      checked={allBooks[activeTab]?.includesGlossary || false}
+                      onChange={() =>
+                        updateActiveBook(
+                          "includesGlossary",
+                          !allBooks[activeTab].includesGlossary
+                        )
+                      }
+                    />{" "}
                     Includes Glossary
                   </p>
                   <p>
                     <input
                       type="checkbox"
                       className="book-checkbox"
-                      checked={includesBibliographicalReferences}
+                      checked={
+                        allBooks[activeTab]
+                          ?.includesBibliographicalReferences || false
+                      }
                       onChange={() =>
-                        setIncludesBibliographicalReferences(
-                          !includesBibliographicalReferences
+                        updateActiveBook(
+                          "includesBibliographicalReferences",
+                          !allBooks[activeTab].includesBibliographicalReferences
                         )
                       }
-                    />
+                    />{" "}
                     Includes Bibliographical References
                   </p>
                 </div>
@@ -583,8 +784,10 @@ const BookForm: React.FC = () => {
                 <span className="catalog_number">(600)</span>
                 <input
                   type="text"
-                  value={personSubject}
-                  onChange={(e) => setPersonSubject(e.target.value)}
+                  value={allBooks[activeTab]?.personSubject || ""}
+                  onChange={(e) =>
+                    updateActiveBook("personSubject", e.target.value)
+                  }
                 />
               </div>
 
@@ -599,8 +802,21 @@ const BookForm: React.FC = () => {
                   <span className="catalog_number">(650)</span>
                   <input
                     type="text"
-                    value={subject}
-                    onChange={(e) => handleTopicalChange(index, e.target.value)}
+                    value={allBooks[activeTab].topicalSubjects[index] || ""} // Source directly from state
+                    onChange={(e) => {
+                      const newValue = e.target.value;
+
+                      // Create a shallow copy of the subjects array for the current book
+                      const currentSubjects = [
+                        ...allBooks[activeTab].topicalSubjects,
+                      ];
+
+                      // Update the specific index
+                      currentSubjects[index] = newValue;
+
+                      // Send the whole array back to your state handler
+                      updateActiveBook("topicalSubjects", currentSubjects);
+                    }}
                   />
                 </div>
               ))}
@@ -618,8 +834,10 @@ const BookForm: React.FC = () => {
                 <span className="catalog_number">(651)</span>
                 <input
                   type="text"
-                  value={geographicalSubject}
-                  onChange={(e) => setGeographicalSubject(e.target.value)}
+                  value={allBooks[activeTab]?.geographicalSubject || ""}
+                  onChange={(e) =>
+                    updateActiveBook("geographicalSubject", e.target.value)
+                  }
                 />
               </div>
             </div>
@@ -636,8 +854,8 @@ const BookForm: React.FC = () => {
                 <span className="catalog_number">(100)</span>
                 <input
                   type="text"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
+                  value={allBooks[activeTab]?.author || ""}
+                  onChange={(e) => updateActiveBook("author", e.target.value)}
                 />
               </div>
 
@@ -646,8 +864,8 @@ const BookForm: React.FC = () => {
                 <span className="catalog_number">(700)</span>
                 <input
                   type="text"
-                  value={editor}
-                  onChange={(e) => setEditor(e.target.value)}
+                  value={allBooks[activeTab]?.editor || ""}
+                  onChange={(e) => updateActiveBook("editor", e.target.value)}
                 />
               </div>
 
@@ -692,8 +910,8 @@ const BookForm: React.FC = () => {
               <label>Section</label>
               <span className="catalog_number">(245)</span>
               <select
-                value={section}
-                onChange={(e) => setSection(e.target.value)}
+                value={allBooks[activeTab]?.section || ""}
+                onChange={(e) => updateActiveBook("section", e.target.value)}
               >
                 {sections.map((s) => (
                   <option key={s} value={s}>
@@ -707,8 +925,10 @@ const BookForm: React.FC = () => {
               <label>Material Type</label>
               <span className="catalog_number">(245)</span>
               <select
-                value={materialType}
-                onChange={(e) => setMaterialType(e.target.value)}
+                value={allBooks[activeTab]?.materialType || ""}
+                onChange={(e) =>
+                  updateActiveBook("materialType", e.target.value)
+                }
               >
                 {materialTypes.map((m) => (
                   <option
@@ -728,8 +948,8 @@ const BookForm: React.FC = () => {
               <label>Source of Acquisition</label>
               <span className="catalog_number">(245)</span>
               <select
-                value={source}
-                onChange={(e) => setSource(e.target.value)}
+                value={allBooks[activeTab]?.source || ""}
+                onChange={(e) => updateActiveBook("source", e.target.value)}
               >
                 {sources.map((s) => (
                   <option key={s} value={s}>
@@ -745,19 +965,20 @@ const BookForm: React.FC = () => {
               <input
                 type="text"
                 placeholder="₱0.00"
-                value={defaultPrice}
+                value={allBooks[activeTab]?.price || ""}
                 onChange={(e) => {
                   const val = e.target.value;
                   if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                    setDefaultPrice(val);
+                    updateActiveBook("price", val);
                   }
                 }}
                 onBlur={() => {
-                  const parsed = parseFloat(defaultPrice.toString());
+                  const currentPrice = allBooks[activeTab]?.price || "";
+                  const parsed = parseFloat(currentPrice.toString());
                   if (!isNaN(parsed)) {
-                    setDefaultPrice(parsed.toFixed(2));
+                    updateActiveBook("price", parsed.toFixed(2));
                   } else {
-                    setDefaultPrice("");
+                    updateActiveBook("price", "");
                   }
                 }}
               />
@@ -767,7 +988,7 @@ const BookForm: React.FC = () => {
           <hr className="mt-0" />
 
           {/* Row 3: Funding Source and Copy Number */}
-          {bookCopies.map((c, index) => (
+          {allBooks[activeTab]?.bookCopies?.map((c, index) => (
             <div
               key={c.copy_number}
               className="flex-row"
@@ -794,26 +1015,23 @@ const BookForm: React.FC = () => {
                   className="text-muted"
                 />
               </div>
+
               <div className="flex-row flex-grow">
                 <label>Condition</label>
                 <span className="catalog_number">(245)</span>
                 <select
                   value={c.condition}
                   onChange={(e) => {
-                    const updated = [...bookCopies];
-                    updated[index].condition = e.target.value;
-                    setBookCopies(updated);
+                    const updatedCopies = [...allBooks[activeTab].bookCopies];
+                    updatedCopies[index].condition = e.target.value;
+                    updateActiveBook("bookCopies", updatedCopies);
                   }}
                 >
-                  {defaultCondition.length > 0 ? (
-                    defaultCondition.map((cond) => (
-                      <option key={cond} value={cond}>
-                        {cond}
-                      </option>
-                    ))
-                  ) : (
-                    <option>Loading...</option>
-                  )}
+                  {conditions.map((cond) => (
+                    <option key={cond} value={cond}>
+                      {cond}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -828,7 +1046,12 @@ const BookForm: React.FC = () => {
               <button
                 type="button"
                 className="stepper-btn minus"
-                onClick={() => setCopies(Math.max(1, copies - 1))}
+                onClick={() =>
+                  updateActiveBook(
+                    "copies",
+                    Math.max(1, allBooks[activeTab].copies - 1)
+                  )
+                }
               >
                 −
               </button>
@@ -836,15 +1059,22 @@ const BookForm: React.FC = () => {
               <input
                 type="number"
                 className="stepper-input"
-                value={copies}
                 min={1}
-                onChange={(e) => setCopies(Math.max(1, Number(e.target.value)))}
+                value={allBooks[activeTab]?.copies || 1}
+                onChange={(e) =>
+                  updateActiveBook(
+                    "copies",
+                    Math.max(1, Number(e.target.value))
+                  )
+                }
               />
 
               <button
                 type="button"
                 className="stepper-btn plus"
-                onClick={() => setCopies(copies + 1)}
+                onClick={() =>
+                  updateActiveBook("copies", allBooks[activeTab].copies + 1)
+                }
               >
                 +
               </button>
@@ -859,8 +1089,8 @@ const BookForm: React.FC = () => {
             <span className="catalog_number">(245)</span>
             <input
               type="text"
-              value={sourcePerson}
-              onChange={(e) => setSourcePerson(e.target.value)}
+              value={allBooks[activeTab]?.sourcePerson || ""}
+              onChange={(e) => updateActiveBook("sourcePerson", e.target.value)}
             />
           </div>
 
@@ -869,8 +1099,10 @@ const BookForm: React.FC = () => {
             <label>Cataloging Note</label>
             <span className="catalog_number">(910)</span>
             <textarea
-              value={catalogingNote}
-              onChange={(e) => setCatalogingNote(e.target.value)}
+              value={allBooks[activeTab]?.cataloging_note || ""}
+              onChange={(e) =>
+                updateActiveBook("cataloging_note", e.target.value)
+              }
             />
           </div>
 
@@ -879,8 +1111,8 @@ const BookForm: React.FC = () => {
             <label>Internal Note</label>
             <span className="catalog_number">(245)</span>
             <textarea
-              value={internalNote}
-              onChange={(e) => setInternalNote(e.target.value)}
+              value={allBooks[activeTab]?.internal_note || ""}
+              onChange={(e) => updateActiveBook("internal_note", e.target.value)}
             />
           </div>
         </fieldset>
@@ -891,18 +1123,22 @@ const BookForm: React.FC = () => {
             className="cancel-btn"
             onClick={() => {
               const role = localStorage.getItem("role")?.toLowerCase();
-              if (role === "admin") {
-                navigate("/admin/cataloging");
-              } else if (role === "staff") {
-                navigate("/staff/cataloging");
-              }
+              navigate(`/${role}/cataloging`);
             }}
+            disabled={loading}
           >
             Cancel
           </button>
-          <button type="submit" className="submit-btn">
-            {loading && <span className="spinner-tiny"></span>}
-            {loading ? "Saving..." : "Save Book"}
+          <button type="submit" className="submit-btn" disabled={loading}>
+            {loading ? (
+              <>
+                <span className="spinner-tiny"></span> Saving...
+              </>
+            ) : allBooks.length > 1 ? (
+              `Save All (${allBooks.length}) Books`
+            ) : (
+              "Save Book"
+            )}
           </button>
         </div>
       </form>
@@ -930,24 +1166,21 @@ const BookForm: React.FC = () => {
             <h2 className="text-xl font-semibold mb-4">Generated Barcodes</h2>
 
             <div id="printable-barcodes">
-              {bookCopies.map((c) => (
-                <div key={c.copy_number} className="barcode-item">
-                  <div className="barcode-text">
-                    {title.substring(0, 25)}
-                    {title.length > 25 ? "..." : ""} <br />
-                    Copy: {c.copy_number}
+              {allBooks.flatMap((book) =>
+                book.bookCopies.map((c) => (
+                  <div
+                    key={`${book.id}-${c.copy_number}`}
+                    className="barcode-item"
+                  >
+                    <div className="barcode-text">
+                      {book.title.substring(0, 25) || "Untitled"}
+                      {book.title.length > 25 ? "..." : ""} <br />
+                      Copy: {c.copy_number}
+                    </div>
+                    <Barcode value={c.barcode} width={2} height={50} />
                   </div>
-                  <Barcode
-                    value={c.barcode}
-                    width={2}
-                    height={50}
-                    renderer="img"
-                    displayValue={true}
-                    fontSize={12}
-                    margin={10}
-                  />
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             <div className="form-actions no-print">
@@ -974,7 +1207,7 @@ const BookForm: React.FC = () => {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

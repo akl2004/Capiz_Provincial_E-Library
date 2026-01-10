@@ -184,7 +184,7 @@ class ReportsController extends Controller
                 ->whereMonth('date_returned', $mo)
                 ->count();
 
-            // Monthly Overdue (Snapshot at month end)
+            // Monthly Overdue
             $monthlyOverdue = DB::table('circulations')
                 ->whereYear('due_date', $y)
                 ->whereMonth('due_date', $mo)

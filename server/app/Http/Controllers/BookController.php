@@ -17,117 +17,166 @@ class BookController extends Controller
     {
         $user = $request->user();
         $validated = $request->validate([
-            'title' => 'required|string',
-            'author' => 'nullable|string',
-            'editor' => 'nullable|string',
-            'other_author_editor' => 'nullable|string',
-            'edition' => 'nullable|string',
-            'series_name' => 'nullable|string',
-            'volume' => 'nullable|string',
-            'publisher' => 'nullable|string',
-            'place_of_publication' => 'nullable|string',
-            'copyright' => 'nullable|string',
-            'number_of_pages' => 'nullable|integer',
-            'book_language' => 'nullable|string',
-            'person_as_subject' => 'nullable|string',
-            'location_of_book' => 'nullable|string',
-            'material_type_id' => 'required|exists:material_types,id',
-            'cataloging_note' => 'nullable|string',
-            'internal_note' => 'nullable|string',
-            'includes_index' => 'boolean',
-            'includes_appendix' => 'boolean',
-            'includes_glossary' => 'boolean',
-            'includes_bibliographical_references' => 'boolean',
-            'isbn_paperback' => 'nullable|string',
-            'isbn_hardcover' => 'nullable|string',
-            'issn' => 'nullable|string',
-            'topical_subject' => 'nullable|array',
-            'topical_subject.*' => 'string',
-            'geographical_subject' => 'nullable|string',
-            'section' => 'required|string',
-            'dewey_decimal' => 'required|string',
-            'author_number' => 'nullable|string',
-            'price' => 'nullable|numeric',
-            'condition' => 'required|string',
-            'source' => 'required|in:Purchased,Donation,Exchange,Legal Deposit,Other',
-            'source_person' => 'nullable|string',
-            'copies' => 'required|integer|min:1',
-            'cover_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'copies_data' => 'nullable|array',
+            'books' => 'required|array|min:1',
+            'books.*.title' => 'required|string',
+            'books.*.author' => 'nullable|string',
+            'books.*.editor' => 'nullable|string',
+            'books.*.other_author_editor' => 'nullable|string',
+            'books.*.edition' => 'nullable|string',
+            'books.*.series_name' => 'nullable|string',
+            'books.*.volume' => 'nullable|string',
+            'books.*.publisher' => 'nullable|string',
+            'books.*.place_of_publication' => 'nullable|string',
+            'books.*.copyright' => 'nullable|string',
+            'books.*.number_of_pages' => 'nullable|integer',
+            'books.*.book_language' => 'nullable|string',
+            'books.*.person_as_subject' => 'nullable|string',
+            'books.*.location_of_book' => 'nullable|string',
+            'books.*.materialType' => 'required|integer',
+            'books.*.cataloging_note' => 'nullable|string',
+            'books.*.internal_note' => 'nullable|string',
+            'books.*.includes_index' => 'boolean',
+            'books.*.includes_appendix' => 'boolean',
+            'books.*.includes_glossary' => 'boolean',
+            'books.*.includes_bibliographical_references' => 'boolean',
+            'books.*.isbn_paperback' => 'nullable|string',
+            'books.*.isbn_hardcover' => 'nullable|string',
+            'books.*.issn' => 'nullable|string',
+            'books.*.topical_subject' => 'nullable|array',
+            'books.*.topical_subject.*' => 'string',
+            'books.*.geographical_subject' => 'nullable|string',
+            'books.*.section' => 'required|string',
+            'books.*.deweyDecimal' => 'required|string',
+            'books.*.author_number' => 'nullable|string',
+            'books.*.price' => 'nullable|numeric',
+            'books.*.source' => 'required|in:Purchased,Donation,Exchange,Legal Deposit,Other',
+            'books.*.source_person' => 'nullable|string',
+            'books.*.copies' => 'required|integer|min:1',
+            'books.*.cover_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'books.*.copies_data' => 'nullable|array',
+            'books.*.bookCopies' => 'required|array|min:1',
+            'books.*.bookCopies.*.barcode' => 'required|string|unique:book_copies,barcode',
+            'books.*.bookCopies.*.condition' => 'required|string',
+            'books.*.bookCopies.*.copy_number' => 'required|integer',
+            'books.*.bookCopies.*.price' => 'nullable',
+            'books.*.bookCopies.*.source_person' => 'nullable|string',
         ]);
 
-        /// Map section → abbreviation
-        $sectionMap = [
-            'Filipiniana' => 'FIL',
-            'General Collection' => 'GC',
-            'General Reference' => 'REF',
-        ];
-        $sectionAbbr = $sectionMap[$validated['section']];
+        $savedBooks = [];
 
-        // Build call number
-        $callNumber = $sectionAbbr . "\n" .
-                    $validated['dewey_decimal'] . "\n" .
-                    ($validated['author_number'] ?? '') . "\n" .
-                    ($validated['copyright'] ?? '');
+        DB::beginTransaction();
+        try {
+            foreach ($validated['books'] as $index => $bookData) {
+                
+                // 2. Generate Call Number
+                $sectionAbbr = $this->getSectionAbbreviation($bookData['section']);
+                $callNumber = $sectionAbbr . "\n" . 
+                              $bookData['deweyDecimal'] . "\n" . 
+                              ($bookData['author_number'] ?? '') . "\n" . 
+                              ($bookData['copyright'] ?? '');
 
-        // Handle cover image
-        if ($request->hasFile('cover_image')) {
-            $validated['cover_image'] = $request->file('cover_image')->store('books', 'public');
-        }
+                $imagePath = null;
+                // Check if a file was uploaded for this specific book index
+                if ($request->hasFile("books.{$index}.cover_image")) {
+                    $imagePath = $request->file("books.{$index}.cover_image")->store('covers', 'public');
+                }
 
-        $book = Book::create([
-            ...$validated,
-            'topical_subject' => $validated['topical_subject'] ? json_encode($validated['topical_subject']) : json_encode([]),
-            'call_number' => $callNumber,
-        ]);
+                // 3. Create the Main Book Record
+                $book = Book::create([
+                    'title'                => $bookData['title'],
+                    'author'               => $bookData['author'] ?? null,
+                    'editor'               => $bookData['editor'] ?? null,
+                    'other_author_editor'  => $bookData['other_author_editor'] ?? null,
+                    'cover_image'          => $imagePath,
+                    'edition'              => $bookData['edition'] ?? null,
+                    'series_name'          => $bookData['series_name'] ?? null,
+                    'volume'               => $bookData['volume'] ?? null,
+                    'publisher'            => $bookData['publisher'] ?? null,
+                    'isbn_paperback'       => $bookData['isbn_paperback'] ?? null,
+                    'isbn_hardcover'       => $bookData['isbn_hardcover'] ?? null,
+                    'issn'                 => $bookData['issn'] ?? null,
+                    'section'              => $bookData['section'],
+                    'dewey_decimal'        => $bookData['deweyDecimal'],
+                    'call_number'          => $callNumber,
+                    
+                    // FIXES BELOW:
+                    'number_of_pages'      => $bookData['number_of_pages'] ?? null,
+                    'copyright'            => $bookData['copyright'] ?? null,
+                    'author_number'        => $bookData['author_number'] ?? null,
+                    'place_of_publication' => $bookData['place_of_publication'] ?? null,
+                    'cataloging_note'      => $bookData['cataloging_note'] ?? null,
+                    'internal_note'        => $bookData['internal_note'] ?? null,
+                    
+                    // FIX: Match the 'topical_subject' key from validator
+                    'topical_subject'      => json_encode($bookData['topical_subject'] ?? []),
+                    
+                    'person_as_subject'   => $bookData['person_as_subject'] ?? null,
+                    'geographical_subject'=> $bookData['geographical_subject'] ?? null,
 
-        // Get last global accession number
-        $lastCopy = BookCopy::orderBy('id', 'desc')->first();
-        $startAccession = $lastCopy ? (int)$lastCopy->accession_number : 0;
+                    // Booleans (Ensure names match your validator's typos if they exist)
+                    'includes_index'       => $bookData['includes_index'] ?? 0, 
+                    'includes_appendix'    => $bookData['includes_appendix'] ?? 0,
+                    'includes_glossary'    => $bookData['includes_glossary'] ?? 0,
+                    'includes_bibliographical_references' => $bookData['includes_bibliographical_references'] ?? 0,
+                    
+                    'material_type_id'     => $bookData['materialType'],
+                ]);
 
-        // Get existing copies for this book
-        $frontendCopies = $request->input('copies_data', []);
+                // 4. Handle Copies
+                foreach ($bookData['bookCopies'] as $copyData) {
+                    // Get latest global accession number
+                    $lastCopy = BookCopy::orderBy('id', 'desc')->lockForUpdate()->first();
+                    $nextAccession = $lastCopy ? (int)$lastCopy->accession_number + 1 : 1;
+                    $accessionNumber = str_pad($nextAccession, 5, '0', STR_PAD_LEFT);
 
-        foreach ($frontendCopies as $index => $copyData) {
-            $accessionNumber = str_pad($startAccession + ($index + 1), 5, '0', STR_PAD_LEFT);
+                    // Determine Binding automatically
+                    $binding = 'Paperback';
+                    if (!empty($bookData['issn'])) $binding = 'Serial';
+                    elseif (!empty($bookData['isbnHardcover'])) $binding = 'Hardcover';
 
-            $materialTypeId = $request->material_type_id;
+                    $book->copies()->create([
+                        'copy_number'      => $copyData['copy_number'] ?? ($index + 1),
+                        'barcode'          => $copyData['barcode'],
+                        'condition'        => $copyData['condition'],
+                        'accession_number' => $accessionNumber,
+                        'price'            => $copyData['price'] ?? $bookData['price'],
+                        'source'           => $copyData['source'] ?? $bookData['source'],
+                        'source_person'    => $copyData['source_person'] ?? $bookData['source_person'] ?? null,
+                        'material_type_id' => $copyData['material_type'] ?? $bookData['materialType'],
+                        'binding'          => $binding,
+                        'cataloging_note'  => $copyData['cataloging_note'] ?? $bookData['cataloging_note'] ?? null,
+                        'internal_note'    => $copyData['internal_note'] ?? $bookData['internal_note'] ?? null,
+                    ]);
+                }
 
-            $determinedBinding = 'Paperback'; 
-
-            if (!empty($request->issn)) {
-                $determinedBinding = 'Serial';
-            } elseif (!empty($request->isbn_hardcover) && empty($request->isbn_paperback)) {
-                $determinedBinding = 'Hardcover';
+                $savedBooks[] = $book->load('copies');
             }
 
-            $book->copies()->create([
-                'copy_number'      => $copyData['copy_number'], 
-                'barcode'          => $copyData['barcode'],    
-                'condition'        => $copyData['condition'] ?? 'Fine', 
-                'accession_number' => $accessionNumber,     
-                'price'            => $copyData['price'],
-                'cataloging_note'  => $request->cataloging_note,
-                'internal_note'    => $request->internal_note,
-                'source_person'    => $request->source_person,
-                'source'           => $request->source,
-                'material_type_id' => $materialTypeId,
-                'binding'          => $determinedBinding,
-            ]);
-        }
-
-        // Log activity
+            // 5. Log Activity
             $this->logActivity(
-                'Add Book',
-                'Added new book: ' . $book->title,
+                'Batch Add Books',
+                'Added ' . count($savedBooks) . ' books in a batch.',
                 $user,
                 'Catalog'
             );
 
-        return response()->json([
-            'message' => 'Book added successfully',
-            'book' => $book->load('copies'),
-        ], 201);
+            DB::commit();
+            return response()->json(['message' => 'Batch added successfully', 'data' => $savedBooks], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    private function getSectionAbbreviation($section)
+    {
+        $map = [
+            'Filipiniana'        => 'FIL',
+            'General Collection' => 'GC',
+            'General Reference'  => 'REF',
+        ];
+        return $map[$section] ?? 'GEN';
     }
 
         public function index()

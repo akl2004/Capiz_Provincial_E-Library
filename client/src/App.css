@@ -1420,14 +1420,92 @@
   background-color: #C05B42;
 }
 
-
 .book-form {
-  max-width: 90%;
+  max-width: 100%;
   margin: 20px auto;
   padding: 20px;
   background: #f9f9f9;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Container to hold everything */
+.catalog-wrapper {
+  max-width: 90%;
+  margin: 20px auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tab Bar Styling */
+.tabs-container {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: -1px;
+  gap: 1px;
+}
+
+/* Individual Folder Tab */
+.folder-tab {
+  position: relative;
+  padding: 7px 5px 7px 20px;
+  background-color: #d1d8e0;
+  color: #4b6584;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 12px 12px 0 0;
+  transition: all 0.2s ease;
+  border-bottom: none;
+  min-width: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Selected Tab (Active) */
+.folder-tab.active {
+  background-color: #f9f9f9; 
+  color: #C05B42;
+  z-index: 2;
+  border-top: 8px solid #C05B42; 
+}
+
+/* Hover effect */
+.folder-tab:not(.active):hover {
+  background-color: #bdc3c7;
+}
+
+/* Close Button (X) */
+.remove-tab-x {
+  background: none;
+  border: none;
+  color: #eb4d4b;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+/* Add Book Button Styling */
+.add-book-tab {
+  padding: 8px;
+  margin-left: 10px;
+  background-color: #2c3e50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-bottom: 5px;
+}
+
+/* The Form Container (Folder Body) */
+.book-form.folder-content {
+  margin-top: -1px;
+  border-radius: 0 8px 8px 8px;
+  position: relative;
+  z-index: 1;
 }
 
 /* ===== Headings ===== */
