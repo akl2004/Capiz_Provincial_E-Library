@@ -31,371 +31,256 @@ interface IssueFormProps {
 const IssueForm = ({ onSuccess }: IssueFormProps) => {
   const [patronId, setPatronId] = useState("");
   const [patronInfo, setPatronInfo] = useState<Patron | null>(null);
-
+  const [selectedBooks, setSelectedBooks] = useState<BookCopy[]>([]);
   const [barcode, setBarcode] = useState("");
-  const [bookInfo, setBookInfo] = useState<BookCopy | null>(null);
 
-  const [issueDate, setIssueDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
+  const [policy, setPolicy] = useState({
+    loan_days: 5,
+    due_date_preview: "",
+    max_items: 3,
+    borrow_limit: 5,
+    current_borrowed: 0,
+    allowed_today: 0,
   });
-  const [dueDate, setDueDate] = useState<string>("");
-  const [loanDays, setLoanDays] = useState<number>(5);
-  const [maxItems, setMaxItems] = useState<number>(3);
-  const [borrowLimit, setBorrowLimit] = useState<number>(5);
 
   const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState(false);
-
   const [modalMessage, setModalMessage] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
-
   const navigate = useNavigate();
 
-  const fullName = [
-    patronInfo?.first_name,
-    patronInfo?.middle_name,
-    patronInfo?.last_name,
-    patronInfo?.suffix,
-  ]
-    .filter(Boolean)
-    .join(" ");
-
+  // 1. Fetch Patron and their specific borrowing policy
   useEffect(() => {
-    AxiosInstance.get("/settings/borrowing-policy")
-      .then((res) => {
-        setLoanDays(res.data.loan_days);
-        setMaxItems(res.data.max_items);
-        setBorrowLimit(res.data.borrow_limit);
-      })
-      .catch(() => {
-        setLoanDays(5);
-        setMaxItems(3);
-        setBorrowLimit(5);
-      });
-  }, []);
-
-  useEffect(() => {
-    document.title = "Issue Form";
     if (!patronId) {
       setPatronInfo(null);
       return;
     }
     const delayDebounce = setTimeout(() => {
       AxiosInstance.get(`/patrons/by-id/${patronId}`)
-        .then((res) => setPatronInfo(res.data))
+        .then((res) => {
+          setPatronInfo(res.data);
+          // Immediately check policy for this specific patron
+          return AxiosInstance.get(`/circulations/borrowing-policy`, {
+            params: { patron_id: res.data.patron_id },
+          });
+        })
+        .then((policyRes) => {
+          if (policyRes) setPolicy(policyRes.data);
+        })
         .catch(() => setPatronInfo(null));
     }, 500);
     return () => clearTimeout(delayDebounce);
   }, [patronId]);
 
-  // Auto-search for book when barcode changes
+  // 2. Logic: Can they add more books right now?
+  const canScanMore =
+    patronInfo &&
+    selectedBooks.length < policy.allowed_today &&
+    policy.current_borrowed + selectedBooks.length < policy.borrow_limit;
+
+  // 3. Handle Book Scanning
   useEffect(() => {
-    if (!barcode) {
-      setBookInfo(null);
-      setSearchError(false);
+    if (!barcode) return;
+
+    if (!canScanMore) {
+      const msg =
+        selectedBooks.length >= policy.allowed_today
+          ? "Daily transaction limit reached."
+          : "Patron total borrow limit reached.";
+      setModalMessage({ type: "error", message: msg });
+      setBarcode("");
       return;
     }
 
     setSearching(true);
-    setSearchError(false);
-
     const delayDebounce = setTimeout(() => {
       AxiosInstance.get(`/books/copy/${barcode}`)
         .then((res) => {
-          const status = res.data.status;
-
-          // 🚨 ADD LOST STATUS CHECK HERE 🚨
-          if (status === "Lost") {
-            setBookInfo(null);
-            setSearchError(true);
+          const book = res.data;
+          if (selectedBooks.find((b) => b.barcode === barcode)) {
             setModalMessage({
               type: "error",
-              message:
-                "This book is marked as LOST.",
+              message: "Book already in list.",
             });
-          } else if (status === "On Loan") {
-            setBookInfo(null);
-            setSearchError(true);
+          } else if (book.status !== "Available") {
             setModalMessage({
               type: "error",
-              message: "This book copy is currently borrowed.",
+              message: `Book is ${book.status}`,
             });
           } else {
-            setBookInfo(res.data);
-            setSearchError(false);
+            setSelectedBooks((prev) => [...prev, book]);
+            setBarcode("");
           }
         })
-        .catch(() => {
-          setBookInfo(null);
-          setSearchError(true);
-        })
-        .finally(() => {
-          setSearching(false);
-        });
+        .catch(() =>
+          setModalMessage({ type: "error", message: "Book not found" })
+        )
+        .finally(() => setSearching(false));
     }, 600);
-
     return () => clearTimeout(delayDebounce);
-  }, [barcode]);
+  }, [barcode, selectedBooks, canScanMore, policy]);
 
-  useEffect(() => {
-    if (issueDate && loanDays) {
-      const issue = new Date(issueDate);
-      issue.setDate(issue.getDate() + loanDays);
-      setDueDate(issue.toISOString().split("T")[0]);
-    }
-  }, [issueDate, loanDays]);
-
-  const fetchBookByBarcode = () => {
-    if (!barcode) return;
-    AxiosInstance.get(`/books/copy/${barcode}`)
-      .then((res) => {
-        if (res.data.status === "On Loan") {
-          setBookInfo(null);
-          setModalMessage({
-            type: "error",
-            message: "This book copy is currently borrowed and unavailable.",
-          });
-        } else {
-          setBookInfo(res.data);
-        }
-      })
-      .catch(() => {
-        setBookInfo(null);
-        setModalMessage({
-          type: "error",
-          message: "Book not found!",
-        });
-      });
+  const removeBook = (id: number) => {
+    setSelectedBooks(selectedBooks.filter((b) => b.id !== id));
   };
-
-  // checks patron for borrowing policy
-  useEffect(() => {
-    if (!patronInfo) return;
-
-    AxiosInstance.get(`/circulations/borrowing-policy`, {
-      params: { patron_id: patronInfo.patron_id },
-    })
-      .then((res) => {
-        if (res.data && !res.data.can_borrow) {
-          setModalMessage({
-            type: "error",
-            message: res.data.message,
-          });
-        }
-      })
-      .catch((err) => {
-        const backendMessage = err.response?.data?.message;
-        if (backendMessage) {
-          setModalMessage({
-            type: "error",
-            message: backendMessage,
-          });
-        }
-      });
-  }, [patronInfo]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!patronInfo || !bookInfo || !issueDate) {
-      setModalMessage({ type: "error", message: "Please fill all fields!" });
-      return;
-    }
+    if (!patronInfo || selectedBooks.length === 0) return;
 
     AxiosInstance.post("/circulations/borrow", {
       patron_id: patronInfo.patron_id,
-      book_copy_id: bookInfo.id,
+      book_copy_ids: selectedBooks.map((b) => b.id),
     })
       .then(() => {
         setModalMessage({
           type: "success",
-          message: "Book issued successfully!",
+          message: "Books issued successfully!",
         });
-
         setTimeout(() => {
           const role = localStorage.getItem("role")?.toLowerCase();
           const target =
             role === "admin" ? "/admin/circulation" : "/staff/circulation";
-
+          if (onSuccess) onSuccess();
           navigate(target);
-
-          if (onSuccess) {
-            onSuccess();
-          }
         }, 1500);
       })
-      .catch((err: any) => {
-        if (err.response) {
-          const serverMessage = err.response.data?.message;
-
-          if (serverMessage) {
-            setModalMessage({
-              type: "error",
-              message:
-                typeof serverMessage === "string"
-                  ? serverMessage
-                  : "An error occurred",
-            });
-          } else if (err.response.status === 403) {
-            setModalMessage({
-              type: "error",
-              message: "Cannot issue book: Patron is deactivated or blocked.",
-            });
-          } else {
-            setModalMessage({
-              type: "error",
-              message: "Something went wrong. Please try again.",
-            });
-          }
-        } else {
-          setModalMessage({
-            type: "error",
-            message: "Network error or server not reachable.",
-          });
-        }
-      });
+      .catch((err) =>
+        setModalMessage({
+          type: "error",
+          message: err.response?.data?.message || "Error",
+        })
+      );
   };
 
   return (
     <div className="issue-form-container">
-      <h1 className="form-title">Issue Book</h1>
+      <h1 className="form-title">Issue Books</h1>
 
-      <form onSubmit={handleSubmit} className="issue-form">
-        {/* Top Section: Inputs & Dates */}
-        <div className="form-row mb-2">
-          <div className="form-group flex-grow-1">
-            <label className="ps-2 mb-0 text-muted">
-              <i className="bi bi-barcode"></i> Book Barcode
-            </label>
-            <div className="search-bar-wrapper">
+      {/* PATRON INFO SECTION */}
+      <div className="details-card shadow-sm mb-4">
+        <div className="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+          <span className="fw-bold text-uppercase small text-muted">
+            Borrower Information
+          </span>
+          {patronInfo && (
+            <div className="d-flex gap-2">
+              <span className="badge bg-info text-dark">
+                At Home: {policy.current_borrowed}
+              </span>
+              <span className="badge bg-secondary">
+                Limit: {policy.borrow_limit}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="p-3">
+          <div className="row align-items-center">
+            <div className="col-md-4">
+              <label className="text-muted small">Patron ID</label>
               <input
                 type="text"
-                className="search-input-field"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.preventDefault();
-                }}
-                placeholder="Scan or enter barcode..."
+                className="form-control"
+                value={patronId}
+                onChange={(e) => setPatronId(e.target.value)}
+                placeholder="Scan ID..."
               />
-
-              <div className="search-status-inside">
-                {searching ? (
-                  <div className="custom-loading-bars">
-                    <div className="loading-bar"></div>
-                    <div className="loading-bar"></div>
-                    <div className="loading-bar"></div>
-                  </div>
-                ) : bookInfo ? (
-                  <i className="bi bi-check-circle-fill text-success fade-in"></i>
-                ) : searchError ? (
-                  <i className="bi bi-x-circle-fill text-danger fade-in"></i>
-                ) : null}
+            </div>
+            <div className="col-md-8">
+              <label className="text-muted small">Name</label>
+              <div
+                className={`form-control-plaintext fw-bold ${
+                  patronInfo ? "text-success" : "text-danger"
+                }`}
+              >
+                {patronInfo
+                  ? `${patronInfo.first_name} ${patronInfo.last_name}`
+                  : "Enter valid Patron ID"}
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="date-row">
-            <div className="date-field">
-              <label htmlFor="issue_date" className="ps-2 mb-0 text-muted">
-                Issue Date
-              </label>
-              <input
-                type="date"
-                className="form-control"
-                id="issue_date"
-                value={issueDate}
-                onChange={(e) => setIssueDate(e.target.value)}
-                disabled
-              />
+      {/* SCANNING INPUT */}
+      <div className="search-bar-wrapper mb-4">
+        <input
+          type="text"
+          className="search-input-field"
+          value={barcode}
+          onChange={(e) => setBarcode(e.target.value)}
+          disabled={!canScanMore && !!patronInfo}
+          placeholder={
+            !patronInfo
+              ? "Search Patron First..."
+              : !canScanMore
+              ? "Limit reached for this patron"
+              : "Scan book barcode..."
+          }
+        />
+        <div className="search-status-inside">
+          {searching ? (
+            <div className="custom-loading-bars">
+              <div className="loading-bar"></div>
+              <div className="loading-bar"></div>
+              <div className="loading-bar"></div>
             </div>
-            <div className="date-field">
-              <label htmlFor="due_date" className="ps-2 mb-0 text-muted">
-                Due Date
-              </label>
-              <input
-                type="date"
-                className="form-control"
-                id="due_date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                disabled
-              />
+          ) : canScanMore ? (
+            <i className="bi bi-barcode text-muted"></i>
+          ) : selectedBooks.length >= policy.max_items ? (
+            <i className="bi bi-lock-fill text-warning"></i>
+          ) : (
+            <i className="bi bi-search text-muted"></i>
+          )}
+        </div>
+      </div>
+
+      {/* BOOK GRID */}
+      <div className="book-cards-grid">
+        {selectedBooks.map((book, index) => (
+          <div
+            key={book.id}
+            className="details-card shadow-sm mb-3 border-start border-primary border-4"
+          >
+            <div className="d-flex justify-content-between align-items-center p-2 bg-light border-bottom">
+              <span className="badge bg-primary">Item {index + 1}</span>
+              <button
+                onClick={() => removeBook(book.id)}
+                className="btn btn-sm btn-outline-danger border-0"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            <div className="p-3">
+              <div className="row">
+                <div className="col-8">
+                  <h6 className="mb-1 text-truncate">{book.book.title}</h6>
+                  <p className="text-muted small mb-0">
+                    {book.barcode} | {book.book.call_number}
+                  </p>
+                </div>
+                <div className="col-4 text-end">
+                  <small className="text-muted d-block">Due Date</small>
+                  <span className="fw-bold text-primary">
+                    {new Date(policy.due_date_preview).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        ))}
+      </div>
 
-        {/* Structured Info Table (Matches Image) */}
-        <div className="details-card shadow-sm">
-          <table className="circ-table">
-            <tbody>
-              {/* BORROWER SECTION */}
-              <tr>
-                <th rowSpan={2} className="category-header borrower-cat">
-                  BORROWER
-                </th>
-                <td className="field-label">Patron ID</td>
-                <td className="field-value">
-                  <input
-                    type="text"
-                    className="inline-input"
-                    value={patronId}
-                    onChange={(e) => setPatronId(e.target.value)}
-                    placeholder="Enter ID..."
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td className="field-label">Name</td>
-                <td className="field-value">
-                  {patronInfo ? (
-                    <span className="text-success fw-bold">{fullName}</span>
-                  ) : patronId ? (
-                    <span className="text-danger">❌ Not found</span>
-                  ) : (
-                    <span className="text-muted">Waiting for ID...</span>
-                  )}
-                </td>
-              </tr>
-
-              {/* SPACER ROW */}
-              <tr className="spacer-row">
-                <td colSpan={3}></td>
-              </tr>
-
-              {/* BOOK SECTION */}
-              <tr>
-                <th rowSpan={3} className="category-header book-cat">
-                  BOOK
-                </th>
-                <td className="field-label">Title</td>
-                <td className="field-value fw-bold">
-                  {bookInfo?.book.title || "-"}
-                </td>
-              </tr>
-              <tr>
-                <td className="field-label">Call Number</td>
-                <td className="field-value">
-                  {bookInfo?.book.call_number || "-"}
-                </td>
-              </tr>
-              <tr>
-                <td className="field-label">Copy Number</td>
-                <td className="field-value">{bookInfo?.copy_number || "-"}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Action Button */}
-        <div className="form-actions mt-4">
-          <button type="submit" className="confirm-btn">
-            <i className="bi bi-check2-circle"></i> Confirm Loan
-          </button>
-        </div>
-      </form>
+      <div className="form-actions mt-4">
+        <button
+          onClick={handleSubmit}
+          className="confirm-btn"
+          disabled={selectedBooks.length === 0 || !patronInfo}
+        >
+          Confirm Loan for {selectedBooks.length} Books
+        </button>
+      </div>
 
       {modalMessage && (
         <MessageModal

@@ -17,6 +17,7 @@ class Attendance extends Model
         'middle_name',
         'last_name',
         'suffix',
+        'gender',
         'province',
         'city',
         'barangay',

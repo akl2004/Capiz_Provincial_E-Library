@@ -18,20 +18,34 @@ class CirculationController extends Controller
     {
         $records = Circulation::with(['bookCopy.book', 'patron'])->get();
         $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
+        $missingThreshold = (int) LibrarySetting::getValue('missing_book_threshold_days', 365);
         $now = now()->startOfDay();
 
-        $records = $records->map(function ($rec) use ($fineRate, $now) {
-            if ($rec->is_paid || in_array($rec->status, ['Returned', 'Returned Late', 'Lost'])) {
+        $records->transform(function ($rec) use ($fineRate, $now, $missingThreshold) {
+            if (in_array($rec->status, ['Returned', 'Returned Late', 'Lost', 'Missing'])) {
                 return $rec;
             }
-            $dueDate = Carbon::parse($rec->due_date)->startOfDay();
-            
 
-            if ($now->gt($dueDate)) {
-                $overdueBy = $dueDate->diffInDays($now);
-                $rec->status = 'Overdue';
-                $rec->overdue_by = $overdueBy;
-                $rec->fine = $overdueBy * $fineRate;
+            $overdueBy = $this->calculateOverdueDays($rec->due_date, $now);
+
+            if ($overdueBy > 0) {
+                if ($overdueBy >= $missingThreshold) {
+                    $rec->status = 'Missing';
+                    $rec->overdue_by = $overdueBy;
+                    $rec->fine = $missingThreshold * $fineRate;
+                    $rec->save();
+
+                    $rec->bookCopy->update(['status' => 'Missing']);
+                } 
+                else if ($rec->status !== 'Overdue' || (int)$rec->overdue_by !== $overdueBy) {
+                    $rec->status = 'Overdue';
+                    $rec->overdue_by = $overdueBy;
+                    $rec->fine = $overdueBy * $fineRate;
+                    $rec->save();
+                }
+            } else {
+                $rec->status = 'On Loan';
+                $rec->overdue_by = 0;
             }
 
             return $rec;
@@ -48,6 +62,8 @@ class CirculationController extends Controller
         $maxItemsPerDay = (int) LibrarySetting::getValue('max_items_per_transaction', 3);
         $borrowLimit = (int) LibrarySetting::getValue('borrow_limit_per_person', 5);
         $today = now()->toDateString();
+
+        $dueDatePreview = now()->addWeekdays($loanDays)->toDateString();
 
         // Count how many books the patron has on loan today
         $borrowedToday = $patron->circulations()
@@ -68,6 +84,7 @@ class CirculationController extends Controller
 
         return [
             'loan_days' => $loanDays,
+            'due_date_preview' => $dueDatePreview,
             'max_items' => $maxItemsPerDay,
             'borrow_limit' => $borrowLimit,
             'borrowed_today' => $borrowedToday,
@@ -91,120 +108,106 @@ class CirculationController extends Controller
     }
 
 
-    // Borrow a specific book copy
     public function borrow(Request $request)
     {
         $validated = $request->validate([
-            'book_copy_id' => 'required|exists:book_copies,id',
-            'patron_id'    => 'required|exists:patrons,patron_id',
+            'book_copy_ids'   => 'required|array|min:1',
+            'book_copy_ids.*' => 'exists:book_copies,id',
+            'patron_id'       => 'required|exists:patrons,patron_id',
         ]);
 
         $user = $request->user();
-        $bookCopy = BookCopy::findOrFail($validated['book_copy_id']);
-        $patron   = Patron::where('patron_id', $validated['patron_id'])->firstOrFail();
+        $patron = Patron::where('patron_id', $validated['patron_id'])->firstOrFail();
 
-        // Check patron status
+        // 2. Check Patron Status (Keep your existing switch logic)
         if ($patron->status !== 'Active') {
-            $errorMessage = 'Cannot issue book: ';
-
+            $errorMessage = 'Cannot issue books: ';
             switch ($patron->status) {
-                case 'Expired':
-                    $errorMessage .= 'Patron membership has expired. Please renew the account first.';
-                    break;
-                case 'Blocked':
-                    $errorMessage .= 'Patron is currently blocked due to library violations.';
-                    break;
-                case 'Deactivated':
-                    $errorMessage .= 'Patron account is deactivated.';
-                    break;
-                default:
-                    $errorMessage .= 'Patron account is not in an active state.';
-                    break;
+                case 'Expired': $errorMessage .= 'Membership expired.'; break;
+                case 'Blocked': $errorMessage .= 'Patron is blocked.'; break;
+                case 'Deactivated': $errorMessage .= 'Account is deactivated.'; break;
+                default: $errorMessage .= 'Account is not active.'; break;
             }
-
-            return response()->json([
-                'message' => $errorMessage,
-                'status' => $patron->status
-            ], 403);
+            return response()->json(['message' => $errorMessage], 403);
         }
 
-        // Check condition logic
-        if ($bookCopy->condition === 'Damaged') {
-            return response()->json([
-                'message' => 'This copy is damaged and cannot be loaned out.'
-            ], 400);
-        }
-
-        $totalCopiesCount = BookCopy::where('book_id', $bookCopy->book_id)->count();
-        if ($totalCopiesCount <= 1) {
-            return response()->json([
-                'message' => 'Cannot borrow: This is the library\'s only copy. It must remain in the library for reference.'
-            ], 400);
-        }
-
-        // Check book status for Lost
-        if ($bookCopy->status === 'Lost') {
-            return response()->json([
-                'message' => 'Cannot issue book: This copy is marked as LOST.'
-            ], 400);
-        }
-
-        // Check book availability
-        if ($bookCopy->status !== 'Available') {
-            return response()->json([
-                'message' => 'Cannot issue book: Book is already borrowed.'
-            ], 400);
-        }
-
-        // Reuse policy calculation
+        // 3. Reuse policy calculation
         $policy = $this->calculateBorrowingPolicy($patron);
-        if (!$policy['can_borrow']) {
-            if ($policy['allowed_today'] <= 0) {
-                return response()->json([
-                    'message' => "Cannot borrow more books today: Maximum of {$policy['max_items']} per transaction/day reached."
-                ], 400);
-            }
+        $requestedCount = count($validated['book_copy_ids']);
 
-            if ($policy['current_borrowed'] >= $policy['borrow_limit']) {
-                return response()->json([
-                    'message' => "Cannot borrow more books: Patron have reached their total borrow limit of {$policy['borrow_limit']} books."
-                ], 400);
-            }
+        // Check if the number of books requested exceeds the "Transaction Limit"
+        if ($requestedCount > $policy['max_items']) {
+            return response()->json([
+                'message' => "Transaction limit exceeded. You can only borrow {$policy['max_items']} books at once."
+            ], 400);
         }
 
-        // Set issue date and loan days
-        $issueDate = now();
-        $loanDays = $policy['loan_days'];
+        // Check if adding these books exceeds their "Total Borrow Limit"
+        if (($policy['current_borrowed'] + $requestedCount) > $policy['borrow_limit']) {
+            return response()->json([
+                'message' => "Limit reached. Patron already has {$policy['current_borrowed']} books and cannot exceed {$policy['borrow_limit']} total."
+            ], 400);
+        }
 
-        $circulation = null;
-        DB::transaction(function () use ($bookCopy, $patron, $issueDate, $loanDays, $user, &$circulation) {
-            $dueDate = Carbon::parse($issueDate)->addDays($loanDays);
+        $circulations = [];
+        $bookTitles = [];
 
-            $circulation = Circulation::create([
-                'book_copy_id' => $bookCopy->id,
-                'patron_id' => $patron->id,
-                'user_id'      => $user->id,
-                'issue_date' => $issueDate,
-                'due_date' => $dueDate,
-                'status' => 'On Loan',
+        // 4. Process all books inside a single Database Transaction
+        try {
+            DB::transaction(function () use ($validated, $patron, $policy, $user, &$circulations, &$bookTitles) {
+                $issueDate = now();
+                $dueDate = $issueDate->copy()->addWeekdays($policy['loan_days']);
+
+                foreach ($validated['book_copy_ids'] as $copyId) {
+                    $bookCopy = BookCopy::with('book')->lockForUpdate()->findOrFail($copyId);
+
+                    // Individual Book Checks
+                    if ($bookCopy->status !== 'Available') {
+                        throw new \Exception("Book '{$bookCopy->book->title}' is already borrowed or unavailable.");
+                    }
+                    if ($bookCopy->condition === 'Damaged') {
+                        throw new \Exception("Book '{$bookCopy->book->title}' is damaged and cannot be loaned.");
+                    }
+
+                    // Reference Copy Check
+                    $totalCopiesCount = BookCopy::where('book_id', $bookCopy->book_id)->count();
+                    if ($totalCopiesCount <= 1) {
+                        throw new \Exception("'{$bookCopy->book->title}' is the library's only copy (Reference Only).");
+                    }
+
+                    // Create Circulation Record
+                    $circulations[] = Circulation::create([
+                        'book_copy_id' => $bookCopy->id,
+                        'patron_id'    => $patron->id,
+                        'user_id'      => $user->id,
+                        'issue_date'   => $issueDate,
+                        'due_date'     => $dueDate,
+                        'status'       => 'On Loan',
+                    ]);
+
+                    // Update Book Status
+                    $bookCopy->update(['status' => 'On Loan']);
+                    $bookTitles[] = $bookCopy->book->title;
+                }
+            });
+
+            // 5. Log Activity for the whole batch
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'role' => $user->role ?? 'staff',
+                'module' => 'Circulation Module',
+                'action' => 'Processed Multiple Issues',
+                'description' => "Borrowed " . count($bookTitles) . " books: " . implode(', ', $bookTitles)
             ]);
 
-            $bookCopy->update(['status' => 'On Loan']);
-        });
+            return response()->json([
+                'message' => count($circulations) . ' books loaned successfully',
+                'circulations' => $circulations
+            ], 201);
 
-        // Log activity
-        ActivityLog::create([
-            'user_id' => $user->id,
-            'role' => $user->role ?? 'staff',
-            'module' => 'Circulation Module',
-            'action' => 'Processed Issue',
-            'description' => "Borrowed copy of '{$bookCopy->book->title}'"
-        ]);
-
-        return response()->json([
-            'message' => 'Book copy has been loaned successfully',
-            'circulation' => $circulation
-        ], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 
 
@@ -223,16 +226,10 @@ class CirculationController extends Controller
             ->firstOrFail();
 
         $returnDate = now();
-        $comparisonDate = now()->startOfDay(); 
-        $dueDate = Carbon::parse($circulation->due_date)->startOfDay();
-
-        $overdueBy = $comparisonDate->gt($dueDate) 
-            ? $dueDate->diffInDays($comparisonDate) 
-            : 0;
+        $overdueBy = $this->calculateOverdueDays($circulation->due_date, $returnDate);
 
         $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
         $fine = $overdueBy * $fineRate;
-
         $finalStatus = ($overdueBy > 0) ? 'Returned Late' : 'Returned';
 
         $circulation->update([
@@ -261,11 +258,19 @@ class CirculationController extends Controller
     {
         $request->validate([
             'book_copy_id' => 'required|exists:book_copies,id',
-            'settlement_type' => 'required|in:payment,replacement'
+            'settlement_type' => 'required|in:payment,replacement',
+            'replacement_mode' => 'nullable|in:Immediate,Deferred',
+            'due_date' => 'nullable|date',
+            'barcode' => 'nullable|string|unique:book_copies,barcode',
+            'accession_no' => 'nullable|string',
+            'source_person' => 'nullable|string',
+            'cataloging_note'   => 'nullable|string',
+            'internal_note'  => 'nullable|string',
         ]);
         
         $user = $request->user();
         $settlementType = $request->settlement_type;
+        $mode = $request->replacement_mode;
         
         $circulation = Circulation::where('book_copy_id', $request->book_copy_id)
             ->whereIn('status', ['On Loan', 'Overdue'])
@@ -274,28 +279,44 @@ class CirculationController extends Controller
         $replacementCost = ($settlementType === 'payment') 
         ? (float) ($circulation->bookCopy->price ?? 0) 
         : 0;
-
         $processingFee = (float) LibrarySetting::getValue('lost_book_processing_fee', 50);
 
-        $dueDate = \Carbon\Carbon::parse($circulation->due_date)->startOfDay();
-        $now = now()->startOfDay();
-        $overdueDays = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
+        $overdueDays = $this->calculateOverdueDays($circulation->due_date, now());
         $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
         $currentOverdueFine = $overdueDays * $fineRate;
 
         $totalFine = $replacementCost + $processingFee + $currentOverdueFine;
 
-        DB::transaction(function () use ($circulation, $totalFine, $settlementType, $user) {
-            $circulation->update([
-                'status' => 'Lost',
-                'fine' => $totalFine,
-                'overdue_by' => 0, 
-                'is_paid' => true,
-                'lost_resolution' => ucfirst($settlementType),
-                'user_id' => $user->id,
-            ]);
-        $circulation->bookCopy->update(['status' => 'Lost']);
-    });
+        DB::transaction(function () use ($request, $circulation, $totalFine, $settlementType, $mode, $user) {
+            // Update the book copy status regardless of mode
+            $circulation->bookCopy->update(['status' => 'Lost']);
+
+            if ($mode === 'Deferred') {
+                $circulation->update([
+                    'status' => 'Lost',
+                    'due_date' => $request->due_date,
+                    'fine' => $totalFine, 
+                    'lost_resolution' => 'Replacement',
+                    'remarks' => 'Replacement Deferred until ' . $request->due_date,
+                    'date_returned' => null,
+                ]);
+            } else {
+                // IMMEDIATE/PAYMENT: Close the transaction
+                $circulation->update([
+                    'status' => 'Lost',
+                    'fine' => $totalFine,
+                    'overdue_by' => 0,
+                    'is_paid' => true,
+                    'lost_resolution' => ucfirst($settlementType),
+                    'user_id' => $user->id,
+                    'date_returned' => now(),
+                ]);
+
+                if ($settlementType === 'replacement' && $mode === 'Immediate') {
+                    $this->registerReplacementCopy($circulation->bookCopy, $request->all());
+                }
+            }
+        });
 
         // Log the activity
         ActivityLog::create([
@@ -303,51 +324,131 @@ class CirculationController extends Controller
             'role' => $user->role ?? 'staff',
             'module' => 'Circulation Module',
             'action' => 'Marked Lost',
-            'description' => "Marked '{$circulation->bookCopy->book->title}' as lost ({$settlementType}). Total: P{$totalFine}."
+            'description' => "Marked '{$circulation->bookCopy->book->title}' as lost via {$settlementType} ({$mode})."
         ]);
 
         return response()->json([
-            'message' => 'Book marked as Lost.',
+            'message' => $mode === 'Deferred' ? 'Replacement deferred.' : 'Book marked as Lost.',
             'total_bill' => $totalFine,
-            'book_id' => $circulation->bookCopy->book_id
         ]);
     }
 
-    public function getActiveLoansByPatron($patronId)
-{
-    $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
-    $now = now()->startOfDay();
+    private function registerReplacementCopy($oldCopy, $data)
+    {
+        // Find the current highest copy number for this book
+        $nextCopyNumber = BookCopy::where('book_id', $oldCopy->book_id)->max('copy_number') + 1;
 
-    $activeLoans = Circulation::with(['bookCopy.book'])
-        ->where('patron_id', $patronId)
-        ->whereIn('status', ['On Loan', 'Overdue'])
-        ->get()
-        ->map(function ($loan) use ($fineRate, $now) {
-            $dueDate = \Carbon\Carbon::parse($loan->due_date)->startOfDay();
-            
-            // Calculate real-time fine if overdue
-            $overdueDays = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
-            $calculatedFine = $overdueDays * $fineRate;
+        return BookCopy::create([
+            'book_id' => $oldCopy->book_id,
+            'material_type_id' => $oldCopy->material_type_id,
+            'barcode'          => $data['barcode'] ?? null,
+            'accession_number' => $data['accession_no'] ?? null,
+            'copy_number' => $nextCopyNumber,
+            'status' => 'Available',
+            'condition' => 'New',
+            'price' => $oldCopy->price,
+            'source' => 'Replacement',
+            'source_person'    => $data['source_person'] ?? null,
+            'cataloging_note'  => $data['cataloging_note'] ?? null,
+            'internal_note'    => $data['internal_note'] ?? null,
+        ]);
+    }
 
-            return [
-                'id' => $loan->bookCopy->id, 
-                'barcode' => $loan->bookCopy->barcode,
-                'price' => $loan->bookCopy->price,
-                'copy_number' => $loan->bookCopy->copy_number,
-                'accession_no' => $loan->bookCopy->accession_number, 
-                'issue_date' => \Carbon\Carbon::parse($loan->issue_date)->format('Y-m-d'),
-                'due_date' => \Carbon\Carbon::parse($loan->due_date)->format('Y-m-d'),
-                'days_overdue' => $overdueDays,
-                'fine' => number_format($calculatedFine, 2, '.', ''),
-                'book' => [
-                    'title' => $loan->bookCopy->book->title,
-                    'call_number' => $loan->bookCopy->book->call_number,
-                ]
-            ];
+    public function getPendingSettlements()
+    {
+        // Fetch loans marked 'Lost' but haven't been 'Returned' (closed)
+        $pending = Circulation::with(['patron', 'bookCopy.book', 'bookCopy'])
+            ->where('status', 'Lost')
+            ->whereNull('date_returned')
+            ->where('lost_resolution', 'Replacement')
+            ->get();
+
+        return response()->json($pending);
+    }
+
+    public function resolveLostBook(Request $request, $id)
+    {
+        $circulation = Circulation::findOrFail($id);
+        $action = $request->action;
+
+        return DB::transaction(function () use ($request, $circulation, $action) {
+            if ($action === 'complete') {
+                $nextCopyNumber = BookCopy::where('book_id', $request->book_id)->max('copy_number') + 1;
+                // 1. Create the new book copy record
+                BookCopy::create([
+                    'book_id'               => $request->book_id,
+                    'barcode'               => $request->barcode,
+                    'accession_number'      => $request->accession_no,
+                    'material_type_id'      => $request->material_type_id,
+                    'copy_number'           => $nextCopyNumber,
+                    'condition'             => 'New',
+                    'status'                => 'Available',
+                    'source'                => 'Replacement',
+                    'source_person'         => $request->source_person,
+                    'cataloging_note'       => $request->cataloging_note,
+                    'price'                 => $request->price,
+                ]);
+
+                // 2. Close the circulation record
+                $circulation->update([
+                    'status' => 'Lost',
+                    'date_returned' => now(),
+                    'is_paid' => true,
+                    'lost_resolution' => 'Replacement',
+                    'remarks' => $circulation->remarks . " | Resolved by replacement."
+                ]);
+            } 
+            elseif ($action === 'extend') {
+                $circulation->update(['due_date' => $request->due_date]);
+            } 
+            elseif ($action === 'fail') {
+                // Charge the price + penalty
+                $bookPrice = $circulation->bookCopy->price;
+                $circulation->update([
+                    'status' => 'Lost',
+                    'fine' => $circulation->fine + $bookPrice,
+                    'lost_resolution' => 'Payment',
+                    'date_returned' => now(), 
+                    'remarks' => $circulation->remarks . " | Failed replacement promise."
+                ]);
+            }
+
+            return response()->json(['message' => 'Success']);
         });
+    }
 
-    return response()->json($activeLoans);
-}
+    public function getActiveLoansByPatron($patronId)
+    {
+        $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
+        $now = now()->startOfDay();
+
+        $activeLoans = Circulation::with(['bookCopy.book'])
+            ->where('patron_id', $patronId)
+            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->get()
+            ->map(function ($loan) use ($fineRate, $now) {
+                $overdueDays = $this->calculateOverdueDays($loan->due_date, $now);
+                $calculatedFine = $overdueDays * $fineRate;
+
+                return [
+                    'id' => $loan->bookCopy->id, 
+                    'barcode' => $loan->bookCopy->barcode,
+                    'price' => $loan->bookCopy->price,
+                    'copy_number' => $loan->bookCopy->copy_number,
+                    'accession_no' => $loan->bookCopy->accession_number, 
+                    'issue_date' => \Carbon\Carbon::parse($loan->issue_date)->format('Y-m-d'),
+                    'due_date' => \Carbon\Carbon::parse($loan->due_date)->format('Y-m-d'),
+                    'days_overdue' => $overdueDays,
+                    'fine' => number_format($calculatedFine, 2, '.', ''),
+                    'book' => [
+                        'title' => $loan->bookCopy->book->title,
+                        'call_number' => $loan->bookCopy->book->call_number,
+                    ]
+                ];
+            });
+
+        return response()->json($activeLoans);
+    }
 
 
     // Renew a loaned book copy (extend due date)
@@ -421,6 +522,7 @@ class CirculationController extends Controller
             'Returned' => Circulation::whereIn('status', ['Returned', 'Returned Late'])->count(),
             'Overdue' => Circulation::where('status', 'Overdue')->count(),
             'Lost' => Circulation::where('status', 'Lost')->count(),
+            'Missing'  => Circulation::where('status', 'Missing')->count(),
         ]);
     }
 
@@ -453,6 +555,7 @@ class CirculationController extends Controller
                     'due_date'    => $t->due_date,
                     'return_date' => $t->date_returned,
                     'fine'        => $isLost ? 0 : (float) ($t->fine ?? 0),
+                    'is_paid'     => $t->fine_paid_date ? true : false,
                     'paid_amount' => $isLost ? (float)$t->fine : 0,
                     'material_price' => $materialPrice,
                     'processing_fee_used' => $isLost ? $currentFee : 0,
@@ -488,11 +591,7 @@ class CirculationController extends Controller
             ], 404);
         }
 
-        $dueDate = Carbon::parse($circulation->due_date)->startOfDay();
-        $now = now()->startOfDay(); 
-
-        $overdueBy = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
-
+        $overdueBy = $this->calculateOverdueDays($circulation->due_date, now());
         $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
         $fine = $overdueBy * $fineRate;
 
@@ -525,31 +624,19 @@ class CirculationController extends Controller
             ->orderBy('issue_date', 'desc')
             ->get()
             ->map(function ($rec) use ($fineRate) {
-                $dueDate = $rec->due_date instanceof \Carbon\Carbon
-                    ? $rec->due_date
-                    : \Carbon\Carbon::parse($rec->due_date);
-
-                $returnDate = $rec->date_returned
-                    ? ($rec->date_returned instanceof \Carbon\Carbon
-                        ? $rec->date_returned
-                        : \Carbon\Carbon::parse($rec->date_returned))
-                    : null;
-
-                $now = now();
-                $overdueBy = ($rec->status === 'On Loan' && $now->gt($dueDate))
-                    ? $dueDate->diffInDays($now)
-                    : 0;
-
-                $fine = $rec->status === 'returned'
-                    ? ($rec->fine ?? 0)
-                    : $overdueBy * $fineRate;
+                if ($rec->status === 'On Loan' || $rec->status === 'Overdue') {
+                    $overdueBy = $this->calculateOverdueDays($rec->due_date, now());
+                    $fine = $overdueBy * $fineRate;
+                } else {
+                    $fine = $rec->fine ?? 0;
+                }
 
                 return [
                     'id'           => $rec->id,
                     'borrower'     => $rec->patron->first_name . ' ' . $rec->patron->last_name,
                     'issue_date'   => $rec->issue_date,
                     'due_date'     => $rec->due_date,
-                    'return_date'  => $returnDate,
+                    'return_date'  => $rec->date_returned,
                     'fine'         => $fine,
                     'status'       => $rec->status,
                 ];
@@ -600,10 +687,11 @@ class CirculationController extends Controller
         $returnedToday = Circulation::whereDate('date_returned', $today)->count();
         $returnedYesterday = Circulation::whereDate('date_returned', $yesterday)->count();
 
-        $overdueToday = Circulation::where('status', 'On Loan')
-            ->whereDate('due_date', '<', $today)
+        $overdueToday = Circulation::whereIn('status', ['On Loan', 'Overdue'])
+            ->whereDate('due_date', '<', Carbon::today())
             ->count();
-        $overdueYesterday = Circulation::where('status', 'On Loan')
+
+        $overdueYesterday = Circulation::whereIn('status', ['On Loan', 'Overdue'])
             ->whereDate('due_date', '<', $yesterday)
             ->count();
 
@@ -665,5 +753,24 @@ class CirculationController extends Controller
             'message' => "Successfully withdrew $withdrawnCount copies.",
             'errors' => $errors
         ], count($errors) > 0 ? 207 : 200); 
+    }
+
+
+    /**
+     * Private helper to calculate overdue days excluding weekends.
+     */
+    private function calculateOverdueDays($dueDate, $comparisonDate)
+    {
+        $due = Carbon::parse($dueDate)->startOfDay();
+        $comp = Carbon::parse($comparisonDate)->startOfDay();
+
+        if ($comp->lte($due)) {
+            return 0;
+        }
+
+        // diffInDaysFiltered counts only days where the callback returns true
+        return $due->diffInDaysFiltered(function (Carbon $date) {
+            return !$date->isWeekend();
+        }, $comp);
     }
 }

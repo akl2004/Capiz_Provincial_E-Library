@@ -1,6 +1,10 @@
-import React, { useEffect, useState, useMemo } from "react"; // Added useMemo here
+import React, { useEffect, useState, useMemo } from "react";
 import AxiosInstance from "../../../AxiosInstance";
+import { setupPDFHeader, setupPDFFooter } from "./ReportService";
 import * as XLSX from "xlsx";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   PieChart,
   Pie,
@@ -14,15 +18,40 @@ import {
   BarChart,
   Bar,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
 import LoadingSpinner from "../../LoadingSpinner";
+
+interface jsPDFWithPlugin extends jsPDF {
+  lastAutoTable: {
+    finalY: number;
+  };
+}
 
 interface AccountsTabProps {
   activeTab: string;
   userRole: "admin" | "staff";
+  filters: {
+    timeRange: string;
+    startDate: string;
+    endDate: string;
+  };
+  printRequest?: {
+    type: string;
+    id: number;
+    timeRange?: string;
+    preparedBy?: string;
+    notedBy?: string;
+  } | null;
+  onPrintComplete: () => void;
 }
 
-const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
+const AccountsTab: React.FC<AccountsTabProps> = ({
+  activeTab,
+  filters,
+  printRequest,
+  onPrintComplete,
+}) => {
   const [accountStatus, setAccountStatus] = useState<any[]>([]);
   const [roleDistribution, setRoleDistribution] = useState<any[]>([]);
   const [newAccountsPerMonth, setNewAccountsPerMonth] = useState<any[]>([]);
@@ -34,18 +63,22 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
 
   const statusColors: { [key: string]: string } = {
     active: "#10B981",
-    deactivate: "#F59E0B",
+    deactivated: "#F59E0B",
     expired: "#6B7280",
     blocked: "#EF4444",
   };
+  const roleColors = ["#F36E57", "#F58A68", "#F9A378"];
 
-  const roleColors = ["#6366F1", "#EC4899", "#8B5CF6"];
+  const chartRef = React.useRef<HTMLDivElement>(null);
+  const statusChartRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoadingAccountsData(true);
       try {
-        const res = await AxiosInstance.get("/reports/accounts");
+        const res = await AxiosInstance.get(
+          `/reports/accounts?range=${filters.timeRange}`,
+        );
         setAccountStatus(res.data.accountStatus || []);
         setRoleDistribution(res.data.roleDistribution || []);
         setNewAccountsPerMonth(res.data.newAccountsPerMonth || []);
@@ -57,7 +90,256 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
       }
     };
     if (activeTab === "accounts") fetchData();
-  }, [activeTab]);
+  }, [activeTab, filters.timeRange]);
+
+
+  const filteredAccounts = useMemo(() => {
+    const now = new Date();
+    // Use printRequest range if available (for PDF), otherwise use UI filters
+    const activeRange = printRequest?.timeRange || filters.timeRange;
+
+    return accountsData.filter((user) => {
+      if (!activeRange || activeRange === "all-time" || activeRange === "all")
+        return true;
+
+      const joinedDate = new Date(user.created_at);
+      if (isNaN(joinedDate.getTime())) return true;
+
+      if (activeRange === "this-month") {
+        return (
+          joinedDate.getMonth() === now.getMonth() &&
+          joinedDate.getFullYear() === now.getFullYear()
+        );
+      }
+      if (activeRange === "this-week") {
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        return joinedDate >= startOfWeek;
+      }
+      if (activeRange === "this-year") {
+        return joinedDate.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  }, [accountsData, filters.timeRange, printRequest]);
+
+  const registrationTrends = useMemo(() => {
+    const activeRange = printRequest?.timeRange || filters.timeRange;
+    const groups: { [key: string]: number } = {};
+
+    filteredAccounts.forEach((user) => {
+      const date = new Date(user.created_at);
+      let label = "";
+
+      if (activeRange === "this-week") {
+        // Group by Day Name (Mon, Tue, etc.)
+        label = date.toLocaleDateString("en-US", { weekday: "short" });
+      } else if (activeRange === "this-month") {
+        // Group by Date (Jan 1, Jan 2, etc.)
+        label = date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+      } else {
+        // Group by Month (Jan, Feb, etc.)
+        label = date.toLocaleDateString("en-US", { month: "short" });
+      }
+
+      groups[label] = (groups[label] || 0) + 1;
+    });
+
+    // Convert to array format for Recharts and PDF tables
+    return Object.keys(groups).map((key) => ({
+      label: key,
+      total: groups[key],
+    }));
+  }, [filteredAccounts, filters.timeRange, printRequest]);
+
+  useEffect(() => {
+    if (printRequest && activeTab === "accounts") {
+      const preparedBy = printRequest.preparedBy || "Librarian / Staff Name";
+      const notedBy = printRequest.notedBy || "Provincial Librarian";
+
+      if (printRequest.type === "Export Excel") {
+        exportAccountRegistryToExcel();
+      } else {
+        generateAccountsPDF(printRequest.type, preparedBy, notedBy);
+      }
+      onPrintComplete();
+    }
+  }, [printRequest, activeTab]);
+
+  const generateAccountsPDF = async (
+    reportType: string,
+    preparedBy: string = "Librarian / Staff Name",
+    notedBy: string = "Provincial Librarian",
+  ) => {
+    const doc = new jsPDF() as jsPDFWithPlugin;
+    const timeLabel = (
+      printRequest?.timeRange ||
+      filters.timeRange ||
+      "All"
+    ).toUpperCase();
+    const title = `${reportType.toUpperCase()} (${timeLabel})`;
+    let currentY = setupPDFHeader(doc, title);
+
+    // This is our source of truth for the report
+    const dataToExport = filteredAccounts;
+
+    // --- SECTION 1: SUMMARY (Tallies) ---
+    if (reportType === "Account Summary") {
+      const captureOptions = {
+        scale: 3,
+        backgroundColor: "#ffffff",
+        logging: false,
+      };
+
+      // Growth Chart
+      if (chartRef.current) {
+        const canvasGrowth = await html2canvas(
+          chartRef.current,
+          captureOptions,
+        );
+        const imgGrowth = canvasGrowth.toDataURL("image/png");
+        doc.setFontSize(12).text("Registration Growth Trends", 14, currentY);
+        doc.addImage(imgGrowth, "PNG", 14, currentY + 5, 180, 70);
+        currentY += 85;
+      }
+
+      // Growth Table (Note: This still uses monthly state, see note below)
+      doc.setFontSize(12).text("Registration Data", 14, currentY);
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Period", "New Accounts Registered"]],
+        body: registrationTrends.map((item) => [item.label, item.total]),
+        headStyles: { fillColor: [100, 116, 139] },
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 15;
+
+      // Distribution Tally - Using dataToExport (Filtered)
+      const adminCount = dataToExport.filter(
+        (u) => u.role?.toLowerCase() === "admin",
+      ).length;
+      const staffCount = dataToExport.filter(
+        (u) => u.role?.toLowerCase() === "staff",
+      ).length;
+      const patronCount = dataToExport.filter(
+        (u) => u.role?.toLowerCase() === "patron",
+      ).length;
+
+      if (currentY > 240) {
+        doc.addPage();
+        currentY = 20;
+      }
+      doc
+        .setFontSize(12)
+        .text("Account Distribution Tally (Filtered)", 14, currentY);
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["Role", "Total Users", "Percentage"]],
+        body: [
+          [
+            "Admins",
+            adminCount,
+            `${((adminCount / dataToExport.length) * 100 || 0).toFixed(1)}%`,
+          ],
+          [
+            "Staff Members",
+            staffCount,
+            `${((staffCount / dataToExport.length) * 100 || 0).toFixed(1)}%`,
+          ],
+          [
+            "Patrons",
+            patronCount,
+            `${((patronCount / dataToExport.length) * 100 || 0).toFixed(1)}%`,
+          ],
+        ],
+        headStyles: { fillColor: [99, 102, 241] },
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // --- SECTION 2: REGISTRY TABLE ---
+    if (reportType === "Account Summary" || reportType === "Active Users") {
+      doc.addPage();
+      currentY = 20;
+      doc
+        .setFontSize(14)
+        .text(`Filtered Account Registry (${timeLabel})`, 14, currentY);
+
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: [["User ID", "Full Name", "Role", "Status", "Joined"]],
+        // FIXED: Using dataToExport here
+        body: dataToExport.map((u) => [
+          u.user_id,
+          u.full_name,
+          u.role,
+          u.status,
+          new Date(u.created_at).toLocaleDateString(),
+        ]),
+        headStyles: { fillColor: [37, 90, 145] },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // --- SECTION 3: CONDITIONAL LISTS (Flagged/Expired) ---
+    let tableData: (string | number)[][] = [];
+    let tableHeaders = [
+      ["User ID", "Role", "Full Name", "Email", "Status", "Expiration"],
+    ];
+    let headerColor: [number, number, number] = [67, 85, 126];
+
+    if (reportType === "Flagged Accounts") {
+      headerColor = [239, 68, 68];
+      // FIXED: Filter from dataToExport
+      tableData = dataToExport
+        .filter((u) =>
+          ["Deactivated", "Blocked", "deactivate", "blocked"].includes(
+            u.status.toLowerCase(),
+          ),
+        )
+        .map((u) => [
+          u.user_id,
+          u.role,
+          u.full_name,
+          u.email,
+          u.status.toUpperCase(),
+          u.expiration_date || "N/A",
+        ]);
+    } else if (reportType === "Expired Accounts") {
+      headerColor = [107, 114, 128];
+      // FIXED: Filter from dataToExport
+      tableData = dataToExport
+        .filter((u) => u.status.toLowerCase() === "expired")
+        .map((u) => [
+          u.user_id,
+          u.role,
+          u.full_name,
+          u.email,
+          u.status.toUpperCase(),
+          u.expiration_date || "Expired",
+        ]);
+    }
+
+    if (tableData.length > 0) {
+      if (currentY > 250) {
+        doc.addPage();
+        currentY = 20;
+      }
+      doc.setFontSize(12).text(`${reportType} List`, 14, currentY);
+      autoTable(doc, {
+        startY: currentY + 5,
+        head: tableHeaders,
+        body: tableData,
+        headStyles: { fillColor: headerColor },
+      });
+    }
+
+    setupPDFFooter(doc, preparedBy, notedBy);
+    doc.save(`${reportType.replace(/\s+/g, "_")}_${timeLabel}.pdf`);
+  };
 
   // Fixed Sorting Logic
   const sortAccountRegistry = (order: "asc" | "desc") => {
@@ -72,9 +354,11 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
   };
 
   const exportAccountRegistryToExcel = () => {
-    const worksheetData = accountsData.map((user) => ({
+    const worksheetData = filteredAccounts.map((user) => ({
       "User ID": user.user_id,
       "Full Name": user.full_name,
+      Email: user.email,
+      "Phone Number": user.number,
       Role: user.role,
       Status: user.status,
       "Date Registered": new Date(user.created_at).toLocaleDateString(),
@@ -86,7 +370,7 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
   };
 
   const totalPagesAccounts = Math.ceil(
-    accountsData.length / rowsPerPageAccounts
+    accountsData.length / rowsPerPageAccounts,
   );
 
   // useMemo fixed (dependency on accountsData added)
@@ -108,7 +392,7 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
             className="card border-0 shadow-sm h-100"
             style={{ borderRadius: "16px" }}
           >
-            <div className="card-body p-4">
+            <div className="card-body p-4" ref={statusChartRef}>
               <h6 className="fw-bold text-dark mb-4">Account Status</h6>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={accountStatus} margin={{ left: -30 }}>
@@ -127,6 +411,7 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: "#64748b" }}
+                    allowDecimals={false}
                   />
                   <Tooltip
                     cursor={{ fill: "#f8fafc" }}
@@ -164,11 +449,13 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
                 <PieChart>
                   <Pie
                     data={roleDistribution}
+                    nameKey="role" // Ensure this matches your data key for labels
                     dataKey="total"
-                    innerRadius={60}
-                    outerRadius={85}
+                    innerRadius={50}
+                    outerRadius={80} // Slightly reduced to prevent overlapping with legend
                     paddingAngle={5}
                     cornerRadius={6}
+                    cy="45%" // Slightly move pie up to give legend more room
                   >
                     {roleDistribution.map((_, index) => (
                       <Cell
@@ -177,7 +464,21 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
                       />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: "8px",
+                      border: "none",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                  <Legend
+                    verticalAlign="bottom"
+                    height={36}
+                    iconType="circle"
+                    formatter={(value) => (
+                      <span className="text-muted small fw-bold">{value}</span>
+                    )}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -190,14 +491,14 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
             className="card border-0 shadow-sm h-100"
             style={{ borderRadius: "16px" }}
           >
-            <div className="card-body p-4">
+            <div className="card-body p-4" ref={chartRef}>
               <h6 className="fw-bold text-dark mb-4">Account Growth</h6>
               <ResponsiveContainer width="100%" height={220}>
                 <AreaChart data={newAccountsPerMonth} margin={{ left: -30 }}>
                   <defs>
                     <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#c46e58" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#c46e58" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -206,12 +507,16 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
                     tickLine={false}
                     tick={{ fontSize: 11 }}
                   />
-                  <YAxis axisLine={false} tickLine={false} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    allowDecimals={false}
+                  />
                   <Tooltip />
                   <Area
                     type="monotone"
                     dataKey="total"
-                    stroke="#6366F1"
+                    stroke="#c46e58"
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorTotal)"
@@ -269,6 +574,8 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
                 >
                   <th className="ps-4 py-3 border-0">User ID</th>
                   <th className="py-3 border-0">Full Name</th>
+                  <th className="py-3 border-0">Email</th>
+                  <th className="py-3 border-0">Phone Number</th>
                   <th className="py-3 border-0">Role</th>
                   <th className="py-3 border-0">Status</th>
                   <th className="py-3 border-0">Registered</th>
@@ -288,16 +595,19 @@ const AccountsTab: React.FC<AccountsTabProps> = ({ activeTab }) => {
                       #{user.user_id}
                     </td>
                     <td className="py-3 fw-bold">{user.full_name}</td>
+                    <td className="py-3 text-muted">{user.email}</td>
+                    <td className="py-3 text-muted">{user.number}</td>
                     <td className="py-3 text-muted">{user.role}</td>
                     <td className="py-3">
                       <span
-                        className={`badge rounded-pill px-3 py-2 ${
-                          user.status.toLowerCase() === "active"
-                            ? "bg-success-subtle text-success"
-                            : user.status.toLowerCase() === "blocked"
-                            ? "bg-danger-subtle text-danger"
-                            : "bg-warning-subtle text-warning"
-                        }`}
+                        className="badge rounded-pill px-3 py-2"
+                        style={{
+                          color:
+                            statusColors[user.status.toLowerCase()] ||
+                            "#6B7280",
+                          backgroundColor: `${statusColors[user.status.toLowerCase()] || "#6B7280"}33`,
+                          border: `1px solid ${statusColors[user.status.toLowerCase()] || "#6B7280"}55`,
+                        }}
                       >
                         {user.status}
                       </span>

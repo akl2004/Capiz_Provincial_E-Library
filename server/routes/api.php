@@ -51,6 +51,8 @@ Route::get('/books/copy/{barcode}', [BookController::class, 'getByBarcode']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/books', [BookController::class, 'store']);   // Add new book
     Route::post('/books/{id}/add-copy', [BookController::class, 'addCopy']); // Add book copy
+    Route::get('/book-copies/latest-accession', [BookController::class, 'getLatestAccession']);
+    Route::put('/books/{book}/copies/{id}', [BookController::class, 'updateCopy']);
 });
 
 // Patron routes
@@ -93,6 +95,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/circulations/borrowed-book/{barcode}', [CirculationController::class, 'getBorrowedBookByBarcode']);
     Route::get('/circulations/borrowing-policy', [CirculationController::class, 'getBorrowingPolicy']);
     Route::get('/circulations/active-loans/{patron_id}', [CirculationController::class, 'getActiveLoansByPatron']);
+
+    Route::get('/circulations/pending-settlements', [CirculationController::class, 'getPendingSettlements']);
+    Route::post('/circulations/resolve-lost/{id}', [CirculationController::class, 'resolveLostBook']);
 });
 
 
@@ -136,6 +141,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/settings/lost-fee', [LibrarySettingController::class, 'getLostBookProcessingFee']);
     Route::post('/settings/lost-fee', [LibrarySettingController::class, 'updateLostBookProcessingFee']);
 
+    // Missing Book Threshold Days
+    Route::get('/settings/missing-threshold', [LibrarySettingController::class, 'getMissingThreshold']);
+    Route::post('/settings/missing-threshold', [LibrarySettingController::class, 'updateMissingThreshold']);
+
+    // Lost Overdue Penalty
+    Route::get('/settings/late-settlement-penalty', [LibrarySettingController::class, 'getLateSettlementPenalty']);
+    Route::post('/settings/late-settlement-penalty', [LibrarySettingController::class, 'updateLateSettlementPenalty']);
 });
 
 
@@ -148,6 +160,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/attendance/summary', [ReportsController::class, 'attendanceSummary']);
     Route::get('/reports/attendance/log', [ReportsController::class, 'attendanceLog']);
     Route::get('/reports/accounts', [ReportsController::class, 'accounts']);
+    Route::get('/reports/lost-books-details', [ReportsController::class, 'lostBooksDetail']);
 });
 
 //Activity Logs

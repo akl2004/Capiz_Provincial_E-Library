@@ -56,7 +56,12 @@ const Cataloging = () => {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const booksPerPage = 10;
+  const [booksPerPage, setBooksPerPage] = useState(10);
+
+  useEffect(() => {
+    setBooksPerPage(viewMode === "image" ? 12 : 10);
+    setCurrentPage(1);
+  }, [viewMode]);
 
   const deweyMap: { [key: string]: string } = {
     "000": "General Works",
@@ -562,77 +567,91 @@ const Cataloging = () => {
           currentBooks.length === 0 ? (
             <p className="text-center">No books found.</p>
           ) : (
-            currentBooks.map((book) => (
-              <div
-                key={book.id}
-                className="card mb-3 p-3"
-                onClick={() => {
-                  const role = localStorage.getItem("role")?.toLowerCase();
-                  if (!book.id) return;
-                  const path =
-                    role === "admin"
-                      ? `/admin/cataloging/${book.id}`
-                      : role === "staff"
-                      ? `/staff/cataloging/${book.id}`
-                      : null;
-                  if (path) navigate(path);
-                }}
-                style={{ cursor: "pointer" }}
-              >
-                <div className="row">
-                  <div className="col-md-2">
-                    <img
-                      src={
-                        book.cover_image
-                          ? `http://localhost:8000/storage/${book.cover_image}`
-                          : "/src/assets/cover_placeholder.jpg"
-                      }
-                      alt={book.title}
-                      className="img-fluid"
-                      style={{
-                        maxHeight: "200px",
-                        objectFit: "contain",
-                        width: "80%",
-                      }}
-                    />
-                  </div>
-                  <div className="description col-md-9">
-                    <p className="mb-0">
-                      <strong>Material:</strong>{" "}
-                      {book.copies && book.copies.length > 0
-                        ? typeof book.copies[0].material_type === "object"
-                          ? book.copies[0].material_type.name
-                          : book.copies[0].material_type
-                        : "-"}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Title:</strong> {book.title}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Contributor:</strong> {book.contributor}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Edition:</strong> {book.edition}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Year:</strong> {book.year}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Subjects:</strong>{" "}
-                      {book.topical_subjects && book.topical_subjects.length > 0
-                        ? book.topical_subjects.join(", ")
-                        : "N/A"}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Classification:</strong> {book.classification}
-                    </p>
-                    <p className="mb-0">
-                      <strong>Section:</strong> {book.section}
-                    </p>
+            <div className="row">
+              {currentBooks.map((book) => (
+                <div
+                  key={book.id}
+                  className="col-md-4 mb-4"
+                  onClick={() => {
+                    const role = localStorage.getItem("role")?.toLowerCase();
+                    if (!book.id) return;
+                    const path =
+                      role === "admin"
+                        ? `/admin/cataloging/${book.id}`
+                        : role === "staff"
+                        ? `/staff/cataloging/${book.id}`
+                        : null;
+                    if (path) navigate(path);
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <div className="card h-100 p-3 shadow-sm">
+                    <div className="d-flex">
+                      {/* LEFT: COVER IMAGE */}
+                      <div style={{ width: "40%", flexShrink: 0 }}>
+                        <img
+                          src={
+                            book.cover_image
+                              ? `http://localhost:8000/storage/${book.cover_image}`
+                              : "/src/assets/cover_placeholder.jpg"
+                          }
+                          alt={book.title}
+                          className="img-fluid"
+                          style={{
+                            height: "180px",
+                            objectFit: "contain",
+                          }}
+                        />
+                      </div>
+
+                      {/* RIGHT: TEXT */}
+                      <div
+                        className="card-text ms-3 overflow-hidden"
+                        style={{ fontSize: "0.85rem" }}
+                      >
+                        <p className="mb-0 text-truncate">
+                          <strong>Material:</strong>{" "}
+                          {book.copies && book.copies.length > 0
+                            ? typeof book.copies[0].material_type === "object"
+                              ? book.copies[0].material_type.name
+                              : book.copies[0].material_type
+                            : "-"}
+                        </p>
+
+                        <p className="mb-0 text-truncate" title={book.title}>
+                          <strong>Title:</strong> {book.title}
+                        </p>
+                        <p className="mb-0 text-truncate">
+                          <strong>Contributor:</strong> {book.contributor}
+                        </p>
+                        <p className="mb-0">
+                          <strong>Edition:</strong> {book.edition}
+                        </p>
+                        <p className="mb-0">
+                          <strong>Year:</strong> {book.year}
+                        </p>
+
+                        <p className="mb-0 text-truncate">
+                          <strong>Subjects:</strong>{" "}
+                          {book.topical_subjects &&
+                          book.topical_subjects.length > 0
+                            ? book.topical_subjects.join(", ")
+                            : "N/A"}
+                        </p>
+
+                        <p className="mb-0 text-truncate">
+                          <strong>Section:</strong> {book.section}
+                        </p>
+
+                        <p className="mb-0">
+                          <strong>Classification:</strong> {book.classification}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              ))}
+            </div>
           )
         ) : (
           <table className="custom-table w-100 mt-3">

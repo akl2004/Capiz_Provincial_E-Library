@@ -17,9 +17,10 @@ class DatabaseSeeder extends Seeder
             SourceSeeder::class,
             BookSeeder::class,
             PatronSeeder::class,
-            // CirculationSeeder::class,
+            AttendanceSeeder::class,
             AdminUserSeeder::class,
             LibrarySettingsSeeder::class,
+            CirculationSeeder::class,
         ]);
     }
 }

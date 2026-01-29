@@ -1421,32 +1421,61 @@
 }
 
 .book-form {
-  max-width: 100%;
-  margin: 20px auto;
-  padding: 20px;
+  width: 100%;
+  padding: 30px;
   background: #f9f9f9;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-top: -1px;
 }
 
 /* Container to hold everything */
 .catalog-wrapper {
-  max-width: 90%;
-  margin: 20px auto;
+  max-width: 80%;
+  margin: 40px auto;
   display: flex;
   flex-direction: column;
 }
 
-/* Tab Bar Styling */
+.tabs-outer-container {
+  width: 100%;
+  display: flex;
+  align-items: flex-end; /* Keeps tabs sitting on the form's top border */
+}
+
+/* The actual scrollable row */
 .tabs-container {
   display: flex;
-  align-items: flex-end;
-  margin-bottom: -1px;
-  gap: 1px;
+  flex-wrap: nowrap; 
+  overflow-x: auto;  
+  gap: 2px;
+  width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #ccc transparent;
+}
+
+/* Chrome, Edge, and Safari scrollbar styling */
+.tabs-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tabs-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}
+
+.tab-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Adds the "..." */
+  margin-right: 8px;      /* Space before the 'x' button */
+  font-size: 0.9rem;
 }
 
 /* Individual Folder Tab */
 .folder-tab {
+  flex-shrink: 0;
   position: relative;
   padding: 7px 5px 7px 20px;
   background-color: #d1d8e0;
@@ -1461,6 +1490,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  max-width: 120px;
 }
 
 /* Selected Tab (Active) */
@@ -1489,6 +1519,7 @@
 
 /* Add Book Button Styling */
 .add-book-tab {
+  flex-shrink: 0;
   padding: 8px;
   margin-left: 10px;
   background-color: #2c3e50;
@@ -1531,6 +1562,62 @@
   font-size: 0.7rem;
   color: #0f7b83;
   margin: auto;
+}
+
+
+/* Container for each individual book copy */
+.copy-card {
+  border: 1px solid rgba(192, 91, 66, 0.3); /* Subtle version of your brand color */
+  border-left: 5px solid #C05B42; /* Your color used as the main vertical accent */
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  transition: border-color 0.3s ease;
+}
+
+.copy-card:hover {
+  border-color: #C05B42;
+  background-color: rgba(192, 91, 66, 0.05);
+}
+
+/* Label for the Copy Number inside the card */
+.copy-card label {
+  font-weight: 600;
+  color: #C05B42; /* Your color for labels */
+  font-size: 0.9rem;
+}
+
+.back-to-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background-color: #C05B42; /* Your rust color */
+  color: white;
+  border: none;
+  border-radius: 50px; /* Pill shape */
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 99999;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.back-to-top:hover {
+  background-color: #a64a34; /* Slightly darker version */
+  transform: translateY(-5px);
+}
+
+.arrow-up {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.btn-text {
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 /* ===== Flex Rows and Columns ===== */
@@ -2332,6 +2419,21 @@ select {
 
 
 /* ===== Attendance Page Container ===== */
+/* Hide arrows in Chrome, Safari, Edge, and Opera */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.no-spinner {
+  appearance: textfield;
+}
+
+.no-spinner {
+  -moz-appearance: textfield;
+}
+
 .attendance-container {
   background: #ffffff;
   margin-top: 1.5rem;
@@ -3017,15 +3119,14 @@ input:focus {
   background-color: #ececec;
 }
 
-.confirm-btn {
-  width: 100%;
-  padding: 12px;
-  background-color: #198754;
-  color: white;
+.form-actions .confirm-btn {
+  background-color: #C05B42;
+  color: #ffffff;
+  padding: 10px 24px;
+  border-radius: 10px;
   border: none;
-  border-radius: 6px;
-  font-weight: bold;
-  transition: 0.2s;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
 .confirm-btn:hover {
@@ -3264,7 +3365,7 @@ input:focus {
 }
 
 .timer-active .timer-path {
-  animation: runAround 3s linear forwards;
+  animation: runAround 2s linear forwards;
 }
 
 @keyframes runAround {
@@ -4045,6 +4146,7 @@ input:focus {
 .timezone-skeleton-input { height: 50px; width: 100%; background: #f3ebe8; border-radius: 12px; }
 .timezone-skeleton-button { height: 45px; width: 180px; background: #f3ebe8; border-radius: 12px; margin-left: auto; }
 
+
 /* borrowing policy css */
 .borrow-main-container {
   margin-bottom: 2rem;
@@ -4155,6 +4257,48 @@ input:focus {
 
 .borrow-reset-button:hover { color: #C05B42; }
 
+/* Skeleton Wrapper */
+.borrow-skeleton-row, .renew-skeleton-row, .fine-skeleton-row, .account-skeleton-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.borrow-skeleton-line, .renew-skeleton-line, .fine-skeleton-line, .account-skeleton-line {
+  background: #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #f3ebe8 25%, #e0e0e0 50%, #f3ebe8 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.borrow-skeleton-line.title, .renew-skeleton-line.title, .fine-skeleton-line.title, .account-skeleton-line.title { width: 180px; height: 18px; }
+.borrow-skeleton-line.subtitle, .renew-skeleton-line.subtitle, .fine-skeleton-line.subtitle, .account-skeleton-line.subtitle { width: 250px; height: 12px; }
+
+.borrow-skeleton-input, .renew-skeleton-input, .fine-skeleton-input, .account-skeleton-input {
+  width: 100px;
+  height: 40px;
+  background: #f3ebe8;
+  border-radius: 8px;
+}
+
+.borrow-skeleton-button, .renew-skeleton-button, .fine-skeleton-button, .account-skeleton-button {
+  width: 120px;
+  height: 38px;
+  background: #f3ebe8;
+  border-radius: 6px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* renewal settings css */
 .renewal-main-container {
@@ -6196,17 +6340,50 @@ input:focus {
 
 /* Force colors during print */
 @media print {
-  .patron-card-design {
-    box-shadow: none !important;
-    border: 1px solid #000 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+  /* 1. Hide everything */
+  body * {
+    visibility: hidden;
   }
-  
-  /* Ensure the grid doesn't break the single card layout */
+
+  /* 2. Show the card and all its children */
+  #printable-patron-barcodes,
+  #printable-patron-barcodes * {
+    visibility: visible !important;
+  }
+
+  /* 3. Reset the position so it's not stuck inside a 'hidden' modal */
   #printable-patron-barcodes {
-    display: block !important; 
-    padding: 0 !important;
+    position: fixed !important;
+    left: 50% !important;
+    top: 20mm !important;
+    transform: translateX(-50%) !important;
+    width: 380px !important; /* Force the width */
+    display: block !important;
+  }
+
+  /* 4. FORCE THE COLORS - This is the "Look" part */
+  .card-accent-border {
+    background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%) !important;
+    height: 6px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .library-title {
+    color: #1e40af !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  .patron-card-design {
+    border: 1px solid #e5e7eb !important;
+    background-color: white !important;
+    -webkit-print-color-adjust: exact !important;
+    border-radius: 12px !important;
+  }
+
+  /* 5. Hide the modal's extra UI */
+  .modal-overlay {
+    background: transparent !important;
   }
 }
 

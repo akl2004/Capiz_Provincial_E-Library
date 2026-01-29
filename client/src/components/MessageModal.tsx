@@ -13,7 +13,7 @@ const MessageModal = ({ type, message, onClose }: MessageModalProps) => {
     if (isSuccess) {
       const timer = setTimeout(() => {
         onClose();
-      }, 3000);
+      }, 2000);
 
       return () => clearTimeout(timer);
     }

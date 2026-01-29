@@ -2,47 +2,47 @@ import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import Alert from "../../Alert";
 
-const RenewalLimitSetting = () => {
-  const [renewalLimit, setRenewalLimit] = useState<number>(2);
+const MissingThresholdSetting = () => {
+  const [days, setDays] = useState<number>(365);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error" | "info">(
-    "info"
+    "info",
   );
 
-  // Fetch current renewal limit
+  // Fetch current threshold
   useEffect(() => {
-    const fetchLimit = async () => {
+    const fetchThreshold = async () => {
       setFetching(true);
       try {
-        const res = await AxiosInstance.get("/settings/renewal-limit");
-        setRenewalLimit(res.data.renewal_limit);
+        const res = await AxiosInstance.get("/settings/missing-threshold");
+        setDays(res.data.missing_threshold_days);
       } catch (error) {
-        console.error("Failed to fetch renewal limit", error);
-        setAlertMessage("Failed to fetch renewal limit");
+        console.error("Failed to fetch threshold", error);
+        setAlertMessage("Failed to fetch missing threshold");
         setAlertType("error");
       } finally {
         setFetching(false);
       }
     };
-    fetchLimit();
+    fetchThreshold();
   }, []);
 
   const handleSave = async () => {
     setLoading(true);
     setAlertMessage(null);
     try {
-      const res = await AxiosInstance.post("/settings/renewal-limit", {
-        renewal_limit: renewalLimit,
+      const res = await AxiosInstance.post("/settings/missing-threshold", {
+        missing_threshold_days: days,
       });
       setAlertMessage(
-        res.data.message || "Renewal limit updated successfully!"
+        res.data.message || "Missing threshold updated successfully!",
       );
       setAlertType("success");
     } catch (error) {
       console.error(error);
-      setAlertMessage("Error updating renewal limit");
+      setAlertMessage("Error updating missing threshold");
       setAlertType("error");
     } finally {
       setLoading(false);
@@ -50,12 +50,12 @@ const RenewalLimitSetting = () => {
   };
 
   const handleReset = () => {
-    setRenewalLimit(2);
+    setDays(365);
     setAlertMessage(null);
   };
 
   return (
-    <div className="renewal-main-container">
+    <div className="renewal-main-container mt-4">
       {alertMessage && (
         <Alert
           message={alertMessage}
@@ -68,12 +68,12 @@ const RenewalLimitSetting = () => {
         <div className="renewal-card-header">
           <div className="d-flex align-items-center">
             <div className="renewal-icon-box me-3">
-              <i className="bi bi-arrow-repeat"></i>
+              <i className="bi bi-question-diamond"></i>
             </div>
             <div>
-              <h5 className="renewal-card-title mb-0">Renewal Terms</h5>
+              <h5 className="renewal-card-title mb-0">Missing Book Status</h5>
               <small className="renewal-card-subtitle">
-                Set how many times patrons can extend their loan period
+                Define when an overdue book is officially declared missing
               </small>
             </div>
           </div>
@@ -81,7 +81,6 @@ const RenewalLimitSetting = () => {
 
         <div className="card-body p-4">
           {fetching ? (
-            // 3. Skeleton State for Renewal Settings
             <div className="renew-skeleton-wrapper">
               <div className="renew-skeleton-row mb-4">
                 <div className="renew-skeleton-text">
@@ -96,13 +95,13 @@ const RenewalLimitSetting = () => {
               </div>
             </div>
           ) : (
-            // 4. Actual Content with Fade-in Effect
             <div className="timezone-fade-in">
               <div className="renewal-setting-row">
                 <div className="renewal-info">
-                  <span className="renewal-title">Maximum Renewals</span>
+                  <span className="renewal-title">Auto-Missing Threshold</span>
                   <small className="renewal-description">
-                    Allowed renewals per item before it must be returned.
+                    Number of days overdue before fine calculation stops and
+                    status turns to 'Missing'.
                   </small>
                 </div>
                 <div className="renewal-control">
@@ -110,14 +109,12 @@ const RenewalLimitSetting = () => {
                     <input
                       type="number"
                       className="renewal-custom-input"
-                      value={renewalLimit}
-                      onChange={(e) =>
-                        setRenewalLimit(parseInt(e.target.value) || 0)
-                      }
-                      min={1}
-                      max={10}
+                      value={days}
+                      onChange={(e) => setDays(parseInt(e.target.value) || 0)}
+                      min={5}
+                      max={1000}
                     />
-                    <span className="renewal-unit">Times</span>
+                    <span className="renewal-unit">Days</span>
                   </div>
                 </div>
               </div>
@@ -136,7 +133,7 @@ const RenewalLimitSetting = () => {
                   ) : (
                     <i className="bi bi-check2-circle me-2"></i>
                   )}
-                  Update Limit
+                  Update Threshold
                 </button>
               </div>
             </div>
@@ -147,4 +144,4 @@ const RenewalLimitSetting = () => {
   );
 };
 
-export default RenewalLimitSetting;
+export default MissingThresholdSetting;

@@ -6,6 +6,7 @@ import RenewForm from "./RenewForm";
 import bookIcon from "../../../assets/book_icon.png";
 import LoadingSpinner from "../../LoadingSpinner";
 import LostForm from "./LostForm";
+import SettlementTracker from "./SettlementTracker";
 
 interface Circulation {
   id: number;
@@ -42,7 +43,7 @@ const CirculationPage = () => {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "log" | "issue" | "return" | "renew" | "lost"
+    "log" | "issue" | "return" | "renew" | "lost" | "settlements"
   >("log");
 
   // Track which tally card dropdown is open
@@ -223,6 +224,8 @@ const CirculationPage = () => {
         return "#dc3545"; // red
       case "Returned Late":
         return "#198754"; // green
+      case "Missing":
+        return "#fd7e14"; // orange
       default:
         return "#6c757d"; // gray for others
     }
@@ -372,6 +375,12 @@ const CirculationPage = () => {
           >
             Lost
           </button>
+          <button
+            className={`btn ${activeTab === "settlements" ? "active" : ""}`}
+            onClick={() => setActiveTab("settlements")}
+          >
+            Pending Replacements
+          </button>
         </div>
 
         <div className="action-content mt-3">
@@ -429,7 +438,7 @@ const CirculationPage = () => {
                             className="sort-field"
                             onClick={() =>
                               setSortField(
-                                sortField === field ? null : (field as any)
+                                sortField === field ? null : (field as any),
                               )
                             }
                           >
@@ -487,7 +496,7 @@ const CirculationPage = () => {
                           }`}
                           onClick={() =>
                             setFilterStatus(
-                              filterStatus === status ? null : status
+                              filterStatus === status ? null : status,
                             )
                           }
                         >
@@ -687,6 +696,7 @@ const CirculationPage = () => {
             <RenewForm onSuccess={handleActionSuccess} />
           )}
           {activeTab === "lost" && <LostForm onSuccess={handleActionSuccess} />}
+          {activeTab === "settlements" && <SettlementTracker />}
         </div>
       </div>
     </>

@@ -45,7 +45,6 @@ const Dashboard = () => {
   const [currentDate, setCurrentDate] = useState(dayjs());
   const [userName, setUserName] = useState("User");
   const [loadingUser, setLoadingUser] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
 
   const [attendanceToday, setAttendanceToday] = useState<TallyWithPercentage>({
     count: 0,
@@ -234,21 +233,6 @@ const Dashboard = () => {
           </h2>
           {/* Current Date/Time */}
           <p>{currentDate.format("MMMM D, YYYY | dddd, h:mm a")}</p>
-        </div>
-        {/* Search Bar */}
-        <div className="position-relative" style={{ maxWidth: "900px" }}>
-          <span
-            className="position-absolute top-50 translate-middle-y ps-2"
-            style={{ left: "10px", color: "#6c757d" }}
-          >
-            <i className="bi bi-search"></i>
-          </span>
-          <input
-            className="form-control ps-5 pe-5"
-            placeholder="Search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
         </div>
       </div>
 

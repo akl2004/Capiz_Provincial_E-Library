@@ -45,6 +45,8 @@ interface Transaction {
   is_paid: boolean;
   paid_amount?: number;
   settlement_type?: string;
+  lost_resolution?: string; 
+  remarks?: string;
   processed_by?: string;
   material_price?: string;
   processing_fee_used: string;
@@ -80,7 +82,7 @@ const PatronInfo = () => {
     }
     if (t.due_date) {
       const today = new Date();
-      today.setHours(0, 0, 0, 0); 
+      today.setHours(0, 0, 0, 0);
       const dueDate = new Date(t.due_date);
       dueDate.setHours(0, 0, 0, 0);
 
@@ -180,14 +182,44 @@ const PatronInfo = () => {
     return total;
   }, 0);
 
+  const getDisplayFine = (t: Transaction) => {
+    if (t.fine > 0) return `₱${Number(t.fine).toFixed(2)}`;
+
+    if (!t.return_date && t.due_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dueDate = new Date(t.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+
+      if (dueDate < today) {
+        const diffTime = today.getTime() - dueDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return `₱${(diffDays * fineRate).toFixed(2)}`;
+      }
+    }
+
+    if (t.status === "Returned" || t.status === "Returned Late") return "₱0.00";
+
+    return "—";
+  };
+
   const activeLoans = stats?.activeLoans ?? 0;
 
   const settlementTransactions = transactions.filter((t) => {
-    const isLost = t.status === "Lost";
-    const wasFinePaid =
-      t.status === "Returned" && (t.fine > 0 || (t.paid_amount ?? 0) > 0);
+    // 1. If it's explicitly marked as Replacement or Payment, show it.
+    const hasSettlementType =
+      t.settlement_type === "Replacement" || t.settlement_type === "Payment";
 
-    return isLost || wasFinePaid;
+    // 2. If it's Lost, we always want to see it in the Settlement History
+    // (whether it's deferred or paid)
+    const isLost = t.status === "Lost";
+
+    // 3. Traditional fines (Returned books that had a processing fee or fine)
+    const wasFinePaid =
+      t.status === "Returned" &&
+      (Number(t.fine) > 0 || (t.paid_amount ?? 0) > 0);
+
+    return hasSettlementType || isLost || wasFinePaid;
   });
 
   const sortedTransactions = [...transactions].sort((a, b) => {
@@ -284,7 +316,14 @@ const PatronInfo = () => {
               >
                 Close
               </button>
-              <button onClick={() => window.print()} className="submit-btn">
+              <button
+                onClick={() => {
+                  setTimeout(() => {
+                    window.print();
+                  }, 100);
+                }}
+                className="submit-btn"
+              >
                 <i className="bi bi-printer me-2"></i> Print Card
               </button>
             </div>
@@ -454,6 +493,7 @@ const PatronInfo = () => {
                 <th>Status</th>
                 <th>Date Issued</th>
                 <th>Due Date</th>
+                <th>Overdue Fine</th>
                 <th>Return Date</th>
               </tr>
             </thead>
@@ -478,6 +518,7 @@ const PatronInfo = () => {
                     </td>
                     <td>{t.date_issued ? t.date_issued.slice(0, 10) : "—"}</td>
                     <td>{t.due_date ? t.due_date.slice(0, 10) : "—"}</td>
+                    <td>{getDisplayFine(t)}</td>
                     <td>{t.return_date ? t.return_date.slice(0, 10) : "—"}</td>
                   </tr>
                 );
@@ -516,19 +557,41 @@ const PatronInfo = () => {
               </tr>
             </thead>
             <tbody>
-              {settlementTransactions.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.id}</td>
-                  <td>{formatDate(t.return_date || t.date_issued)}</td>
-                  <td>{t.settlement_type}</td>
-                  <td>
-                    {t.settlement_type === "Replacement"
-                      ? `Replaced "${t.book_title}" (Copy #${t.copy_number})`
-                      : `Paid ₱${t.material_price} book price + ₱${t.processing_fee_used} processing fee`}
-                  </td>
-                  <td>{t.processed_by}</td>
-                </tr>
-              ))}
+              {settlementTransactions.map((t) => {
+                // It's "Deferred" if it's a Replacement but has no return_date yet
+                const isReplacement = t.settlement_type === "Replacement";
+                const isDeferred = isReplacement && !t.return_date;
+
+                // Check if it's a payment
+                const isPayment = t.settlement_type === "Payment";
+
+                return (
+                  <tr key={t.id}>
+                    <td>{t.id}</td>
+                    <td>{formatDate(t.return_date || t.date_issued)}</td>
+                    <td>
+                      <span
+                        className={`badge ${isDeferred ? "bg-warning text-dark" : "bg-info"}`}
+                      >
+                        {t.settlement_type} {isDeferred && "(Deferred)"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="fw-bold">
+                        {t.book_title} (Copy #{t.copy_number})
+                      </div>
+                      <small className="text-muted">
+                        {isPayment
+                          ? `Price: ₱${t.material_price} + Fee: ₱${t.processing_fee_used}`
+                          : isDeferred
+                            ? `Pending replacement. Due: ${formatDate(t.due_date)}`
+                            : `Replacement copy received.`}
+                      </small>
+                    </td>
+                    <td>{t.processed_by}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         ) : (

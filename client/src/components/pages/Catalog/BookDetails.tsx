@@ -73,6 +73,10 @@ const BookDetails: React.FC = () => {
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [newlyAddedCopies, setNewlyAddedCopies] = useState<BookCopy[]>([]);
 
+  const [showEditCopyModal, setShowEditCopyModal] = useState(false);
+  const [editingCopy, setEditingCopy] = useState<BookCopy | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const [messageModal, setMessageModal] = useState({
     show: false,
     message: "",
@@ -142,7 +146,7 @@ const BookDetails: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (showModal && book) {
+    if ((showModal || showEditCopyModal) && book) {
       AxiosInstance.get("/dropdown-options")
         .then((res) => {
           const mTypes = res.data.materialTypes || [];
@@ -172,7 +176,7 @@ const BookDetails: React.FC = () => {
         })
         .catch((err) => console.error("Error fetching dropdowns:", err));
     }
-  }, [showModal, book]);
+  }, [showModal, showEditCopyModal, book]);
 
   if (loading)
     return (
@@ -221,7 +225,7 @@ const BookDetails: React.FC = () => {
               onClick={() => {
                 const role = localStorage.getItem("role")?.toLowerCase();
                 navigate(
-                  role === "admin" ? "/admin/cataloging" : "/staff/cataloging"
+                  role === "admin" ? "/admin/cataloging" : "/staff/cataloging",
                 );
               }}
             >
@@ -249,7 +253,7 @@ const BookDetails: React.FC = () => {
           </p>
           <p>
             <strong>Published:</strong>{" "}
-            {[book.publisher, book.place_of_publication, book.copyright]
+            {[book.place_of_publication, book.publisher, book.copyright]
               .filter(Boolean)
               .join(", ") || "-"}
           </p>
@@ -381,7 +385,7 @@ const BookDetails: React.FC = () => {
                           "staff"
                             ? `/staff/cataloging/${book.id}/${copy.id}`
                             : `/admin/cataloging/${book.id}/${copy.id}`
-                        }`
+                        }`,
                       )
                     }
                     className="book-row"
@@ -397,8 +401,20 @@ const BookDetails: React.FC = () => {
                         {restrictionLabel}
                       </span>
                     </td>
-
                     <td>{copy.internal_note || "-"}</td>
+                    {/* NEW ACTION CELL */}
+                    <td>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevents navigation
+                          setEditingCopy(copy);
+                          setShowEditCopyModal(true);
+                        }}
+                      >
+                        <i className="bi bi-pencil"></i>
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -406,6 +422,107 @@ const BookDetails: React.FC = () => {
           </table>
         ) : (
           <p>No copies available</p>
+        )}
+
+        {/* Quick Edit Copy Modal */}
+        {showEditCopyModal && editingCopy && (
+          <div className="modal-overlay">
+            <div
+              className="modal-box"
+              style={{ maxWidth: "500px", width: "90%" }}
+            >
+              <h2 className="mb-3">
+                Quick Edit Copy #{editingCopy.copy_number}
+              </h2>
+              <p className="text-muted small mb-4">
+                Update condition and internal notes for this specific copy.
+              </p>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setIsUpdating(true);
+                  const formData = new FormData(e.currentTarget);
+
+                  try {
+                    await AxiosInstance.put(
+                      `/books/${book.id}/copies/${editingCopy.id}`,
+                      {
+                        condition: formData.get("condition"),
+                        internal_note: formData.get("internal_note"),
+                      },
+                    );
+
+                    setMessageModal({
+                      show: true,
+                      message: "Copy updated successfully!",
+                      type: "success",
+                    });
+
+                    // Refresh data
+                    const refreshResponse = await AxiosInstance.get(
+                      `/books/${id}`,
+                    );
+                    setBook(refreshResponse.data);
+                    setShowEditCopyModal(false);
+                  } catch (error: any) {
+                    setMessageModal({
+                      show: true,
+                      message: error.response?.data?.message || "Update Failed",
+                      type: "error",
+                    });
+                  } finally {
+                    setIsUpdating(false);
+                  }
+                }}
+              >
+                <div className="mb-3">
+                  <label className="fw-bold mb-1">Condition</label>
+                  <select
+                    name="condition"
+                    className="form-control"
+                    defaultValue={editingCopy.condition}
+                  >
+                    {conditions.length === 0 && (
+                      <option>Loading options...</option>
+                    )}
+                    {conditions.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="fw-bold mb-1">Internal Note</label>
+                  <textarea
+                    name="internal_note"
+                    className="form-control"
+                    rows={3}
+                    defaultValue={editingCopy.internal_note}
+                  />
+                </div>
+
+                <div className="form-actions">
+                  <button
+                    type="button"
+                    className="cancel-btn"
+                    onClick={() => setShowEditCopyModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="submit-btn"
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
 
         {/* Add Copy Modal */}
@@ -425,7 +542,7 @@ const BookDetails: React.FC = () => {
                   const priceValue = formData.get("price");
                   const numCopies = Number(formData.get("copies") || 1);
                   const barcodeList = Array.from({ length: numCopies }, () =>
-                    generateBarcode()
+                    generateBarcode(),
                   );
 
                   try {
@@ -450,7 +567,7 @@ const BookDetails: React.FC = () => {
                         price: priceValue
                           ? parseFloat(priceValue.toString())
                           : 0,
-                      }
+                      },
                     );
 
                     if (postResponse.data && postResponse.data.copies) {
@@ -463,7 +580,7 @@ const BookDetails: React.FC = () => {
                       type: "success",
                     });
                     const refreshResponse = await AxiosInstance.get(
-                      `/books/${id}`
+                      `/books/${id}`,
                     );
                     setBook(refreshResponse.data);
                     setShowModal(false);
@@ -582,7 +699,7 @@ const BookDetails: React.FC = () => {
                         className="form-control"
                         value={
                           materialTypes.find(
-                            (m) => m.id === selectedMaterialTypeId
+                            (m) => m.id === selectedMaterialTypeId,
                           )?.name || "Loading..."
                         }
                         readOnly

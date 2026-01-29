@@ -35,7 +35,8 @@ return new class extends Migration {
                 'Returned Late', 
                 'Renewed', 
                 'Lost', 
-                'Overdue'
+                'Overdue',
+                'Missing'
             ])->default('On Loan');
 
             $table->timestamps();

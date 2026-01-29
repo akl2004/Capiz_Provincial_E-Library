@@ -17,6 +17,7 @@ class AttendanceController extends Controller
             'middle_name' => 'nullable|string|max:255',
             'last_name' => 'required|string|max:255',
             'suffix' => 'nullable|string|max:50',
+            'gender' => 'nullable|string|max:50',
             'province' => 'required|string|max:255',
             'city' => 'required|string|max:255',
             'barangay' => 'required|string|max:255',
@@ -70,6 +71,7 @@ class AttendanceController extends Controller
                 'middle_name' => $log->middle_name,
                 'last_name' => $log->last_name,
                 'suffix' => $log->suffix,
+                'gender' => $log->gender,
                 'email' => $log->email,
                 'province' => $log->province,
                 'city' => $log->city,
@@ -89,11 +91,12 @@ class AttendanceController extends Controller
 
     public function patronsThisWeek()
     {
-        $startOfWeek = now()->startOfWeek(Carbon::MONDAY); // Monday as the start of the week
-        $endOfWeek = now()->endOfWeek(Carbon::SUNDAY);     // Sunday as the end of the week
+        // Start on Monday, End on Friday
+        $startOfWeek = now()->startOfWeek(Carbon::MONDAY);
+        $endOfWeek = $startOfWeek->copy()->addDays(4); // Friday
 
         $attendances = Attendance::with('patron')
-            ->whereNotNull('patron_id') // exclude guests
+            ->whereNotNull('patron_id')
             ->whereBetween('time_in', [$startOfWeek, $endOfWeek])
             ->get();
 
@@ -120,17 +123,27 @@ class AttendanceController extends Controller
     public function todayTallyWithPercentage()
     {
         $today = Carbon::today();
-        $yesterday = Carbon::yesterday();
+
+        // 1. Return zero if it's the weekend
+        if ($today->isWeekend()) {
+            return response()->json([
+                'attendanceToday' => 0,
+                'percent' => 0,
+                'status' => 'Office Closed'
+            ]);
+        }
+
+        // 2. Logic for comparison: If Monday, compare to Friday. Otherwise, compare to yesterday.
+        $comparisonDate = $today->isMonday() ? Carbon::today()->subDays(3) : Carbon::yesterday();
 
         $todayCount = Attendance::whereDate('time_in', $today)->count();
-        $yesterdayCount = Attendance::whereDate('time_in', $yesterday)->count();
+        $previousCount = Attendance::whereDate('time_in', $comparisonDate)->count();
 
-        if ($yesterdayCount == 0 && $todayCount == 0) {
-            $percent = 0;
-        } elseif ($yesterdayCount == 0) {
-            $percent = 100;
+        // 3. Percentage Calculation
+        if ($previousCount == 0) {
+            $percent = $todayCount > 0 ? 100 : 0;
         } else {
-            $percent = round((($todayCount - $yesterdayCount) / $yesterdayCount) * 100);
+            $percent = round((($todayCount - $previousCount) / $previousCount) * 100);
         }
 
         return response()->json([

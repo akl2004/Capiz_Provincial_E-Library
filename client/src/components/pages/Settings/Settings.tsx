@@ -4,6 +4,7 @@ import BorrowingPolicySetting from "./BorrowingPolicySettings";
 import RenewalLimitSetting from "./RenewalLimitSetting";
 import FineSetting from "./FineSetting";
 import ExpirationYearsSetting from "./ExpirationYearsSetting";
+import MissingThresholdSetting from "./MissingThresholdSetting";
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState("system");
@@ -32,7 +33,7 @@ const Settings: React.FC = () => {
 
     const observer = new IntersectionObserver(
       observerCallback,
-      observerOptions
+      observerOptions,
     );
     sections.forEach((section) => {
       const element = document.getElementById(section.id);
@@ -100,6 +101,7 @@ const Settings: React.FC = () => {
           <BorrowingPolicySetting />
           <RenewalLimitSetting />
           <FineSetting />
+          <MissingThresholdSetting />
         </section>
 
         <hr className="section-divider" />

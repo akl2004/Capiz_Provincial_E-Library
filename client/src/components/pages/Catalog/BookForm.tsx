@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import Barcode from "react-barcode";
 import { useNavigate } from "react-router-dom";
@@ -75,7 +75,7 @@ const BookForm: React.FC = () => {
   const [sections, setSections] = useState<string[]>([]);
   const [sources, setSources] = useState<string[]>([]);
   const [materialTypes, setMaterialTypes] = useState<MaterialType[]>([]);
-  const [bookCopies, setBookCopies] = useState<Copy[]>([]); // For the Print Modal
+  const [bookCopies, setBookCopies] = useState<Copy[]>([]);
 
   // Barcode modal
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
@@ -90,6 +90,21 @@ const BookForm: React.FC = () => {
   // 1. Tracks which tab is currently visible
   const [activeTab, setActiveTab] = useState(0);
   const [allBooks, setAllBooks] = useState<BookSession[]>([createEmptyBook()]);
+
+  const [showTopBtn, setShowTopBtn] = useState(true);
+  const tabsRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 100) {
+        setShowTopBtn(true);
+      } else {
+        setShowTopBtn(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   function createEmptyBook(
     initSections?: string[],
@@ -312,9 +327,8 @@ const BookForm: React.FC = () => {
 
       // Accession Record Fields
       formData.append(`books[${bIdx}][section]`, book.section);
-      formData.append(`books[${bIdx}][source]`, book.source);
       formData.append(`books[${bIdx}][materialType]`, book.materialType);
-      formData.append(`books[${bIdx}][source_person]`, book.sourcePerson);
+      
       formData.append(`books[${bIdx}][copies]`, book.copies.toString());
 
       // Image file
@@ -341,12 +355,20 @@ const BookForm: React.FC = () => {
           c.price.toString()
         );
         formData.append(
+          `books[${bIdx}][bookCopies][${cIdx}][source]`,
+          c.source || ""
+        );
+        formData.append(
+          `books[${bIdx}][bookCopies][${cIdx}][source_person]`,
+          c.source_person || ""
+        );
+        formData.append(
           `books[${bIdx}][bookCopies][${cIdx}][cataloging_note]`,
           book.cataloging_note || ""
         );
         formData.append(
           `books[${bIdx}][bookCopies][${cIdx}][internal_note]`,
-          book.internal_note || ""
+          c.internal_note || ""
         );
       });
     });
@@ -385,829 +407,843 @@ const BookForm: React.FC = () => {
   };
 
   return (
-    <div className="catalog-wrapper">
-      {/* Folder-style Tabs */}
-      <div className="tabs-outer-container">
-        <div className="tabs-container">
-          {allBooks.map((book, index) => (
-            <div
-              key={book.id}
-              className={`folder-tab ${activeTab === index ? "active" : ""}`}
-              onClick={() => setActiveTab(index)}
-            >
-              <span className="tab-text">
-                {book.title || `Book ${index + 1}`}
-              </span>
-              {allBooks.length > 1 && (
-                <button
-                  className="remove-tab-x"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeTab(index);
-                  }}
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
-
-          <button type="button" onClick={addNewTab} className="add-book-tab">
-            + Add Book
-          </button>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="book-form folder-content">
-        {/* ===== Catalog Record ===== */}
-        <fieldset>
-          <legend className="record text-white">CATALOG RECORD</legend>
-          {/* Identifiers */}
-          <fieldset>
-            <legend>Identifiers</legend>
-            <div className="flex-row" style={{ gap: "40px" }}>
-              {/* Left Column: existing input fields */}
-              <div className="flex-col" style={{ flex: 1, gap: "10px" }}>
-                <div
-                  className="flex-row"
-                  style={{ alignItems: "flex-start", gap: "15px" }}
-                >
-                  {/* Left Label & MARC Code */}
-                  <div
-                    className="flex-row"
-                    style={{ width: "160px", flexShrink: 0 }}
-                  >
-                    <label style={{ fontWeight: "bold" }}>
-                      {identifierMode}
-                    </label>
-                    <span
-                      className="catalog_number"
-                      style={{ marginLeft: "10px" }}
-                    >
-                      {identifierMode === "ISBN" ? "(020)" : "(022)"}
-                    </span>
-                  </div>
-
-                  {/* Center: Input Fields */}
-                  <div className="flex-row flex-grow" style={{ gap: "10px" }}>
-                    {identifierMode === "ISBN" ? (
-                      <>
-                        <div className="flex-col flex-grow">
-                          <input
-                            type="text"
-                            value={allBooks[activeTab]?.isbn_paperback || ""}
-                            onChange={(e) =>
-                              updateActiveBook("isbn_paperback", e.target.value)
-                            }
-                          />
-                          <span className="sub-label">
-                            <i>Paperback</i>
-                          </span>
-                        </div>
-                        <div className="flex-col flex-grow">
-                          <input
-                            type="text"
-                            value={allBooks[activeTab]?.isbn_hardcover || ""}
-                            onChange={(e) =>
-                              updateActiveBook("isbn_hardcover", e.target.value)
-                            }
-                          />
-                          <span className="sub-label">
-                            <i>Hardcover</i>
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex-col flex-grow">
-                        <input
-                          type="text"
-                          placeholder="Enter ISSN"
-                          value={allBooks[activeTab]?.issn || ""}
-                          onChange={(e) =>
-                            updateActiveBook("issn", e.target.value)
-                          }
-                        />
-                        <span className="sub-label">
-                          <i>International Standard Serial Number</i>
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right: The Professional Toggle Button */}
-                  <div
-                    className="flex-col"
-                    style={{ justifyContent: "center", height: "38px" }}
-                  >
-                    <button
-                      type="button"
-                      className="switch-mode-btn compact"
-                      onClick={() =>
-                        setIdentifierMode(
-                          identifierMode === "ISBN" ? "ISSN" : "ISBN"
-                        )
-                      }
-                      title={`Switch to ${
-                        identifierMode === "ISBN" ? "ISSN" : "ISBN"
-                      }`}
-                    >
-                      ⇄ Switch to {identifierMode === "ISBN" ? "ISSN" : "ISBN"}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex-row">
-                  <label>Dewey Decimal</label>
-                  <span className="catalog_number">(082)</span>
-                  <input
-                    type="text"
-                    value={allBooks[activeTab]?.deweyDecimal || ""}
-                    onChange={(e) =>
-                      updateActiveBook("deweyDecimal", e.target.value)
-                    }
-                  />
-                </div>
-                <div className="flex-row">
-                  <label>Author Number</label>
-                  <span className="catalog_number">(949)</span>
-                  <input
-                    type="text"
-                    value={allBooks[activeTab]?.authorNumber || ""}
-                    onChange={(e) =>
-                      updateActiveBook("authorNumber", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-
-              {/* Right Column: cover image input */}
-              <div className="cover-image-container">
-                <label className="cover-image-label">Cover Image</label>
-                <div
-                  className="cover-image-box"
-                  onClick={() =>
-                    document.getElementById(`coverInput-${activeTab}`)?.click()
-                  }
-                >
-                  {allBooks[activeTab]?.coverImage ? (
-                    <img
-                      src={URL.createObjectURL(
-                        allBooks[activeTab].coverImage as File
-                      )}
-                      alt="Preview"
-                    />
-                  ) : (
-                    <span className="cover-image-placeholder">Add Image</span>
-                  )}
+    <>
+      <div className="catalog-wrapper">
+        {/* Folder-style Tabs */}
+        <div className="tabs-outer-container" ref={tabsRef}>
+          <div className="tabs-container">
+            {allBooks.map((book, index) => (
+              <div
+                key={book.id}
+                className={`folder-tab ${activeTab === index ? "active" : ""}`}
+                onClick={() => setActiveTab(index)}
+              >
+                <span className="tab-text">
+                  {book.title || `Book ${index + 1}`}
+                </span>
+                {allBooks.length > 1 && (
                   <button
-                    type="button"
-                    className="cover-image-button"
+                    className="remove-tab-x"
                     onClick={(e) => {
                       e.stopPropagation();
-                      document.getElementById("coverInput")?.click();
+                      removeTab(index);
                     }}
                   >
-                    Choose File
+                    ×
                   </button>
-                  <input
-                    type="file"
-                    id="coverInput"
-                    className="cover-image-input"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files?.[0])
-                        updateActiveBook("coverImage", e.target.files[0]);
-                    }}
-                  />
-                </div>
+                )}
               </div>
-            </div>
-          </fieldset>
+            ))}
 
-          <hr />
+            <button type="button" onClick={addNewTab} className="add-book-tab">
+              + Add Book
+            </button>
+          </div>
+        </div>
 
-          {/* ===== Description ===== */}
+        <form onSubmit={handleSubmit} className="book-form folder-content">
+          {/* ===== Catalog Record ===== */}
           <fieldset>
-            <legend>Description</legend>
+            <legend className="record text-white">CATALOG RECORD</legend>
+            {/* Identifiers */}
+            <fieldset>
+              <legend>Identifiers</legend>
+              <div className="flex-row" style={{ gap: "40px" }}>
+                {/* Left Column: existing input fields */}
+                <div className="flex-col" style={{ flex: 1, gap: "10px" }}>
+                  <div
+                    className="flex-row"
+                    style={{ alignItems: "flex-start", gap: "15px" }}
+                  >
+                    {/* Left Label & MARC Code */}
+                    <div
+                      className="flex-row"
+                      style={{ width: "160px", flexShrink: 0 }}
+                    >
+                      <label style={{ fontWeight: "bold" }}>
+                        {identifierMode}
+                      </label>
+                      <span
+                        className="catalog_number"
+                        style={{ marginLeft: "10px" }}
+                      >
+                        {identifierMode === "ISBN" ? "(020)" : "(022)"}
+                      </span>
+                    </div>
 
-            {/* Top Rows: Title, Edition */}
-            <div className="flex-col" style={{ gap: "10px" }}>
-              <div className="flex-row">
-                <label>Title</label>
-                <span className="catalog_number">(245)</span>
-                <input
-                  type="text"
-                  value={allBooks[activeTab]?.title || ""}
-                  onChange={(e) => updateActiveBook("title", e.target.value)}
-                />
+                    {/* Center: Input Fields */}
+                    <div className="flex-row flex-grow" style={{ gap: "10px" }}>
+                      {identifierMode === "ISBN" ? (
+                        <>
+                          <div className="flex-col flex-grow">
+                            <input
+                              type="text"
+                              value={allBooks[activeTab]?.isbn_paperback || ""}
+                              onChange={(e) =>
+                                updateActiveBook(
+                                  "isbn_paperback",
+                                  e.target.value
+                                )
+                              }
+                            />
+                            <span className="sub-label">
+                              <i>Paperback</i>
+                            </span>
+                          </div>
+                          <div className="flex-col flex-grow">
+                            <input
+                              type="text"
+                              value={allBooks[activeTab]?.isbn_hardcover || ""}
+                              onChange={(e) =>
+                                updateActiveBook(
+                                  "isbn_hardcover",
+                                  e.target.value
+                                )
+                              }
+                            />
+                            <span className="sub-label">
+                              <i>Hardcover</i>
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex-col flex-grow">
+                          <input
+                            type="text"
+                            placeholder="Enter ISSN"
+                            value={allBooks[activeTab]?.issn || ""}
+                            onChange={(e) =>
+                              updateActiveBook("issn", e.target.value)
+                            }
+                          />
+                          <span className="sub-label">
+                            <i>International Standard Serial Number</i>
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: The Professional Toggle Button */}
+                    <div
+                      className="flex-col"
+                      style={{ justifyContent: "center", height: "38px" }}
+                    >
+                      <button
+                        type="button"
+                        className="switch-mode-btn compact"
+                        onClick={() =>
+                          setIdentifierMode(
+                            identifierMode === "ISBN" ? "ISSN" : "ISBN"
+                          )
+                        }
+                        title={`Switch to ${
+                          identifierMode === "ISBN" ? "ISSN" : "ISBN"
+                        }`}
+                      >
+                        ⇄ Switch to{" "}
+                        {identifierMode === "ISBN" ? "ISSN" : "ISBN"}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex-row">
+                    <label>Dewey Decimal</label>
+                    <span className="catalog_number">(082)</span>
+                    <input
+                      type="text"
+                      value={allBooks[activeTab]?.deweyDecimal || ""}
+                      onChange={(e) =>
+                        updateActiveBook("deweyDecimal", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="flex-row">
+                    <label>Author Number</label>
+                    <span className="catalog_number">(949)</span>
+                    <input
+                      type="text"
+                      value={allBooks[activeTab]?.authorNumber || ""}
+                      onChange={(e) =>
+                        updateActiveBook("authorNumber", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column: cover image input */}
+                <div className="cover-image-container">
+                  <label className="cover-image-label">Cover Image</label>
+                  <div
+                    className="cover-image-box"
+                    onClick={() =>
+                      document
+                        .getElementById(`coverInput-${activeTab}`)
+                        ?.click()
+                    }
+                  >
+                    {allBooks[activeTab]?.coverImage ? (
+                      <img
+                        src={URL.createObjectURL(
+                          allBooks[activeTab].coverImage as File
+                        )}
+                        alt="Preview"
+                      />
+                    ) : (
+                      <span className="cover-image-placeholder">Add Image</span>
+                    )}
+                    <button
+                      type="button"
+                      className="cover-image-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        document.getElementById("coverInput")?.click();
+                      }}
+                    >
+                      Choose File
+                    </button>
+                    <input
+                      type="file"
+                      id="coverInput"
+                      className="cover-image-input"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files?.[0])
+                          updateActiveBook("coverImage", e.target.files[0]);
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
+            </fieldset>
 
-              {/* Publication Row */}
-              <div className="flex-row">
-                <label>Publication</label>
-                <span className="catalog_number">(264)</span>
-                <div className="flex-col flex-grow">
-                  <input
-                    type="text"
-                    value={allBooks[activeTab]?.placeOfPublication || ""}
-                    onChange={(e) =>
-                      updateActiveBook("placeOfPublication", e.target.value)
-                    }
-                  />
-                  <span className="sub-label">
-                    <i>Place</i>
-                  </span>
-                </div>
-                <div className="flex-col flex-grow">
-                  <input
-                    type="text"
-                    value={allBooks[activeTab]?.publisher || ""}
-                    onChange={(e) =>
-                      updateActiveBook("publisher", e.target.value)
-                    }
-                  />
-                  <span className="sub-label">
-                    <i>Publisher</i>
-                  </span>
-                </div>
-                <div className="flex-col" style={{ width: "100px" }}>
-                  <input
-                    type="text"
-                    className="small"
-                    value={allBooks[activeTab]?.yearCopyright || ""}
-                    onChange={(e) =>
-                      updateActiveBook("yearCopyright", e.target.value)
-                    }
-                  />
-                  <span className="sub-label">
-                    <i>Year</i>
-                  </span>
-                </div>
-              </div>
-            </div>
+            <hr />
 
-            {/* Bottom Two-Column Layout: Left = Series, Pages; Right = Checklist */}
-            <div className="flex-row" style={{ gap: "40px" }}>
-              {/* Left Column */}
-              <div className="flex-col flex-grow" style={{ gap: "10px" }}>
+            {/* ===== Description ===== */}
+            <fieldset>
+              <legend>Description</legend>
+
+              {/* Top Rows: Title, Edition */}
+              <div className="flex-col" style={{ gap: "10px" }}>
                 <div className="flex-row">
-                  <label>Edition</label>
-                  <span className="catalog_number">(250)</span>
+                  <label>Title</label>
+                  <span className="catalog_number">(245)</span>
                   <input
                     type="text"
-                    className="small"
-                    value={allBooks[activeTab]?.edition || ""}
-                    onChange={(e) =>
-                      updateActiveBook("edition", e.target.value)
-                    }
+                    value={allBooks[activeTab]?.title || ""}
+                    onChange={(e) => updateActiveBook("title", e.target.value)}
                   />
                 </div>
+
+                {/* Publication Row */}
                 <div className="flex-row">
-                  <label>Series</label> {/* single main label for the row */}
-                  <span className="catalog_number">(400)</span>
+                  <label>Publication</label>
+                  <span className="catalog_number">(264)</span>
                   <div className="flex-col flex-grow">
                     <input
                       type="text"
-                      value={allBooks[activeTab]?.seriesName || ""}
+                      value={allBooks[activeTab]?.placeOfPublication || ""}
                       onChange={(e) =>
-                        updateActiveBook("seriesName", e.target.value)
+                        updateActiveBook("placeOfPublication", e.target.value)
                       }
                     />
                     <span className="sub-label">
-                      <i>Series Name</i>
+                      <i>Place</i>
+                    </span>
+                  </div>
+                  <div className="flex-col flex-grow">
+                    <input
+                      type="text"
+                      value={allBooks[activeTab]?.publisher || ""}
+                      onChange={(e) =>
+                        updateActiveBook("publisher", e.target.value)
+                      }
+                    />
+                    <span className="sub-label">
+                      <i>Publisher</i>
                     </span>
                   </div>
                   <div className="flex-col" style={{ width: "100px" }}>
                     <input
                       type="text"
                       className="small"
-                      value={allBooks[activeTab]?.volume || ""}
+                      value={allBooks[activeTab]?.yearCopyright || ""}
                       onChange={(e) =>
-                        updateActiveBook("volume", e.target.value)
+                        updateActiveBook("yearCopyright", e.target.value)
                       }
                     />
                     <span className="sub-label">
-                      <i>Volume</i>
+                      <i>Year</i>
                     </span>
                   </div>
                 </div>
+              </div>
 
+              {/* Bottom Two-Column Layout: Left = Series, Pages; Right = Checklist */}
+              <div className="flex-row" style={{ gap: "40px" }}>
+                {/* Left Column */}
+                <div className="flex-col flex-grow" style={{ gap: "10px" }}>
+                  <div className="flex-row">
+                    <label>Edition</label>
+                    <span className="catalog_number">(250)</span>
+                    <input
+                      type="text"
+                      className="small"
+                      value={allBooks[activeTab]?.edition || ""}
+                      onChange={(e) =>
+                        updateActiveBook("edition", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="flex-row">
+                    <label>Series</label> {/* single main label for the row */}
+                    <span className="catalog_number">(400)</span>
+                    <div className="flex-col flex-grow">
+                      <input
+                        type="text"
+                        value={allBooks[activeTab]?.seriesName || ""}
+                        onChange={(e) =>
+                          updateActiveBook("seriesName", e.target.value)
+                        }
+                      />
+                      <span className="sub-label">
+                        <i>Series Name</i>
+                      </span>
+                    </div>
+                    <div className="flex-col" style={{ width: "100px" }}>
+                      <input
+                        type="text"
+                        className="small"
+                        value={allBooks[activeTab]?.volume || ""}
+                        onChange={(e) =>
+                          updateActiveBook("volume", e.target.value)
+                        }
+                      />
+                      <span className="sub-label">
+                        <i>Volume</i>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex-row">
+                    <label>Number of Pages</label>
+                    <span className="catalog_number">(300)</span>
+                    <input
+                      type="text"
+                      className="small"
+                      value={allBooks[activeTab]?.numberOfPages || ""}
+                      onChange={(e) =>
+                        updateActiveBook("numberOfPages", e.target.value)
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Right Column: Checklist aligned to top of Series */}
+                <div className="right-column">
+                  <label>General Notes</label>
+                  <div className="checklist">
+                    <p>
+                      <input
+                        type="checkbox"
+                        className="book-checkbox"
+                        checked={allBooks[activeTab]?.includesIndex || false}
+                        onChange={() =>
+                          updateActiveBook(
+                            "includesIndex",
+                            !allBooks[activeTab].includesIndex
+                          )
+                        }
+                      />{" "}
+                      Includes Index
+                    </p>
+                    <p>
+                      <input
+                        type="checkbox"
+                        className="book-checkbox"
+                        checked={allBooks[activeTab]?.includesAppendix || false}
+                        onChange={() =>
+                          updateActiveBook(
+                            "includesAppendix",
+                            !allBooks[activeTab].includesAppendix
+                          )
+                        }
+                      />{" "}
+                      Includes Appendix
+                    </p>
+                    <p>
+                      <input
+                        type="checkbox"
+                        className="book-checkbox"
+                        checked={allBooks[activeTab]?.includesGlossary || false}
+                        onChange={() =>
+                          updateActiveBook(
+                            "includesGlossary",
+                            !allBooks[activeTab].includesGlossary
+                          )
+                        }
+                      />{" "}
+                      Includes Glossary
+                    </p>
+                    <p>
+                      <input
+                        type="checkbox"
+                        className="book-checkbox"
+                        checked={
+                          allBooks[activeTab]
+                            ?.includesBibliographicalReferences || false
+                        }
+                        onChange={() =>
+                          updateActiveBook(
+                            "includesBibliographicalReferences",
+                            !allBooks[activeTab]
+                              .includesBibliographicalReferences
+                          )
+                        }
+                      />{" "}
+                      Includes Bibliographical References
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+
+            <hr />
+
+            {/* Subjects */}
+            <fieldset>
+              <legend>Subjects</legend>
+              <div className="flex-col">
                 <div className="flex-row">
-                  <label>Number of Pages</label>
-                  <span className="catalog_number">(300)</span>
+                  <label>Person as Subject</label>
+                  <span className="catalog_number">(600)</span>
                   <input
                     type="text"
-                    className="small"
-                    value={allBooks[activeTab]?.numberOfPages || ""}
+                    value={allBooks[activeTab]?.personSubject || ""}
                     onChange={(e) =>
-                      updateActiveBook("numberOfPages", e.target.value)
+                      updateActiveBook("personSubject", e.target.value)
+                    }
+                  />
+                </div>
+
+                {topicalSubjects.map((subject, index) => (
+                  <div className="flex-row" key={index}>
+                    {index === 0 ? (
+                      <label>Topical Subject</label>
+                    ) : (
+                      <div style={{ width: "120px" }} />
+                    )}
+
+                    <span className="catalog_number">(650)</span>
+                    <input
+                      type="text"
+                      value={allBooks[activeTab].topicalSubjects[index] || ""} // Source directly from state
+                      onChange={(e) => {
+                        const newValue = e.target.value;
+
+                        // Create a shallow copy of the subjects array for the current book
+                        const currentSubjects = [
+                          ...allBooks[activeTab].topicalSubjects,
+                        ];
+
+                        // Update the specific index
+                        currentSubjects[index] = newValue;
+
+                        // Send the whole array back to your state handler
+                        updateActiveBook("topicalSubjects", currentSubjects);
+                      }}
+                    />
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  className="add-more"
+                  onClick={() => setTopicalSubjects([...topicalSubjects, ""])}
+                >
+                  Add More
+                </button>
+
+                <div className="flex-row">
+                  <label>Geographical Subject</label>
+                  <span className="catalog_number">(651)</span>
+                  <input
+                    type="text"
+                    value={allBooks[activeTab]?.geographicalSubject || ""}
+                    onChange={(e) =>
+                      updateActiveBook("geographicalSubject", e.target.value)
                     }
                   />
                 </div>
               </div>
+            </fieldset>
 
-              {/* Right Column: Checklist aligned to top of Series */}
-              <div className="right-column">
-                <label>General Notes</label>
-                <div className="checklist">
-                  <p>
-                    <input
-                      type="checkbox"
-                      className="book-checkbox"
-                      checked={allBooks[activeTab]?.includesIndex || false}
-                      onChange={() =>
-                        updateActiveBook(
-                          "includesIndex",
-                          !allBooks[activeTab].includesIndex
-                        )
-                      }
-                    />{" "}
-                    Includes Index
-                  </p>
-                  <p>
-                    <input
-                      type="checkbox"
-                      className="book-checkbox"
-                      checked={allBooks[activeTab]?.includesAppendix || false}
-                      onChange={() =>
-                        updateActiveBook(
-                          "includesAppendix",
-                          !allBooks[activeTab].includesAppendix
-                        )
-                      }
-                    />{" "}
-                    Includes Appendix
-                  </p>
-                  <p>
-                    <input
-                      type="checkbox"
-                      className="book-checkbox"
-                      checked={allBooks[activeTab]?.includesGlossary || false}
-                      onChange={() =>
-                        updateActiveBook(
-                          "includesGlossary",
-                          !allBooks[activeTab].includesGlossary
-                        )
-                      }
-                    />{" "}
-                    Includes Glossary
-                  </p>
-                  <p>
-                    <input
-                      type="checkbox"
-                      className="book-checkbox"
-                      checked={
-                        allBooks[activeTab]
-                          ?.includesBibliographicalReferences || false
-                      }
-                      onChange={() =>
-                        updateActiveBook(
-                          "includesBibliographicalReferences",
-                          !allBooks[activeTab].includesBibliographicalReferences
-                        )
-                      }
-                    />{" "}
-                    Includes Bibliographical References
-                  </p>
-                </div>
-              </div>
-            </div>
-          </fieldset>
+            <hr />
 
-          <hr />
-
-          {/* Subjects */}
-          <fieldset>
-            <legend>Subjects</legend>
-            <div className="flex-col">
-              <div className="flex-row">
-                <label>Person as Subject</label>
-                <span className="catalog_number">(600)</span>
-                <input
-                  type="text"
-                  value={allBooks[activeTab]?.personSubject || ""}
-                  onChange={(e) =>
-                    updateActiveBook("personSubject", e.target.value)
-                  }
-                />
-              </div>
-
-              {topicalSubjects.map((subject, index) => (
-                <div className="flex-row" key={index}>
-                  {index === 0 ? (
-                    <label>Topical Subject</label>
-                  ) : (
-                    <div style={{ width: "120px" }} />
-                  )}
-
-                  <span className="catalog_number">(650)</span>
+            {/* Contributors */}
+            <fieldset>
+              <legend>Contributors</legend>
+              <div className="flex-col">
+                <div className="flex-row">
+                  <label>Author</label>
+                  <span className="catalog_number">(100)</span>
                   <input
                     type="text"
-                    value={allBooks[activeTab].topicalSubjects[index] || ""} // Source directly from state
-                    onChange={(e) => {
-                      const newValue = e.target.value;
-
-                      // Create a shallow copy of the subjects array for the current book
-                      const currentSubjects = [
-                        ...allBooks[activeTab].topicalSubjects,
-                      ];
-
-                      // Update the specific index
-                      currentSubjects[index] = newValue;
-
-                      // Send the whole array back to your state handler
-                      updateActiveBook("topicalSubjects", currentSubjects);
-                    }}
+                    value={allBooks[activeTab]?.author || ""}
+                    onChange={(e) => updateActiveBook("author", e.target.value)}
                   />
                 </div>
-              ))}
 
-              <button
-                type="button"
-                className="add-more"
-                onClick={() => setTopicalSubjects([...topicalSubjects, ""])}
-              >
-                Add More
-              </button>
-
-              <div className="flex-row">
-                <label>Geographical Subject</label>
-                <span className="catalog_number">(651)</span>
-                <input
-                  type="text"
-                  value={allBooks[activeTab]?.geographicalSubject || ""}
-                  onChange={(e) =>
-                    updateActiveBook("geographicalSubject", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-          </fieldset>
-
-          <hr />
-
-          {/* Contributors */}
-          <fieldset>
-            <legend>Contributors</legend>
-            <div className="flex-col">
-              <div className="flex-row">
-                <label>Author</label>
-                <span className="catalog_number">(100)</span>
-                <input
-                  type="text"
-                  value={allBooks[activeTab]?.author || ""}
-                  onChange={(e) => updateActiveBook("author", e.target.value)}
-                />
-              </div>
-
-              <div className="flex-row">
-                <label>Editor</label>
-                <span className="catalog_number">(700)</span>
-                <input
-                  type="text"
-                  value={allBooks[activeTab]?.editor || ""}
-                  onChange={(e) => updateActiveBook("editor", e.target.value)}
-                />
-              </div>
-
-              {otherAuthorsEditors.map((person, index) => (
-                <div className="flex-row" key={index}>
-                  {index === 0 ? (
-                    <label>Other Author/Editor</label>
-                  ) : (
-                    <div style={{ width: "120px" }} />
-                  )}
+                <div className="flex-row">
+                  <label>Editor</label>
                   <span className="catalog_number">(700)</span>
                   <input
                     type="text"
-                    value={person}
-                    onChange={(e) =>
-                      handleOtherAuthorEditorChange(index, e.target.value)
-                    }
+                    value={allBooks[activeTab]?.editor || ""}
+                    onChange={(e) => updateActiveBook("editor", e.target.value)}
                   />
                 </div>
-              ))}
 
-              <button
-                type="button"
-                className="add-more"
-                onClick={() =>
-                  setOtherAuthorsEditors([...otherAuthorsEditors, ""])
-                }
-              >
-                + Add More
-              </button>
-            </div>
+                {otherAuthorsEditors.map((person, index) => (
+                  <div className="flex-row" key={index}>
+                    {index === 0 ? (
+                      <label>Other Author/Editor</label>
+                    ) : (
+                      <div style={{ width: "120px" }} />
+                    )}
+                    <span className="catalog_number">(700)</span>
+                    <input
+                      type="text"
+                      value={person}
+                      onChange={(e) =>
+                        handleOtherAuthorEditorChange(index, e.target.value)
+                      }
+                    />
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  className="add-more"
+                  onClick={() =>
+                    setOtherAuthorsEditors([...otherAuthorsEditors, ""])
+                  }
+                >
+                  + Add More
+                </button>
+              </div>
+            </fieldset>
           </fieldset>
-        </fieldset>
 
-        {/* ===== Accession Record ===== */}
-        <fieldset>
-          <legend className="record text-white mb-4">ACCESSION RECORD</legend>
+          {/* ===== Accession Record ===== */}
+          <fieldset>
+            <legend className="record text-white mb-4">ACCESSION RECORD</legend>
 
-          {/* Row 1: Section and Material Type */}
-          <div className="flex-row" style={{ gap: "20px" }}>
-            <div className="flex-row flex-grow">
-              <label>Section</label>
-              <span className="catalog_number">(245)</span>
-              <select
-                value={allBooks[activeTab]?.section || ""}
-                onChange={(e) => updateActiveBook("section", e.target.value)}
-              >
-                {sections.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex-row flex-grow">
-              <label>Material Type</label>
-              <span className="catalog_number">(245)</span>
-              <select
-                value={allBooks[activeTab]?.materialType || ""}
-                onChange={(e) =>
-                  updateActiveBook("materialType", e.target.value)
-                }
-              >
-                {materialTypes.map((m) => (
-                  <option
-                    key={typeof m === "object" ? m.id : m}
-                    value={typeof m === "object" ? m.id : m}
-                  >
-                    {typeof m === "object" ? m.name : m}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Row 2: Source and Copies */}
-          <div className="flex-row" style={{ gap: "20px" }}>
-            <div className="flex-row flex-grow">
-              <label>Source of Acquisition</label>
-              <span className="catalog_number">(245)</span>
-              <select
-                value={allBooks[activeTab]?.source || ""}
-                onChange={(e) => updateActiveBook("source", e.target.value)}
-              >
-                {sources.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex-row flex-grow">
-              <label>Price</label>
-              <span className="catalog_number">(020)</span>
-              <input
-                type="text"
-                placeholder="₱0.00"
-                value={allBooks[activeTab]?.price || ""}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^\d*\.?\d*$/.test(val)) {
-                    updateActiveBook("price", val);
-                  }
-                }}
-                onBlur={() => {
-                  const currentPrice = allBooks[activeTab]?.price || "";
-                  const parsed = parseFloat(currentPrice.toString());
-                  if (!isNaN(parsed)) {
-                    updateActiveBook("price", parsed.toFixed(2));
-                  } else {
-                    updateActiveBook("price", "");
-                  }
-                }}
-              />
-            </div>
-          </div>
-
-          <hr className="mt-0" />
-
-          {/* Row 3: Funding Source and Copy Number */}
-          {allBooks[activeTab]?.bookCopies?.map((c, index) => (
-            <div
-              key={c.copy_number}
-              className="flex-row"
-              style={{ gap: "20px", marginTop: "10px" }}
-            >
+            {/* Row 1: Shared Book Info */}
+            <div className="flex-row">
               <div className="flex-row flex-grow">
-                <label>Copy Number</label>
-                <span className="catalog_number">(245)</span>
-                <input
-                  type="text"
-                  value={c.copy_number}
-                  readOnly
-                  className="text-muted"
-                />
-              </div>
-
-              <div className="flex-row flex-grow">
-                <label>Barcode</label>
-                <span className="catalog_number">(245)</span>
-                <input
-                  type="text"
-                  value={c.barcode}
-                  readOnly
-                  className="text-muted"
-                />
-              </div>
-
-              <div className="flex-row flex-grow">
-                <label>Condition</label>
+                <label>Section</label>
                 <span className="catalog_number">(245)</span>
                 <select
-                  value={c.condition}
-                  onChange={(e) => {
-                    const updatedCopies = [...allBooks[activeTab].bookCopies];
-                    updatedCopies[index].condition = e.target.value;
-                    updateActiveBook("bookCopies", updatedCopies);
-                  }}
+                  value={allBooks[activeTab]?.section || ""}
+                  onChange={(e) => updateActiveBook("section", e.target.value)}
                 >
-                  {conditions.map((cond) => (
-                    <option key={cond} value={cond}>
-                      {cond}
+                  {sections.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
-          ))}
 
-          {/* Place this right after the bookCopies.map() closing bracket */}
-          <div className="stepper-wrapper">
-            <div className="stepper-label">
-              Number of Copies <span className="catalog_number">(245)</span>
-            </div>
-            <div className="stepper-container">
-              <button
-                type="button"
-                className="stepper-btn minus"
-                onClick={() =>
-                  updateActiveBook(
-                    "copies",
-                    Math.max(1, allBooks[activeTab].copies - 1)
-                  )
-                }
-              >
-                −
-              </button>
-
-              <input
-                type="number"
-                className="stepper-input"
-                min={1}
-                value={allBooks[activeTab]?.copies || 1}
-                onChange={(e) =>
-                  updateActiveBook(
-                    "copies",
-                    Math.max(1, Number(e.target.value))
-                  )
-                }
-              />
-
-              <button
-                type="button"
-                className="stepper-btn plus"
-                onClick={() =>
-                  updateActiveBook("copies", allBooks[activeTab].copies + 1)
-                }
-              >
-                +
-              </button>
-            </div>
-          </div>
-
-          <hr className="mt-0" />
-
-          {/* Row 4: Funding Source */}
-          <div className="flex-row flex-grow">
-            <label>Funding Source</label>
-            <span className="catalog_number">(245)</span>
-            <input
-              type="text"
-              value={allBooks[activeTab]?.sourcePerson || ""}
-              onChange={(e) => updateActiveBook("sourcePerson", e.target.value)}
-            />
-          </div>
-
-          {/* Row 5: Cataloging Note */}
-          <div className="flex-row flex-grow">
-            <label>Cataloging Note</label>
-            <span className="catalog_number">(910)</span>
-            <textarea
-              value={allBooks[activeTab]?.cataloging_note || ""}
-              onChange={(e) =>
-                updateActiveBook("cataloging_note", e.target.value)
-              }
-            />
-          </div>
-
-          {/* Row 6: Internal Note */}
-          <div className="flex-row flex-grow">
-            <label>Internal Note</label>
-            <span className="catalog_number">(245)</span>
-            <textarea
-              value={allBooks[activeTab]?.internal_note || ""}
-              onChange={(e) => updateActiveBook("internal_note", e.target.value)}
-            />
-          </div>
-        </fieldset>
-
-        <div className="form-actions">
-          <button
-            type="button"
-            className="cancel-btn"
-            onClick={() => {
-              const role = localStorage.getItem("role")?.toLowerCase();
-              navigate(`/${role}/cataloging`);
-            }}
-            disabled={loading}
-          >
-            Cancel
-          </button>
-          <button type="submit" className="submit-btn" disabled={loading}>
-            {loading ? (
-              <>
-                <span className="spinner-tiny"></span> Saving...
-              </>
-            ) : allBooks.length > 1 ? (
-              `Save All (${allBooks.length}) Books`
-            ) : (
-              "Save Book"
-            )}
-          </button>
-        </div>
-      </form>
-
-      {showModal && (
-        <MessageModal
-          type={modalType}
-          message={modalMessage}
-          onClose={() => setShowModal(false)}
-        />
-      )}
-
-      {/* ===== Barcode Modal ===== */}
-      {showBarcodeModal && (
-        <div className="modal-overlay">
-          <div className="modal-box">
-            {/* Close button */}
-            <button
-              onClick={() => setShowBarcodeModal(false)}
-              className="modal-close-btn"
-            >
-              &times;
-            </button>
-
-            <h2 className="text-xl font-semibold mb-4">Generated Barcodes</h2>
-
-            <div id="printable-barcodes">
-              {allBooks.flatMap((book) =>
-                book.bookCopies.map((c) => (
-                  <div
-                    key={`${book.id}-${c.copy_number}`}
-                    className="barcode-item"
-                  >
-                    <div className="barcode-text">
-                      {book.title.substring(0, 25) || "Untitled"}
-                      {book.title.length > 25 ? "..." : ""} <br />
-                      Copy: {c.copy_number}
-                    </div>
-                    <Barcode value={c.barcode} width={2} height={50} />
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="form-actions no-print">
-              <button
-                onClick={() => {
-                  setShowBarcodeModal(false);
-
-                  // Role-based redirect
-                  const role = localStorage.getItem("role")?.toLowerCase();
-                  if (role === "admin") {
-                    navigate("/admin/cataloging");
-                  } else if (role === "staff") {
-                    navigate("/staff/cataloging");
+              <div className="flex-row flex-grow">
+                <label>Material Type</label>
+                <span className="catalog_number">(245)</span>
+                <select
+                  value={allBooks[activeTab]?.materialType || ""}
+                  onChange={(e) =>
+                    updateActiveBook("materialType", e.target.value)
                   }
-                }}
-                className="cancel-btn"
+                >
+                  {materialTypes.map((m) => (
+                    <option
+                      key={typeof m === "object" ? m.id : m}
+                      value={typeof m === "object" ? m.id : m}
+                    >
+                      {typeof m === "object" ? m.name : m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex-row flex-grow">
+                <label>Price</label>
+                <span className="catalog_number">(020)</span>
+                <input
+                  type="text"
+                  placeholder="₱0.00"
+                  value={allBooks[activeTab]?.price || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "" || /^\d*\.?\d*$/.test(val)) {
+                      updateActiveBook("price", val);
+                    }
+                  }}
+                  onBlur={() => {
+                    const currentPrice = allBooks[activeTab]?.price || "";
+
+                    const parsed = parseFloat(currentPrice.toString());
+
+                    if (!isNaN(parsed)) {
+                      updateActiveBook("price", parsed.toFixed(2));
+                    } else {
+                      updateActiveBook("price", "");
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <hr />
+
+            {/* INDIVIDUAL COPY CARDS */}
+            {allBooks[activeTab]?.bookCopies?.map((c, index) => (
+              <div key={c.copy_number} className="copy-card">
+                <div className="flex-row">
+                  <div className="flex-row flex-grow">
+                    <label>Copy #{c.copy_number}</label>
+                    <input
+                      type="text"
+                      value={c.barcode}
+                      readOnly
+                      className="text-muted"
+                    />
+                  </div>
+
+                  <div className="flex-row flex-grow">
+                    <label>Condition</label>
+                    <select
+                      value={c.condition}
+                      onChange={(e) => {
+                        const updatedCopies = [
+                          ...allBooks[activeTab].bookCopies,
+                        ];
+                        updatedCopies[index].condition = e.target.value;
+                        updateActiveBook("bookCopies", updatedCopies);
+                      }}
+                    >
+                      {conditions.map((cond) => (
+                        <option key={cond} value={cond}>
+                          {cond}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex-row">
+                  <div className="flex-row flex-grow">
+                    <label>Source</label>
+                    <select
+                      value={c.source || ""}
+                      onChange={(e) => {
+                        const updatedCopies = [
+                          ...allBooks[activeTab].bookCopies,
+                        ];
+                        updatedCopies[index].source = e.target.value;
+                        updateActiveBook("bookCopies", updatedCopies);
+                      }}
+                    >
+                      {sources.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex-row flex-grow">
+                    <label>Funding Source</label>
+                    <input
+                      type="text"
+                      value={c.source_person || ""}
+                      onChange={(e) => {
+                        const updatedCopies = [
+                          ...allBooks[activeTab].bookCopies,
+                        ];
+                        updatedCopies[index].source_person = e.target.value;
+                        updateActiveBook("bookCopies", updatedCopies);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Internal Note moved here for specific damage/copy notes */}
+                <div className="flex-row flex-grow">
+                  <label>Internal Note</label>
+                  <textarea
+                    value={c.internal_note || ""}
+                    onChange={(e) => {
+                      const updatedCopies = [...allBooks[activeTab].bookCopies];
+                      updatedCopies[index].internal_note = e.target.value;
+                      updateActiveBook("bookCopies", updatedCopies);
+                    }}
+                    placeholder="e.g. Torn cover, missing page 5..."
+                  />
+                </div>
+              </div>
+            ))}
+
+            {/* Stepper for Copies */}
+            <div className="stepper-wrapper">
+              <div className="stepper-label">Number of Copies</div>
+              <div className="stepper-container">
+                <button
+                  type="button"
+                  className="stepper-btn"
+                  onClick={() =>
+                    updateActiveBook(
+                      "copies",
+                      Math.max(1, allBooks[activeTab].copies - 1)
+                    )
+                  }
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  className="stepper-input"
+                  value={allBooks[activeTab]?.copies || 1}
+                  readOnly
+                />
+                <button
+                  type="button"
+                  className="stepper-btn"
+                  onClick={() =>
+                    updateActiveBook("copies", allBooks[activeTab].copies + 1)
+                  }
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <hr />
+
+            {/* Row 5: Global Cataloging Note */}
+            <div className="flex-row flex-grow">
+              <label>Cataloging Note</label>
+              <span className="catalog_number">(910)</span>
+              <textarea
+                value={allBooks[activeTab]?.cataloging_note || ""}
+                onChange={(e) =>
+                  updateActiveBook("cataloging_note", e.target.value)
+                }
+                placeholder="General notes about the book edition..."
+              />
+            </div>
+          </fieldset>
+
+          <div className="form-actions">
+            <button
+              type="button"
+              className="cancel-btn"
+              onClick={() => {
+                const role = localStorage.getItem("role")?.toLowerCase();
+                navigate(`/${role}/cataloging`);
+              }}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button type="submit" className="submit-btn" disabled={loading}>
+              {loading ? (
+                <>
+                  <span className="spinner-tiny"></span> Saving...
+                </>
+              ) : allBooks.length > 1 ? (
+                `Save All (${allBooks.length}) Books`
+              ) : (
+                "Save Book"
+              )}
+            </button>
+          </div>
+        </form>
+
+        {showModal && (
+          <MessageModal
+            type={modalType}
+            message={modalMessage}
+            onClose={() => setShowModal(false)}
+          />
+        )}
+
+        {/* ===== Barcode Modal ===== */}
+        {showBarcodeModal && (
+          <div className="modal-overlay">
+            <div className="modal-box">
+              {/* Close button */}
+              <button
+                onClick={() => setShowBarcodeModal(false)}
+                className="modal-close-btn"
               >
-                Close
+                &times;
               </button>
-              <button onClick={() => window.print()} className="submit-btn">
-                Print All
-              </button>
+
+              <h2 className="text-xl font-semibold mb-4">Generated Barcodes</h2>
+
+              <div id="printable-barcodes">
+                {allBooks.flatMap((book) =>
+                  book.bookCopies.map((c) => (
+                    <div
+                      key={`${book.id}-${c.copy_number}`}
+                      className="barcode-item"
+                    >
+                      <div className="barcode-text">
+                        {book.title.substring(0, 25) || "Untitled"}
+                        {book.title.length > 25 ? "..." : ""} <br />
+                        Copy: {c.copy_number}
+                      </div>
+                      <Barcode value={c.barcode} width={2} height={50} />
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="form-actions no-print">
+                <button
+                  onClick={() => {
+                    setShowBarcodeModal(false);
+
+                    // Role-based redirect
+                    const role = localStorage.getItem("role")?.toLowerCase();
+                    if (role === "admin") {
+                      navigate("/admin/cataloging");
+                    } else if (role === "staff") {
+                      navigate("/staff/cataloging");
+                    }
+                  }}
+                  className="cancel-btn"
+                >
+                  Close
+                </button>
+                <button onClick={() => window.print()} className="submit-btn">
+                  Print All
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+      </div>
+      {showTopBtn && (
+        <button
+          className="back-to-top"
+          onClick={() => {
+            tabsRef.current?.scrollIntoView({ behavior: "smooth" });
+          }}
+        >
+          ↑ Add More
+        </button>
       )}
-    </div>
+    </>
   );
 };
 

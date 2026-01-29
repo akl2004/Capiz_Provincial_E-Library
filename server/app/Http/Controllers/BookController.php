@@ -49,7 +49,6 @@ class BookController extends Controller
             'books.*.deweyDecimal' => 'required|string',
             'books.*.author_number' => 'nullable|string',
             'books.*.price' => 'nullable|numeric',
-            'books.*.source' => 'required|in:Purchased,Donation,Exchange,Legal Deposit,Other',
             'books.*.source_person' => 'nullable|string',
             'books.*.copies' => 'required|integer|min:1',
             'books.*.cover_image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
@@ -59,7 +58,9 @@ class BookController extends Controller
             'books.*.bookCopies.*.condition' => 'required|string',
             'books.*.bookCopies.*.copy_number' => 'required|integer',
             'books.*.bookCopies.*.price' => 'nullable',
+            'books.*.bookCopies.*.source' => 'required|in:Purchased,Donation,Exchange,Legal Deposit,Other',
             'books.*.bookCopies.*.source_person' => 'nullable|string',
+            'books.*.bookCopies.*.internal_note' => 'nullable|string',
         ]);
 
         $savedBooks = [];
@@ -142,10 +143,10 @@ class BookController extends Controller
                         'price'            => $copyData['price'] ?? $bookData['price'],
                         'source'           => $copyData['source'] ?? $bookData['source'],
                         'source_person'    => $copyData['source_person'] ?? $bookData['source_person'] ?? null,
+                        'internal_note'    => $copyData['internal_note'] ?? null,
                         'material_type_id' => $copyData['material_type'] ?? $bookData['materialType'],
                         'binding'          => $binding,
                         'cataloging_note'  => $copyData['cataloging_note'] ?? $bookData['cataloging_note'] ?? null,
-                        'internal_note'    => $copyData['internal_note'] ?? $bookData['internal_note'] ?? null,
                     ]);
                 }
 
@@ -234,11 +235,7 @@ class BookController extends Controller
             ];
 
             if ($circulation) {
-                $dueDate = $circulation->due_date instanceof Carbon
-                    ? $circulation->due_date
-                    : Carbon::parse($circulation->due_date);
-                $now = now();
-                $overdueBy = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
+                $overdueBy = $this->calculateOverdueDays($circulation->due_date, now());
 
                 return array_merge($data, [
                     'id' => $copy->id,
@@ -342,6 +339,40 @@ class BookController extends Controller
     }
 
 
+   // Add $bookId as the second parameter
+    public function updateCopy(Request $request, $bookId, $id)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'condition'     => 'sometimes|required|string',
+            'internal_note' => 'nullable|string',
+            'price'         => 'nullable|numeric',
+        ]);
+
+        // The $id here will now correctly refer to the Copy ID (e.g., 26)
+        $copy = BookCopy::with('book')->find($id);
+
+        if (!$copy) {
+            return response()->json(['message' => 'Book copy not found'], 404);
+        }
+
+        $copy->update($validated);
+
+        $this->logActivity(
+            'Update Copy',
+            "Updated copy {$copy->barcode} of book: {$copy->book->title}",
+            $user,
+            'Inventory'
+        );
+
+        return response()->json([
+            'message' => 'Copy updated successfully',
+            'data' => $copy
+        ]);
+    }
+
+
 
     public function addCopy(Request $request, $id)
     {
@@ -425,6 +456,41 @@ class BookController extends Controller
             'module' => $module,
             'action' => $action,
             'description' => $description,
+        ]);
+    }
+
+
+    /**
+     * Private helper to calculate overdue days excluding weekends.
+     */
+    private function calculateOverdueDays($dueDate, $comparisonDate)
+    {
+        $due = Carbon::parse($dueDate)->startOfDay();
+        $comp = Carbon::parse($comparisonDate)->startOfDay();
+
+        if ($comp->lte($due)) {
+            return 0;
+        }
+
+        // diffInDaysFiltered counts only days where the callback returns true
+        return $due->diffInDaysFiltered(function (Carbon $date) {
+            return !$date->isWeekend();
+        }, $comp);
+    }
+
+    public function getLatestAccession()
+    {
+        $lastCopy = \App\Models\BookCopy::withTrashed()
+            ->orderByRaw('CAST(accession_number AS UNSIGNED) DESC')
+            ->first();
+        
+        // If table is totally empty, start at 0
+        $lastNumber = $lastCopy ? (int)$lastCopy->accession_number : 0;
+        
+        $nextNumber = $lastNumber + 1;
+
+        return response()->json([
+            'next_accession' => str_pad($nextNumber, 5, '0', STR_PAD_LEFT)
         ]);
     }
 

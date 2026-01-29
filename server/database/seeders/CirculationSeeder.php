@@ -1,160 +1,111 @@
 <?php
 
-// namespace Database\Seeders;
+namespace Database\Seeders;
 
-// use Illuminate\Database\Seeder;
-// use App\Models\Circulation;
-// use App\Models\BookCopy;
-// use App\Models\Patron;
-// use App\Models\Book;
-// use App\Models\LibrarySetting;
-// use Carbon\Carbon;
+use App\Models\Circulation;
+use App\Models\Patron;
+use App\Models\BookCopy;
+use App\Models\LibrarySetting;
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Carbon;
 
-// class CirculationSeeder extends Seeder
-// {
-//     public function run(): void
-//     {
-//         $finePerDay = (int) LibrarySetting::getValue('fine_per_day', 5);
+class CirculationSeeder extends Seeder
+{
+    public function run()
+    {
+        // 1. Get Dynamic Settings
+        $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
+        $processingFee = (float) LibrarySetting::getValue('lost_book_processing_fee', 50);
+        $loanDays = (int) LibrarySetting::getValue('default_loan_days', 5);
+        $missingThreshold = (int) LibrarySetting::getValue('missing_book_threshold_days', 365);
+        
+        // 2. Prerequisites
+        $patron = Patron::first() ?? Patron::factory()->create();
+        $staff = User::first() ?? User::factory()->create();
 
-//         $patron1 = Patron::firstOrCreate(
-//             ['patron_id' => 'P001'],
-//             [
-//                 'first_name'  => 'Juan',
-//                 'middle_name' => 'S.',
-//                 'last_name'   => 'Dela Cruz',
-//                 'email'       => 'juan@example.com',
-//                 'city'        => 'Mambusao',
-//                 'province'    => 'Capiz',
-//                 'barangay'    => 'Poblacion Proper',
-//                 'number'      => '09171234567',
-//             ]
-//         );
+        // --- SECTION 1: OVERDUE RECORD ---
+        $overdueCopy = BookCopy::where('status', 'Available')->first() ?? BookCopy::factory()->create();
+        $overdueCopy->update(['status' => 'On Loan']);
+        $issueDate1 = now()->subDays(15);
+        $dueDate1 = $issueDate1->copy()->addWeekdays($loanDays);
+        $overdueDays1 = $this->calculateOverdueDays($dueDate1, now());
+        
+        Circulation::create([
+            'book_copy_id' => $overdueCopy->id,
+            'patron_id'    => $patron->id,
+            'user_id'      => $staff->id,
+            'issue_date'   => $issueDate1,
+            'due_date'     => $dueDate1,
+            'status'       => 'Overdue',
+            'overdue_by'   => $overdueDays1,
+            'fine'         => $overdueDays1 * $fineRate,
+        ]);
 
-//         $patron2 = Patron::firstOrCreate(
-//             ['patron_id' => 'P002'],
-//             [
-//                 'first_name'  => 'Maria',
-//                 'middle_name' => 'L.',
-//                 'last_name'   => 'Santos',
-//                 'email'       => 'maria@example.com',
-//                 'city'        => 'Roxas City',
-//                 'province'    => 'Capiz',
-//                 'barangay'    => 'Lawa-an',
-//                 'number'      => '09987654321',
-//             ]
-//         );
+        // --- SECTION 2: RETURNED LATE RECORD ---
+        $historyCopy = BookCopy::where('status', 'Available')->first() ?? BookCopy::factory()->create();
+        $issueDate2 = now()->subDays(25);
+        $dueDate2 = $issueDate2->copy()->addWeekdays($loanDays);
+        $returnDate = now()->subDays(10);
+        $lateDays = $this->calculateOverdueDays($dueDate2, $returnDate);
 
-//         $patron3 = Patron::firstOrCreate(
-//             ['patron_id' => 'P003'],
-//             [
-//                 'first_name'  => 'Charlie',
-//                 'last_name'   => 'Brown',
-//                 'email'       => 'charlie@example.com',
-//                 'city'        => 'Panay',
-//                 'province'    => 'Capiz',
-//                 'barangay'    => 'Ilaya',
-//                 'number'      => '09333333333',
-//             ]
-//         );
+        Circulation::create([
+            'book_copy_id' => $historyCopy->id,
+            'patron_id'    => $patron->id,
+            'user_id'      => $staff->id,
+            'issue_date'   => $issueDate2,
+            'due_date'     => $dueDate2,
+            'date_returned'=> $returnDate,
+            'status'       => 'Returned Late',
+            'overdue_by'   => $lateDays,
+            'fine'         => $lateDays * $fineRate,
+            'is_paid'      => true
+        ]);
 
-//         $book = Book::firstOrCreate(
-//             ['title' => 'Introduction to AI'],
-//             [
-//                 'author'        => 'John McCarthy',
-//                 'call_number'   => "GC\n006.3\nM123\n1999",
-//                 'dewey_decimal' => '006.3',
-//                 'author_number' => 'M123',
-//                 'section'       => 'Gen. Circulation',
-//                 'copyright'     => '1999'
-//             ]
-//         );
+        // --- SECTION 3: LOST RECORD ---
+        $lostCopy = BookCopy::where('status', 'Available')->first() ?? BookCopy::factory()->create();
+        $lostCopy->update(['status' => 'Lost']);
+        $issueDate3 = now()->subDays(30);
+        $dueDate3 = $issueDate3->copy()->addWeekdays($loanDays);
 
-//         $lastCopy = BookCopy::orderBy('id', 'desc')->first();
-//         $startAccession = $lastCopy ? (int) $lastCopy->accession_number : 0;
+        Circulation::create([
+            'book_copy_id'    => $lostCopy->id,
+            'patron_id'       => $patron->id,
+            'user_id'         => $staff->id,
+            'issue_date'      => $issueDate3,
+            'due_date'        => $dueDate3,
+            'status'          => 'Lost',
+            'lost_resolution' => 'Replacement',
+            'fine'            => (float)($lostCopy->price ?? 0) + $processingFee,
+        ]);
 
-//         $numCopies = 3;
+        // --- SECTION 4: MISSING RECORD (Way past overdue) ---
+        $missingCopy = BookCopy::where('status', 'Available')->first() ?? BookCopy::factory()->create();
+        
+        // We set the issue date way back (Threshold + 30 days)
+        $issueDate4 = now()->subDays($missingThreshold + 30);
+        $dueDate4 = $issueDate4->copy()->addWeekdays($loanDays);
+        
+        // According to your controller: fine = missingThreshold * fineRate
+        Circulation::create([
+            'book_copy_id' => $missingCopy->id,
+            'patron_id'    => $patron->id,
+            'user_id'      => $staff->id,
+            'issue_date'   => $issueDate4,
+            'due_date'     => $dueDate4,
+            'status'       => 'Missing',
+            'overdue_by'   => $this->calculateOverdueDays($dueDate4, now()),
+            'fine'         => $missingThreshold * $fineRate, 
+        ]);
+        $missingCopy->update(['status' => 'Missing']);
+    }
 
-//         for ($i = 1; $i <= $numCopies; $i++) {
-//             $accessionNumber = str_pad($startAccession + $i, 5, '0', STR_PAD_LEFT);
-//             $barcode = 'BC' . str_pad((string) (time() + $i), 6, '0', STR_PAD_LEFT);
-
-//             BookCopy::firstOrCreate(
-//                 ['barcode' => $barcode],
-//                 [
-//                     'book_id'          => $book->id,
-//                     'copy_number'      => $i,
-//                     'accession_number' => $accessionNumber,
-//                     'status'           => 'Available',
-//                     'material_type'    => 'Book',
-//                     'source'           => 'Donation',
-//                     'location_of_book' => 'Main Library Shelf A1',
-//                 ]
-//             );
-//         }
-
-//         $copies = BookCopy::where('book_id', $book->id)->orderBy('id')->take(3)->get();
-
-//         $records = [
-//             [
-//                 'patron' => $patron1,
-//                 'copy' => $copies[0] ?? null,
-//                 'status' => 'Borrowed',
-//                 'issue_days_ago' => 5,
-//                 'loan_days' => 7
-//             ],
-//             [
-//                 'patron' => $patron2,
-//                 'copy' => $copies[1] ?? null,
-//                 'status' => 'Returned',
-//                 'issue_days_ago' => 10,
-//                 'loan_days' => 5
-//             ],
-//             [
-//                 'patron' => $patron3,
-//                 'copy' => $copies[2] ?? null,
-//                 'status' => 'Borrowed',
-//                 'issue_days_ago' => 14,
-//                 'loan_days' => 7
-//             ],
-//         ];
-
-//         foreach ($records as $entry) {
-//             $patron = $entry['patron'];
-//             $copy = $entry['copy'];
-//             if (!$copy) continue;
-
-//             $issueDate = Carbon::now()->subDays($entry['issue_days_ago']);
-//             $dueDate = $issueDate->copy()->addDays($entry['loan_days']);
-//             $now = Carbon::now();
-
-//             $dateReturned = null;
-//             $overdueBy = 0;
-//             $status = $entry['status'];
-
-//             if ($entry['status'] === 'Returned') {
-//                 $dateReturned = $dueDate->copy(); 
-//                 $status = 'Returned';
-//             } else {
-//                 if ($now->greaterThan($dueDate)) {
-//                     $overdueBy = $dueDate->diffInDays($now);
-//                     $status = 'Overdue';
-//                 }
-//             }
-
-//             $fine = $overdueBy * $finePerDay;
-
-//             Circulation::create([
-//                 'book_copy_id'  => $copy->id,
-//                 'patron_id'     => $patron->id,
-//                 'issue_date'    => $issueDate,
-//                 'due_date'      => $dueDate,
-//                 'date_returned' => $dateReturned,
-//                 'status'        => $status,
-//                 'renewal_count' => 0,
-//                 'overdue_by'    => $overdueBy,
-//                 'fine'          => $fine,
-//             ]);
-//         }
-
-//     }
-// }
+    private function calculateOverdueDays($dueDate, $comparisonDate)
+    {
+        $due = Carbon::parse($dueDate)->startOfDay();
+        $comp = Carbon::parse($comparisonDate)->startOfDay();
+        if ($comp->lte($due)) return 0;
+        
+        return $due->diffInDaysFiltered(fn(Carbon $date) => !$date->isWeekend(), $comp);
+    }
+}

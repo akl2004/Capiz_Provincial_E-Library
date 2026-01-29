@@ -149,23 +149,23 @@ class PatronController extends Controller
         }
     }
 
-public function stats($id)
-{
-    $patron = Patron::findOrFail($id);
+    public function stats($id)
+    {
+        $patron = Patron::findOrFail($id);
 
-    $totalFine = $patron->circulations()
-        ->where('is_paid', false) 
-        ->sum('fine');
+        $totalFine = $patron->circulations()
+            ->where('is_paid', false) 
+            ->sum('fine');
 
-    return response()->json([
-        'borrowedBooks' => $patron->circulations()->count(),
-        'returnedBooks' => $patron->circulations()->whereIn('status', ['Returned', 'Returned Late'])->count(),
-        'lostBooks'     => $patron->circulations()->where('status', 'Lost')->count(),
-        'activeLoans'   => $patron->circulations()->whereIn('status', ['On Loan', 'Overdue'])->count(),
-        'totalFine'     => (float) $totalFine,
-        'overdueBooks'  => $patron->circulations()->where('status', 'Overdue')->count(),
-    ]);
-}
+        return response()->json([
+            'borrowedBooks' => $patron->circulations()->count(),
+            'returnedBooks' => $patron->circulations()->whereIn('status', ['Returned', 'Returned Late'])->count(),
+            'lostBooks'     => $patron->circulations()->where('status', 'Lost')->count(),
+            'activeLoans'   => $patron->circulations()->whereIn('status', ['On Loan', 'Overdue'])->count(),
+            'totalFine'     => (float) $totalFine,
+            'overdueBooks'  => $patron->circulations()->where('status', 'Overdue')->count(),
+        ]);
+    }
 
     // deactivating a patron
     public function deactivate(Request $request, $id)
@@ -292,57 +292,73 @@ public function stats($id)
 
     // paying overdue fines
     public function payFine(Request $request)
-{
-    $user = $request->user();
-    $request->validate([
-        'patron_id' => 'required',
-        'amount' => 'required|numeric'
-    ]);
+    {
+        $user = $request->user();
+        $request->validate([
+            'patron_id' => 'required',
+            'amount' => 'required|numeric'
+        ]);
 
-    $patron = Patron::where('patron_id', $request->patron_id)->first();
-    if (!$patron) {
-        return response()->json(['message' => 'Patron not found.'], 404);
-    }
-
-    // 1. Get the fine rate from settings
-    $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
-    $now = now()->startOfDay();
-
-    // 2. Find all active loans for this patron
-    $loans = Circulation::where('patron_id', $patron->id)
-        ->whereIn('status', ['On Loan', 'Overdue'])
-        ->get();
-
-    $paidCount = 0;
-
-    foreach ($loans as $loan) {
-        $dueDate = \Carbon\Carbon::parse($loan->due_date)->startOfDay();
-        
-        // Calculate what the fine SHOULD be right now
-        $overdueDays = $now->gt($dueDate) ? $dueDate->diffInDays($now) : 0;
-        $calculatedFine = $overdueDays * $fineRate;
-
-        // If there's a fine to pay, clear it
-        if ($calculatedFine > 0) {
-           $loan->update([
-                'fine' => $calculatedFine,
-                'status' => 'On Loan',   
-                'is_paid' => true,          
-                'overdue_by' => $overdueDays,
-                'updated_at' => $now        
-            ]);
-            $paidCount++;
+        $patron = Patron::where('patron_id', $request->patron_id)->first();
+        if (!$patron) {
+            return response()->json(['message' => 'Patron not found.'], 404);
         }
+
+        // 1. Get the fine rate from settings
+        $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
+        $now = now()->startOfDay();
+
+        // 2. Find all active loans for this patron
+        $loans = Circulation::where('patron_id', $patron->id)
+            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->get();
+
+        $paidCount = 0;
+
+        foreach ($loans as $loan) {
+            $dueDate = \Carbon\Carbon::parse($loan->due_date)->startOfDay();
+            
+            // Calculate what the fine SHOULD be right now
+            $overdueDays = $this->calculateOverdueDays($loan->due_date, $now);
+            $calculatedFine = $overdueDays * $fineRate;
+
+            // If there's a fine to pay, clear it
+            if ($calculatedFine > 0) {
+            $loan->update([
+                    'fine' => $calculatedFine,
+                    'status' => 'On Loan',   
+                    'is_paid' => true,          
+                    'overdue_by' => $overdueDays,
+                    'updated_at' => $now        
+                ]);
+                $paidCount++;
+            }
+        }
+
+        if ($paidCount === 0) {
+            return response()->json(['message' => 'No outstanding fines found.'], 404);
+        }
+
+        $this->logActivity('Pay Fine', "Collected ₱{$request->amount} from {$patron->first_name}", $user);
+
+        return response()->json(['message' => 'Fine paid successfully'], 200);
     }
 
-    if ($paidCount === 0) {
-        return response()->json(['message' => 'No outstanding fines found.'], 404);
+
+
+    private function calculateOverdueDays($dueDate, $comparisonDate)
+    {
+        $due = Carbon::parse($dueDate)->startOfDay();
+        $comp = Carbon::parse($comparisonDate)->startOfDay();
+
+        if ($comp->lte($due)) {
+            return 0;
+        }
+
+        return $due->diffInDaysFiltered(function (Carbon $date) {
+            return !$date->isWeekend();
+        }, $comp);
     }
-
-    $this->logActivity('Pay Fine', "Collected ₱{$request->amount} from {$patron->first_name}", $user);
-
-    return response()->json(['message' => 'Fine paid successfully'], 200);
-}
 
 
 

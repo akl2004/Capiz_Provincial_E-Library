@@ -217,4 +217,73 @@ class LibrarySettingController extends Controller
         ]);
     }
 
+
+    // =======================
+    // 📌 Missing Book Threshold (Days)
+    // =======================
+    public function getMissingThreshold()
+    {
+        // Default to 365 days if not set
+        $days = LibrarySetting::getValue('missing_book_threshold_days', 365); 
+        return response()->json(['missing_threshold_days' => (int) $days]);
+    }
+
+    public function updateMissingThreshold(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'missing_threshold_days' => 'required|integer|min:5|max:1000', 
+        ]);
+
+        LibrarySetting::setValue('missing_book_threshold_days', $validated['missing_threshold_days']);
+
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'role'    => $user->role,
+            'module'  => 'Settings',
+            'action'  => 'Update Missing Threshold',
+            'description' => "{$user->name} updated the missing book threshold to {$validated['missing_threshold_days']} days.",
+        ]);
+
+        return response()->json([
+            'message' => 'Missing threshold updated successfully',
+            'missing_threshold_days' => (int) $validated['missing_threshold_days']
+        ]);
+    }
+
+
+    // =======================
+    // 📌 Late Settlement Penalty
+    // =======================
+    public function getLateSettlementPenalty()
+    {
+        $penalty = LibrarySetting::getValue('late_settlement_penalty', 50); // Default P50
+        return response()->json(['late_settlement_penalty' => (int) $penalty]);
+    }
+
+    public function updateLateSettlementPenalty(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'late_settlement_penalty' => 'required|integer|min:0|max:1000',
+        ]);
+
+        LibrarySetting::setValue('late_settlement_penalty', $validated['late_settlement_penalty']);
+
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'role'    => $user->role,
+            'module'  => 'Settings',
+            'action'  => 'Update Late Penalty',
+            'description' => "{$user->name} updated late settlement penalty to ₱{$validated['late_settlement_penalty']}",
+        ]);
+
+        return response()->json([
+            'message' => 'Late settlement penalty updated successfully',
+            'late_settlement_penalty' => (int) $validated['late_settlement_penalty']
+        ]);
+    }
+
 }

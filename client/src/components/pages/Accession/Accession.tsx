@@ -514,7 +514,7 @@ const Accession = () => {
                   ></i>
                 </div>
                 {activeFilterSection === "section" &&
-                  ["Filipiniana", "Gen. Reference", "Gen. Circulation"].map(
+                  ["Filipiniana", "General Reference", "General Collection"].map(
                     (section) => (
                       <div
                         key={section}

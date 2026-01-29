@@ -14,6 +14,7 @@ interface Attendance {
   city?: string;
   barangay?: string;
   number?: string;
+  visitor_type?: string;
   affiliation?: string;
   purpose_of_visit?: string;
   time_in: string | null;
@@ -24,6 +25,12 @@ const Attendance = () => {
   const [attendances, setAttendances] = useState<Attendance[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // NEW: Flexible Date States
+  const [dateRange, setDateRange] = useState<
+    "today" | "week" | "month" | "all" | "custom"
+  >("month");
+  const [customDays, setCustomDays] = useState<number>(14);
 
   // Sort dropdown state
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -47,19 +54,7 @@ const Attendance = () => {
   useEffect(() => {
     fetchAttendances();
     document.title = "Attendance";
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        filterRef.current &&
-        !filterRef.current.contains(event.target as Node)
-      ) {
-        setFilterMenuOpen(false);
-      }
-    };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
-  
 
   const fetchAttendances = async () => {
     setLoading(true);
@@ -83,13 +78,11 @@ const Attendance = () => {
       }
     };
     fetchTally();
-
     const interval = setInterval(fetchTally, 60000);
     return () => clearInterval(interval);
   }, []);
 
-
-  // filter attendances based on search, visitor type, and date
+  // UPDATED: Dynamic Filter Logic
   const filteredAttendances = attendances.filter((att) => {
     const matchesSearch =
       `${att.first_name} ${att.middle_name || ""} ${att.last_name}`
@@ -103,13 +96,38 @@ const Attendance = () => {
 
     const matchesType = visitorType === "all" ? true : att.type === visitorType;
 
-    return matchesSearch && matchesType;
+    // Date Filtering logic
+    // Date Filtering logic
+    let matchesDate = true;
+    if (dateRange !== "all" && att.time_in) {
+      const attendanceDate = new Date(att.time_in).getTime();
+      const cutoff = new Date();
+
+      // Reset hours to the very beginning of the day (12:00 AM)
+      // This ensures "2 days" means "2 full calendar days ago"
+      cutoff.setHours(0, 0, 0, 0);
+
+      if (dateRange === "today") {
+        // Cutoff is already start of today
+      } else if (dateRange === "week") {
+        cutoff.setDate(cutoff.getDate() - 7);
+      } else if (dateRange === "month") {
+        cutoff.setDate(cutoff.getDate() - 30);
+      } else if (dateRange === "custom") {
+        // We subtract (customDays - 1) because "today" is the 1st day.
+        // If user wants 2 days, they want today (0) and yesterday (1).
+        cutoff.setDate(cutoff.getDate() - (customDays - 1));
+      }
+
+      matchesDate = attendanceDate >= cutoff.getTime();
+    }
+
+    return matchesSearch && matchesType && matchesDate;
   });
 
   // Sort attendance by selected field + order
   const sortedAttendances = [...filteredAttendances].sort((a, b) => {
     if (!sortField || !sortOrder) return 0;
-
     let valA: string | number = "";
     let valB: string | number = "";
 
@@ -153,7 +171,6 @@ const Attendance = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Export CSV
   const exportCSV = () => {
     const headers = [
       "Visitor",
@@ -161,6 +178,7 @@ const Attendance = () => {
       "Email",
       "Address",
       "Number",
+      "Visitor Type",
       "Affiliation",
       "Purpose",
       "Time In",
@@ -175,6 +193,7 @@ const Attendance = () => {
       `"${att.email || "-"}"`,
       `"${att.province || "-"}, ${att.city || "-"}, ${att.barangay || "-"}"`,
       `"${att.number || "-"}"`,
+      `"${att.visitor_type || "-"}"`,
       `"${att.affiliation || "-"}"`,
       `"${att.purpose_of_visit || "-"}"`,
       `"${att.time_in ? new Date(att.time_in).toLocaleString() : "-"}"`,
@@ -200,7 +219,7 @@ const Attendance = () => {
           <div className="attendance-tally-label">
             <span className="attendance-tally-title">Visitors Today</span>
             <span className="attendance-tally-subtitle">
-              Total number of guests and patrons who have timed in today.
+              Total guests and patrons timed in today.
             </span>
           </div>
         </div>
@@ -212,20 +231,56 @@ const Attendance = () => {
               Current Visitors Inside
             </span>
             <span className="attendance-tally-subtitle">
-              Active count of visitors currently inside the library (not timed
-              out).
+              Active visitors currently in the library.
             </span>
           </div>
         </div>
       </div>
 
       <div className="attendance-container">
-        {/* Header */}
-        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
           <h1 className="text-xl font-semibold mb-0">Library Attendance</h1>
+
           <div className="d-flex gap-2 align-items-center flex-wrap">
+            {/* NEW: Dynamic Date Range Selector */}
+            <div className="d-flex align-items-center gap-2 bg-white border rounded px-2 py-1">
+              <i className="bi bi-calendar3 text-muted"></i>
+              <select
+                className="form-select form-select-sm border-0 shadow-none"
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value as any)}
+                style={{ width: "auto" }}
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">Past 7 Days</option>
+                <option value="month">Past 30 Days</option>
+                <option value="custom">Custom Days</option>
+              </select>
+
+              {dateRange === "custom" && (
+                <div className="d-flex align-items-center gap-1 border-start ps-2">
+                  <input
+                    type="number"
+                    className="form-control form-control-sm no-spinner"
+                    style={{ width: "60px", textAlign: "center" }}
+                    value={customDays}
+                    onChange={(e) =>
+                      setCustomDays(Math.max(1, parseInt(e.target.value) || 1))
+                    }
+                  />
+                  <small className="text-muted">days</small>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="d-flex gap-2 align-items-center">
+          <div className="d-flex gap-2 align-items-center w-100">
             {/* Search */}
-            <div className="position-relative" style={{ maxWidth: "300px" }}>
+            <div
+              className="position-relative flex-grow-1"
+            >
               <span
                 className="position-absolute top-50 translate-middle-y ps-2"
                 style={{ left: "10px", color: "#6c757d" }}
@@ -233,21 +288,17 @@ const Attendance = () => {
                 <i className="bi bi-search"></i>
               </span>
               <input
-                className="form-control ps-5 pe-5"
+                className="form-control ps-5"
                 placeholder="Search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
-            {/* Sort */}
             <div className="position-relative" ref={sortRef}>
               <button
-                className="btn btn-outline-secondary d-flex align-items-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSortMenuOpen(!sortMenuOpen);
-                }}
+                className="btn btn-outline-secondary"
+                onClick={() => setSortMenuOpen(!sortMenuOpen)}
               >
                 <i className="bi bi-sort-alpha-down me-2"></i> Sort
               </button>
@@ -304,24 +355,18 @@ const Attendance = () => {
               )}
             </div>
 
-            {/* Filter */}
             <div className="position-relative" ref={filterRef}>
               <button
-                className="btn btn-outline-secondary d-flex align-items-center"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilterMenuOpen(!filterMenuOpen);
-                }}
+                className="btn btn-outline-secondary"
+                onClick={() => setFilterMenuOpen(!filterMenuOpen)}
               >
                 <i className="bi bi-sliders me-2"></i> Filter
               </button>
-
               {filterMenuOpen && (
                 <div
                   className="filter-dropdown"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* Visitor Type */}
                   <div
                     className={`filter-section-header ${
                       visitorType !== "all" ? "active" : ""
@@ -347,15 +392,9 @@ const Attendance = () => {
                           className={`filter-item ${
                             visitorType === opt ? "active" : ""
                           }`}
-                          onClick={() =>
-                            setVisitorType(opt as "all" | "patron" | "guest")
-                          }
+                          onClick={() => setVisitorType(opt as any)}
                         >
-                          {opt === "all"
-                            ? "All"
-                            : opt === "patron"
-                            ? "Patron"
-                            : "Guest"}
+                          {opt.charAt(0).toUpperCase() + opt.slice(1)}
                         </div>
                       ))}
                     </div>
@@ -370,7 +409,6 @@ const Attendance = () => {
           </div>
         </div>
 
-        {/* Attendance Table */}
         <div className="overflow-x-auto">
           <table className="attendance-table">
             <thead>
@@ -380,6 +418,7 @@ const Attendance = () => {
                 <th>Email</th>
                 <th>Address</th>
                 <th>Number</th>
+                <th>Visitor Type</th>
                 <th>Affiliation</th>
                 <th>Purpose</th>
                 <th>Time In</th>
@@ -399,12 +438,13 @@ const Attendance = () => {
                     <td>{att.type === "patron" ? "Patron" : "Guest"}</td>
                     <td>{`${att.first_name} ${att.middle_name || ""} ${
                       att.last_name
-                    } ${att.suffix || ""}`}</td>
+                    }`}</td>
                     <td>{att.email || "-"}</td>
-                    <td>{`${att.barangay || "-"}, ${att.city || "-"}, ${
-                      att.province || "-"
+                    <td>{`${att.province || "-"}, ${att.barangay || "-"}, ${
+                      att.city || "-"
                     }`}</td>
                     <td>{att.number || "-"}</td>
+                    <td>{att.visitor_type || "-"}</td>
                     <td>{att.affiliation || "-"}</td>
                     <td>{att.purpose_of_visit || "-"}</td>
                     <td>

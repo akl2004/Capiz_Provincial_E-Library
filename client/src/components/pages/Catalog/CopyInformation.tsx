@@ -128,7 +128,7 @@ const CopyInformation: React.FC = () => {
               navigate(
                 role === "admin"
                   ? `/admin/cataloging/${id}`
-                  : `/staff/cataloging/${id}`
+                  : `/staff/cataloging/${id}`,
               );
             }}
           >
@@ -161,15 +161,15 @@ const CopyInformation: React.FC = () => {
                 {copy.binding === "Paperback"
                   ? "ISBN (Paperback)"
                   : copy.binding === "Hardcover"
-                  ? "ISBN (Hardcover)"
-                  : "ISSN"}
+                    ? "ISBN (Hardcover)"
+                    : "ISSN"}
               </th>
               <td className="border-l">
                 {copy.binding === "Paperback"
                   ? identifiers.isbn_paperback || "-"
                   : copy.binding === "Hardcover"
-                  ? identifiers.isbn_hardcover || "-"
-                  : identifiers.issn || "-"}
+                    ? identifiers.isbn_hardcover || "-"
+                    : identifiers.issn || "-"}
               </td>
             </tr>
             <tr>
@@ -215,23 +215,38 @@ const CopyInformation: React.FC = () => {
                 <th>Date Issued</th>
                 <th>Due Date</th>
                 <th>Date Returned</th>
-                <th>Overdue Fine</th>
+                <th>Charges</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
-              {history.map((rec) => (
-                <tr key={rec.id} className="border-t">
-                  <td>{rec.borrower}</td>
-                  <td>{rec.issue_date?.split("T")[0]}</td>
-                  <td>{rec.due_date?.split("T")[0]}</td>
-                  <td>
-                    {rec.return_date ? rec.return_date.split("T")[0] : "—"}
-                  </td>
-                  <td>₱{rec.fine.toFixed(2)}</td>
-                  <td>{rec.status}</td>
-                </tr>
-              ))}
+              {history.map((rec) => {
+                const amount = Number(rec.fine || 0);
+
+                return (
+                  <tr key={rec.id} className="border-t">
+                    <td>{rec.borrower}</td>
+                    <td>{rec.issue_date?.split("T")[0] || "-"}</td>
+                    <td>{rec.due_date?.split("T")[0] || "-"}</td>
+                    <td>
+                      {rec.return_date ? rec.return_date.split("T")[0] : "—"}
+                    </td>
+                    <td>
+                      <div className="flex flex-col">
+                        <span className="font-bold">₱{amount.toFixed(2)}</span>
+                        {amount > 0 && (
+                          <small className="text-xs text-muted">
+                            {rec.status === "Lost"
+                              ? "Settlement Fee"
+                              : "Overdue Fine"}
+                          </small>
+                        )}
+                      </div>
+                    </td>
+                    <td>{rec.status}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

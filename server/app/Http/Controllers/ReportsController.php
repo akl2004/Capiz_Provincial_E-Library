@@ -132,20 +132,79 @@ class ReportsController extends Controller
     }
 
 
-    public function circulation()
+    public function lostBooksDetail()
+    {
+        $lostBooks = DB::table('circulations')
+            ->join('book_copies', 'circulations.book_copy_id', '=', 'book_copies.id')
+            ->join('books', 'book_copies.book_id', '=', 'books.id')
+            ->join('patrons', 'circulations.patron_id', '=', 'patrons.id')
+            ->select(
+                'book_copies.accession_number',
+                'book_copies.copy_number',
+                'books.title',
+                'books.call_number',
+                'books.author',
+                'patrons.first_name',
+                'patrons.last_name',
+                'circulations.updated_at as date_lost'
+            )
+            ->where('circulations.status', 'Lost')
+            ->get();
+
+        return response()->json($lostBooks);
+    }
+
+
+    public function circulation(Request $request)
     {
         $totalInventory = DB::table('book_copies')->whereNull('deleted_at')->count();
         $now = Carbon::now();
-        $today = $now->toDateString();
+        $today = today();
+        $timeRange = $request->query('timeRange', 'all-time');
 
-        $actualOverdueCount = DB::table('circulations')
-            ->where('status', '!=', 'Lost')
-            ->where(function($q) use ($today) {
-                $q->whereIn('status', ['Overdue', 'Returned Late'])
-                ->orWhere(function($q2) use ($today) {
-                    $q2->where('status', 'On Loan')
-                        ->whereDate('due_date', '<', $today);
-                });
+        // --- 1. DYNAMIC TOP BOOKS QUERY ---
+        $topBooksQuery = Circulation::join('book_copies', 'circulations.book_copy_id', '=', 'book_copies.id')
+            ->join('books', 'book_copies.book_id', '=', 'books.id');
+
+        // Apply filters based on the selection from your React Modal
+        $topBooksQuery->when($timeRange, function ($q) use ($timeRange, $now) {
+            if ($timeRange === 'this-week') {
+                $q->whereDate('issue_date', '>=', $now->startOfWeek());
+            } elseif ($timeRange === 'this-month') {
+                $q->whereMonth('issue_date', $now->month)
+                ->whereYear('issue_date', $now->year);
+            } elseif ($timeRange === 'this-year') {
+                $q->whereYear('issue_date', $now->year);
+            }
+        });
+
+        $topBooks = $topBooksQuery->select(
+                'books.title', 
+                'books.author', 
+                DB::raw('COUNT(*) as borrowed_count')
+            )
+            ->groupBy('books.title', 'books.author')
+            ->orderByDesc('borrowed_count')
+            ->limit(5)
+            ->get();
+
+        $actualOverdueCount = Circulation::where('status', '!=', 'Lost')
+            ->where(function ($query) use ($today) {
+                $query->where('status', 'Returned Late')
+                      ->orWhere(function ($sub) use ($today) {
+                          $sub->where('status', 'On Loan')
+                              ->whereDate('due_date', '<', $today);
+                      });
+            })
+            ->get()
+            ->filter(function ($loan) use ($today) {
+                $due = Carbon::parse($loan->due_date)->startOfDay();
+                $end = $loan->date_returned ? Carbon::parse($loan->date_returned) : $today;
+                
+                // Only count as overdue if there is at least 1 weekday between due and now/return
+                return $due->diffInDaysFiltered(function (Carbon $date) {
+                    return !$date->isWeekend();
+                }, $end) > 0;
             })
             ->count();
 
@@ -185,18 +244,19 @@ class ReportsController extends Controller
                 ->count();
 
             // Monthly Overdue
-            $monthlyOverdue = DB::table('circulations')
-                ->whereYear('due_date', $y)
+            $monthlyOverdue = Circulation::whereYear('due_date', $y)
                 ->whereMonth('due_date', $mo)
-                ->where(function($q) {
-                    $q->where(function($sub) {
-                        $sub->whereNull('date_returned')
-                            ->where('due_date', '<', now()); 
-                    })
-                    ->orWhereColumn('date_returned', '>', 'due_date'); 
+                ->where('status', '!=', 'Lost')
+                ->get()
+                ->filter(function ($loan) use ($today) {
+                    $due = Carbon::parse($loan->due_date)->startOfDay();
+                    $end = $loan->date_returned ? Carbon::parse($loan->date_returned) : $today;
+                    return $due->diffInDaysFiltered(function (Carbon $date) {
+                        return !$date->isWeekend();
+                    }, $end) > 0;
                 })
-                ->where('status', '!=', 'Lost') 
                 ->count();
+
 
             // Monthly Lost
             $lost = DB::table('circulations')
@@ -225,6 +285,7 @@ class ReportsController extends Controller
 
         return response()->json([
             'rows' => $rows,
+            'topBooks' => $topBooks,
             'summary' => [
                 'totalInventory' => $totalInventory,
                 'lost' => (int)$actualLostCount,
@@ -281,10 +342,12 @@ class ReportsController extends Controller
                 'middle_name',
                 'last_name',
                 'suffix',
+                'gender',
                 'province',
                 'city',
                 'barangay',
                 'number',
+                'visitor_type',
                 'affiliation',
                 'purpose_of_visit',
                 'time_in',
@@ -318,9 +381,11 @@ class ReportsController extends Controller
                     'id' => $log->id,
                     'type' => $log->patron_id ? 'Patron' : 'Guest',
                     'fullname' => $fullname,
+                    'gender' => $log->gender ?? null,
                     'address' => $fullAddress ?: null,
                     'contact_number' => $log->number ?? null,
                     'purpose' => $log->purpose_of_visit ?? null,
+                    'visitor_type' => $log->visitor_type ?? null,
                     'affiliation' => $log->affiliation ?? null,
                     'date' => $date,
                     'time_in' => $timeIn,
@@ -407,6 +472,8 @@ class ReportsController extends Controller
             $registry = collect(DB::select("
                 SELECT id AS user_id,
                     first_name || ' ' || last_name AS full_name,
+                    email,
+                    phone_number AS number,
                     role,
                     status,
                     created_at,
@@ -415,6 +482,8 @@ class ReportsController extends Controller
                 UNION ALL
                 SELECT patron_id AS user_id,
                     first_name || ' ' || last_name AS full_name,
+                    email,
+                    number,
                     'patron' AS role,
                     status,
                     created_at,
@@ -426,6 +495,8 @@ class ReportsController extends Controller
             $registry = collect(DB::select("
                 (SELECT id AS user_id,
                         CONCAT(first_name, ' ', last_name) AS full_name,
+                        email,
+                        phone_number AS number,
                         role,
                         status,
                         created_at,
@@ -434,6 +505,8 @@ class ReportsController extends Controller
                 UNION ALL
                 (SELECT patron_id AS user_id,
                         CONCAT(first_name, ' ', last_name) AS full_name,
+                        email,
+                        number,
                         'patron' AS role,
                         status,
                         created_at,

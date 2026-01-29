@@ -20,6 +20,7 @@ interface Attendance {
   middle_name?: string;
   last_name: string;
   suffix?: string;
+  gender?: string;  
   province: string;
   city: string;
   barangay: string;
@@ -70,6 +71,7 @@ const DailyAttendancePage = () => {
     middle_name: "",
     last_name: "",
     suffix: "",
+    gender: "",
     province: "",
     city: "",
     barangay: "",
@@ -171,6 +173,7 @@ const DailyAttendancePage = () => {
       middle_name: "",
       last_name: "",
       suffix: "",
+      gender: "",
       province: "",
       city: "",
       barangay: "",
@@ -217,6 +220,7 @@ const DailyAttendancePage = () => {
         middle_name: "",
         last_name: "",
         suffix: "",
+        gender: "",
         province: "",
         city: "",
         barangay: "",
@@ -262,6 +266,7 @@ const DailyAttendancePage = () => {
         middle_name: patron.middle_name || "",
         last_name: patron.last_name,
         suffix: patron.suffix || "",
+        gender: patron.gender,
         province: patron.province || "",
         city: patron.city || "",
         barangay: patron.barangay || "",
@@ -433,6 +438,7 @@ const DailyAttendancePage = () => {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Gender</th>
               <th>Email</th>
               <th>Address</th>
               <th>Number</th>
@@ -456,6 +462,7 @@ const DailyAttendancePage = () => {
                   <td>{`${att.first_name} ${att.middle_name || ""} ${
                     att.last_name
                   } ${att.suffix || ""}`}</td>
+                  <td>{att.gender || "-"}</td>
                   <td>{att.email || "-"}</td>
                   <td>{`${att.barangay}, ${att.city}, ${att.province}`}</td>
                   <td>{att.number || "-"}</td>
@@ -673,7 +680,13 @@ const DailyAttendancePage = () => {
                     )}
                   </div>
                 </div>
-
+                <input
+                  name="gender"
+                  value={form.gender}
+                  onChange={handleChange}
+                  placeholder="Gender"
+                  disabled={loading}
+                />
                 <input
                   name="email"
                   value={form.email}
