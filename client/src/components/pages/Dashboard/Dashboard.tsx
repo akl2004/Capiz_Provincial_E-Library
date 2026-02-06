@@ -111,9 +111,9 @@ const Dashboard = () => {
       setCirculationToday({
         borrowed: {
           count:
-            circRes.data["On Loan"]?.count || circRes.data.Borrowed?.count || 0,
+            circRes.data.Issued?.count || circRes.data.Borrowed?.count || 0,
           percent:
-            circRes.data["On Loan"]?.percent ||
+            circRes.data.Issued?.percent ||
             circRes.data.Borrowed?.percent ||
             0,
         },

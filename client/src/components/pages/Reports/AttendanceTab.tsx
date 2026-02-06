@@ -51,6 +51,7 @@ interface AttendanceTabProps {
     id: number;
     preparedBy?: string;
     notedBy?: string;
+    timeRange?: string;
   } | null;
   onPrintComplete: () => void;
 }
@@ -63,17 +64,114 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
 }) => {
   // ===== STATES =====
   const [loadingAttendance, setLoadingAttendance] = useState(false);
-  const [attendanceSort, setAttendanceSort] = useState<"asc" | "desc" | "all">(
-    "desc",
-  );
+  const [attendanceSort, setAttendanceSort] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const [uiTableFilter, setUiTableFilter] = useState<string>("all");
 
   const [attendanceSummaryData, setAttendanceSummaryData] = useState<any[]>([]);
   const [attendanceLogData, setAttendanceLogData] = useState<AttendanceLog[]>(
     [],
   );
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
+
+  const applyDateFilters = (
+    data: any[],
+    range: string,
+    start: string,
+    end: string,
+  ) => {
+    const now = new Date();
+    const endOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+    );
+
+    return data.filter((item) => {
+      if (range === "all-time" || range === "all" || !range) return true;
+      const dateStr = item.date || item.time_in;
+      if (!dateStr) return false;
+      const itemDate = new Date(dateStr);
+      if (isNaN(itemDate.getTime())) return false;
+
+      if (range === "custom") {
+        if (!start || !end) return true;
+        const filterStart = new Date(start);
+        filterStart.setHours(0, 0, 0, 0);
+        const filterEnd = new Date(end);
+        filterEnd.setHours(23, 59, 59, 999);
+        return itemDate >= filterStart && itemDate <= filterEnd;
+      }
+
+      if (range === "today")
+        return itemDate.toDateString() === now.toDateString();
+      if (range === "week" || range === "this-week") {
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        return itemDate >= startOfWeek && itemDate <= endOfToday;
+      }
+      if (range === "month" || range === "this-month") {
+        return (
+          itemDate.getMonth() === now.getMonth() &&
+          itemDate.getFullYear() === now.getFullYear()
+        );
+      }
+      if (range === "year" || range === "this-year")
+        return itemDate.getFullYear() === now.getFullYear();
+
+      return true;
+    });
+  };
+
+  // 3. NOW DEFINE MEMOS (They can now access applyDateFilters)
+  const tableLogs = useMemo(() => {
+    let data = applyDateFilters(
+      [...attendanceLogData],
+      uiTableFilter,
+      filters.startDate,
+      filters.endDate,
+    );
+    data.sort((a, b) => {
+      const dateA = new Date(`${a.date} ${a.time_in}`).getTime() || 0;
+      const dateB = new Date(`${b.date} ${b.time_in}`).getTime() || 0;
+      return attendanceSort === "asc" ? dateA - dateB : dateB - dateA;
+    });
+    return data;
+  }, [attendanceLogData, attendanceSort, uiTableFilter, filters]);
+
+  const reportLogs = useMemo(() => {
+    return applyDateFilters(
+      [...attendanceLogData],
+      filters.timeRange,
+      filters.startDate,
+      filters.endDate,
+    );
+  }, [attendanceLogData, filters]);
+
+  // 4. PAGINATION CALCULATIONS
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+  const totalPages = Math.ceil(tableLogs.length / itemsPerPage);
+  const currentLogs = tableLogs.slice(indexOfFirst, indexOfLast);
+
+
+  // Helper for page numbers
+  const getVisiblePages = () => {
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1);
+
+    const pages = [];
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
 
   // ===== FETCH DATA =====
   useEffect(() => {
@@ -98,7 +196,6 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
   }, [activeTab]);
 
   // Handle Print Requests from Parent
-  // Inside AttendanceTab.tsx
   useEffect(() => {
     if (printRequest && activeTab === "attendance") {
       const reportMappings: Record<string, string> = {
@@ -112,8 +209,7 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
       const preparedBy = printRequest.preparedBy || "Librarian / Staff Name";
       const notedBy = printRequest.notedBy || "Provincial Librarian";
 
-      const selectedRange =
-        (printRequest as any).timeRange || filters.timeRange;
+      const selectedRange = printRequest.timeRange || filters.timeRange;
 
       setSelectedCategory(targetCategory);
 
@@ -126,111 +222,8 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
     }
   }, [printRequest, activeTab]);
 
-  // Sort and Filter Logic
-  const processedLogs = useMemo(() => {
-    let data = [...attendanceLogData];
-    const now = new Date();
-
-    // Set "now" to the very end of today to ensure today's entries are included
-    const endOfToday = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      23,
-      59,
-      59,
-    );
-
-    data = data.filter((item) => {
-      if (filters.timeRange === "all-time" || filters.timeRange === "all")
-        return true;
-
-      const dateStr = item.date || item.time_in;
-      if (!dateStr) return false;
-
-      const itemDate = new Date(dateStr);
-      if (isNaN(itemDate.getTime())) return false;
-
-      if (filters.timeRange === "this-month") {
-        return (
-          itemDate.getMonth() === now.getMonth() &&
-          itemDate.getFullYear() === now.getFullYear()
-        );
-      }
-
-      if (filters.timeRange === "this-week" || filters.timeRange === "week") {
-        const startOfWeek = new Date(now);
-        const diff = startOfWeek.getDate() - startOfWeek.getDay();
-        const calculatedStart = new Date(startOfWeek.setDate(diff));
-        calculatedStart.setHours(0, 0, 0, 0);
-
-        return itemDate >= calculatedStart && itemDate <= endOfToday;
-      }
-
-      return true;
-    });
-
-    // 3. Apply Sort
-    data.sort((a, b) => {
-      const dateA = new Date(`${a.date} ${a.time_in}`).getTime() || 0;
-      const dateB = new Date(`${b.date} ${b.time_in}`).getTime() || 0;
-      return attendanceSort === "asc" ? dateA - dateB : dateB - dateA;
-    });
-
-    return data;
-  }, [attendanceLogData, attendanceSort, filters.timeRange]);
-
-  const getFilteredData = (dataArray: any[], rangeOverride?: string) => {
-    const now = new Date();
-    if (!dataArray || dataArray.length === 0) return [];
-
-    // Priority: 1. Manual override (from Modal) 2. Current State (from Filter Bar)
-    const activeRange = rangeOverride || filters.timeRange;
-
-    return dataArray.filter((item) => {
-      const rawDate = item.date || item.time_in;
-      if (!activeRange || ["all-time", "all"].includes(activeRange))
-        return true;
-      if (!rawDate) return false;
-
-      const itemDate = new Date(rawDate);
-      if (isNaN(itemDate.getTime())) return true;
-
-      const endOfToday = new Date(now);
-      endOfToday.setHours(23, 59, 59, 999);
-
-      if (activeRange === "this-month" || activeRange === "month") {
-        return (
-          itemDate.getMonth() === now.getMonth() &&
-          itemDate.getFullYear() === now.getFullYear()
-        );
-      }
-
-      if (activeRange === "this-week" || activeRange === "week") {
-        const startOfWeek = new Date(now);
-        const diff = startOfWeek.getDate() - startOfWeek.getDay();
-        startOfWeek.setDate(diff);
-        startOfWeek.setHours(0, 0, 0, 0);
-        return itemDate >= startOfWeek && itemDate <= endOfToday;
-      }
-
-      if (activeRange === "this-year" || activeRange === "year") {
-        return itemDate.getFullYear() === now.getFullYear();
-      }
-
-      if (activeRange === "today") {
-        return itemDate.toDateString() === now.toDateString();
-      }
-
-      return true;
-    });
-  };
-
   const exportToExcel = () => {
-    const filtered = getFilteredData(processedLogs);
-    if (!filtered.length) return;
-
-    const data = filtered.map((row) => ({
+    const data = reportLogs.map((row) => ({
       Date: row.date,
       Type: row.type?.toUpperCase(),
       "Full Name": row.fullname,
@@ -241,9 +234,6 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
-    const cols = Object.keys(data[0]).map((key) => ({ wch: 20 }));
-    worksheet["!cols"] = cols;
-
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance Log");
     XLSX.writeFile(workbook, `Attendance_Report.xlsx`);
@@ -253,31 +243,30 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
     overrideCategory?: string,
     preparedBy: string = "Librarian / Staff Name",
     notedBy: string = "Provincial Librarian",
-    rangeOverride?: string, 
+    rangeOverride?: string,
   ) => {
     const doc = new jsPDF() as jsPDFWithPlugin;
     const currentCategory = overrideCategory || selectedCategory;
 
-    const filteredLogs = getFilteredData(processedLogs, rangeOverride);
-    const activeRangeLabel = (
+    const filteredLogs = rangeOverride
+      ? applyDateFilters(
+          [...attendanceLogData],
+          rangeOverride,
+          filters.startDate,
+          filters.endDate,
+        )
+      : reportLogs;
+
+    const timeLabel = (
       rangeOverride ||
       filters.timeRange ||
-      "All Records"
-    )
-      .replace("-", " ")
-      .toUpperCase();
-
+      "ALL"
+    ).toUpperCase();
     const reportLabel =
       currentCategory.toUpperCase().replace("_", " ") + " REPORT";
-    const timeLabel = (filters.timeRange || "All Records").toUpperCase();
-    const fullTitle = `${reportLabel} (${timeLabel})`;
-
-    let currentY = setupPDFHeader(doc, fullTitle);
-
+    let currentY = setupPDFHeader(doc, `${reportLabel} (${timeLabel})`);
     if (filteredLogs.length === 0) {
-      doc.setFontSize(12);
-      doc.text("No data available for the selected period.", 20, currentY + 10);
-      setupPDFFooter(doc, preparedBy, notedBy);
+      doc.text("No data available.", 20, currentY + 10);
       doc.save(`Attendance_Report.pdf`);
       return;
     }
@@ -503,12 +492,6 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
 
   if (loadingAttendance) return <LoadingSpinner />;
 
-  // Pagination Logic Corrected
-  const totalPages = Math.ceil(processedLogs.length / itemsPerPage);
-  const indexOfLast = currentPage * itemsPerPage;
-  const indexOfFirst = indexOfLast - itemsPerPage;
-  const currentLogs = processedLogs.slice(indexOfFirst, indexOfLast);
-
   return (
     <div className="attendance-section animate-fade-in">
       {/* ===== Row 1: Charts + Summary Table ===== */}
@@ -732,66 +715,56 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
         <div className="card-header bg-white py-3 d-flex justify-content-between align-items-center">
           <div>
             <h5 className="mb-0">Attendance Log</h5>
-            <small className="text-muted">Detailed list of all visitors</small>
+            <small className="text-muted">
+              Currently viewing:{" "}
+              <strong>{uiTableFilter.replace("-", " ")}</strong>
+            </small>
           </div>
           <div className="d-flex gap-2">
             <div className="btn-group btn-group-sm">
               <button
-                className={`btn btn-outline-secondary ${
-                  attendanceSort === "asc" ? "active" : ""
-                }`}
+                className={`btn btn-outline-secondary ${attendanceSort === "asc" ? "active" : ""}`}
                 onClick={() => setAttendanceSort("asc")}
               >
                 Oldest
               </button>
               <button
-                className={`btn btn-outline-secondary ${
-                  attendanceSort === "desc" ? "active" : ""
-                }`}
+                className={`btn btn-outline-secondary ${attendanceSort === "desc" ? "active" : ""}`}
                 onClick={() => setAttendanceSort("desc")}
               >
                 Newest
               </button>
             </div>
-            <div className="d-flex gap-2 align-items-center">
-              <select
-                className="form-select form-select-sm shadow-none"
-                style={{
-                  width: "160px",
-                  borderRadius: "6px",
-                  borderColor: "#e0e0e0",
-                }}
-              >
-                <option value="today">Today's Attendance</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-                <option value="year">This Year</option>
-                <option value="all">All Records</option>
-              </select>
-              <button
-                onClick={exportToExcel}
-                className="btn btn-sm btn-success"
-              >
-                <i className="bi bi-file-earmark-spreadsheet me-1"></i> Export
-                Excel
-              </button>
-            </div>
+
+            <select
+              className="form-select form-select-sm"
+              style={{ width: "160px" }}
+              value={uiTableFilter}
+              onChange={(e) => {
+                setUiTableFilter(e.target.value);
+                setCurrentPage(1); // Reset to page 1 when filtering
+              }}
+            >
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="all">All Records</option>
+            </select>
+
+            <button onClick={exportToExcel} className="btn btn-sm btn-success">
+              <i className="bi bi-file-earmark-spreadsheet me-1"></i> Excel
+            </button>
           </div>
         </div>
 
         <div className="table-responsive">
-          <table
-            className="table table-hover align-middle mb-0"
-            style={{ fontSize: "0.9rem" }}
-          >
+          <table className="table table-hover align-middle mb-0">
             <thead className="table-light">
               <tr>
                 <th>Date</th>
                 <th>Type</th>
                 <th>Full Name</th>
-                <th>Gender</th>
                 <th>Purpose</th>
-                <th>Visitor Type</th>
                 <th>Affiliation</th>
                 <th>In/Out</th>
               </tr>
@@ -801,22 +774,12 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
                 <tr key={row.id}>
                   <td>{row.date}</td>
                   <td>
-                    <span
-                      className={`badge ${
-                        row.type === "patron"
-                          ? "bg-info-subtle text-info"
-                          : "bg-secondary-subtle text-secondary"
-                      } text-capitalize`}
-                    >
+                    <span className="badge bg-info-subtle text-info text-capitalize">
                       {row.type}
                     </span>
                   </td>
                   <td className="fw-medium">{row.fullname}</td>
-                  <td>{row.gender}</td>
-                  <td className="text-truncate" style={{ maxWidth: "150px" }}>
-                    {row.purpose}
-                  </td>
-                  <td>{row.visitor_type}</td>
+                  <td>{row.purpose}</td>
                   <td>{row.affiliation}</td>
                   <td>
                     <div className="small">
@@ -834,61 +797,93 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
         </div>
 
         {/* Pagination Footer */}
-        {/* Pagination Footer */}
         <div className="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+          {/* Update: Using tableLogs instead of processedLogs */}
           <span className="small text-muted">
-            Showing {indexOfFirst + 1} to{" "}
-            {Math.min(indexOfLast, processedLogs.length)} of{" "}
-            {processedLogs.length} entries
+            Showing {tableLogs.length > 0 ? indexOfFirst + 1 : 0} to{" "}
+            {Math.min(indexOfLast, tableLogs.length)} of {tableLogs.length}{" "}
+            entries
           </span>
+
           <nav>
             <ul className="pagination pagination-sm mb-0 gap-1">
+              {/* First Page */}
               <li
                 className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
               >
                 <button
                   className="page-link rounded border-0 bg-light text-muted"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  onClick={() => setCurrentPage(1)}
                 >
-                  Previous
+                  <i className="bi bi-chevron-double-left"></i>
                 </button>
               </li>
 
-              {/* FIX: Use totalPages instead of currentLogs */}
-              {[...Array(totalPages)].map((_, i) => (
+              {/* Prev */}
+              <li
+                className={`page-item ${currentPage === 1 ? "disabled" : ""}`}
+              >
+                <button
+                  className="page-link rounded border-0 bg-light text-muted px-3"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  Prev
+                </button>
+              </li>
+
+              {/* Numbers */}
+              {getVisiblePages().map((pageNumber) => (
                 <li
-                  key={i}
-                  className={`page-item ${
-                    currentPage === i + 1 ? "active" : ""
-                  }`}
+                  key={pageNumber}
+                  className={`page-item ${currentPage === pageNumber ? "active" : ""}`}
                 >
                   <button
                     className="page-link rounded border-0 mx-1 shadow-none"
-                    onClick={() => setCurrentPage(i + 1)}
+                    onClick={() => setCurrentPage(pageNumber)}
                     style={{
+                      width: "50px",
                       backgroundColor:
-                        currentPage === i + 1 ? "#c05b42" : "transparent",
-                      color: currentPage === i + 1 ? "#fff" : "#64748b",
-                      fontWeight: currentPage === i + 1 ? "600" : "400",
+                        currentPage === pageNumber ? "#c05b42" : "transparent",
+                      color: currentPage === pageNumber ? "#fff" : "#64748b",
+                      fontWeight: currentPage === pageNumber ? "600" : "400",
                     }}
                   >
-                    {i + 1}
+                    {pageNumber}
                   </button>
                 </li>
               ))}
 
+              {/* Next */}
               <li
                 className={`page-item ${
-                  currentPage === totalPages ? "disabled" : ""
+                  currentPage === totalPages || totalPages === 0
+                    ? "disabled"
+                    : ""
                 }`}
               >
                 <button
-                  className="page-link rounded border-0 bg-light text-muted"
+                  className="page-link rounded border-0 bg-light text-muted px-3"
                   onClick={() =>
                     setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }
                 >
                   Next
+                </button>
+              </li>
+
+              {/* Last Page */}
+              <li
+                className={`page-item ${
+                  currentPage === totalPages || totalPages === 0
+                    ? "disabled"
+                    : ""
+                }`}
+              >
+                <button
+                  className="page-link rounded border-0 bg-light text-muted"
+                  onClick={() => setCurrentPage(totalPages)}
+                >
+                  <i className="bi bi-chevron-double-right"></i>
                 </button>
               </li>
             </ul>
@@ -897,6 +892,6 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({
       </div>
     </div>
   );
-};;
+};
 
 export default AttendanceTab;

@@ -66,6 +66,7 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
     message: string;
   } | null>(null);
 
+  const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [showReplacementModal, setShowReplacementModal] = useState(false);
   const [replacementMode, setReplacementMode] = useState<
     "Immediate" | "Deferred"
@@ -129,22 +130,35 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
     }
   };
 
-  const confirmSettlement = async () => {
+  // 1. Initial button click
+  const handleFinalizeClick = () => {
     if (!selectedBook) return;
-
     const upfrontTotal = Number(processingFee) + Number(selectedBook.fine);
 
+    // Replace window.confirm with Policy Modal
     if (upfrontTotal > 0) {
-      const confirmed = window.confirm(
-        `POLICY CHECK: Patron must pay ₱${upfrontTotal.toFixed(2)} now (Fines + Processing). Has this been collected?`,
-      );
-      if (!confirmed) return;
+      setShowPolicyModal(true);
+    } else {
+      proceedToSettlementLogic();
     }
+  };
+
+  // 2. Logic after policy is acknowledged
+  const proceedToSettlementLogic = () => {
+    setShowPolicyModal(false);
+    if (settlementType === "replacement") {
+      setShowReplacementModal(true);
+    } else {
+      handleFinalSubmission();
+    }
+  };
+
+  const confirmSettlement = async () => {
+    if (!selectedBook) return;
 
     if (settlementType === "replacement" && replacementMode === "Immediate") {
       setLoading(true);
       try {
-        // Fetch the next available accession number from the new endpoint
         const res = await AxiosInstance.get("/book-copies/latest-accession");
         const nextAccessionFromDB = res.data.next_accession;
 
@@ -441,13 +455,7 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
 
                     <button
                       className="btn btn-danger w-100 py-3 fw-bold shadow"
-                      onClick={() => {
-                        if (settlementType === "replacement") {
-                          setShowReplacementModal(true); // Open the "Immediate vs Deferred" modal
-                        } else {
-                          handleFinalSubmission(); // Just pay for it and finish
-                        }
-                      }}
+                      onClick={handleFinalizeClick}
                     >
                       FINALIZE SETTLEMENT
                     </button>
@@ -531,7 +539,46 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
                 className="btn btn-danger flex-grow-1 fw-bold"
                 onClick={confirmSettlement}
               >
-                Confirm Settlement
+                Confirm Timing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POLICY ACKNOWLEDGMENT MODAL */}
+      {showPolicyModal && (
+        <div className="modal-overlay">
+          <div className="modal-box text-center">
+            <div className="text-warning mb-3">
+              <i className="bi bi-exclamation-triangle-fill fs-1"></i>
+            </div>
+            <h3 className="fw-bold">Policy Acknowledgment</h3>
+            <p className="mb-4">
+              This transaction includes a processing fee and/or existing fines
+              totaling
+              <strong>
+                {" "}
+                ₱
+                {(
+                  Number(processingFee) + Number(selectedBook?.fine || 0)
+                ).toFixed(2)}
+              </strong>
+              . Please ensure the patron is aware of these charges before
+              proceeding.
+            </p>
+            <div className="form-actions">
+              <button
+                className="btn btn-light flex-grow-1"
+                onClick={() => setShowPolicyModal(false)}
+              >
+                Go Back
+              </button>
+              <button
+                className="btn btn-danger flex-grow-1 fw-bold"
+                onClick={proceedToSettlementLogic}
+              >
+                I Understand, Proceed
               </button>
             </div>
           </div>

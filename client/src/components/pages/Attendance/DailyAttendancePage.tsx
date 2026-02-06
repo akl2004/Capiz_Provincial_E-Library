@@ -7,6 +7,8 @@ import cityListData from "../../../data/ph_addresses/city.json";
 import barangayListData from "../../../data/ph_addresses/barangay.json";
 import MessageModal from "../../MessageModal";
 
+import civilian from "../../../assets/visitor_type/citizen.png";
+
 let globalScanBuffer = "";
 let globalLastScanTime = 0;
 
@@ -20,7 +22,7 @@ interface Attendance {
   middle_name?: string;
   last_name: string;
   suffix?: string;
-  gender?: string;  
+  gender?: string;
   province: string;
   city: string;
   barangay: string;
@@ -89,11 +91,11 @@ const DailyAttendancePage = () => {
 
   // Suggestions
   const [provinceSuggestions, setProvinceSuggestions] = useState<Province[]>(
-    []
+    [],
   );
   const [citySuggestions, setCitySuggestions] = useState<City[]>([]);
   const [barangaySuggestions, setBarangaySuggestions] = useState<Barangay[]>(
-    []
+    [],
   );
 
   useEffect(() => {
@@ -109,7 +111,7 @@ const DailyAttendancePage = () => {
       const sorted = res.data.sort(
         (a: Attendance, b: Attendance) =>
           new Date(b.time_in || 0).getTime() -
-          new Date(a.time_in || 0).getTime()
+          new Date(a.time_in || 0).getTime(),
       );
       setAttendances(sorted);
     } catch (err) {
@@ -125,16 +127,16 @@ const DailyAttendancePage = () => {
     setProvinceSuggestions(
       provinceList
         .filter((p) =>
-          p.province_name.toLowerCase().includes(value.toLowerCase())
+          p.province_name.toLowerCase().includes(value.toLowerCase()),
         )
-        .slice(0, 4)
+        .slice(0, 4),
     );
   };
 
   const handleCityChange = (value: string) => {
     setCity(value);
     const selectedProvince = provinceList.find(
-      (p) => p.province_name.toLowerCase() === province.toLowerCase()
+      (p) => p.province_name.toLowerCase() === province.toLowerCase(),
     );
     if (!selectedProvince) return setCitySuggestions([]);
     setCitySuggestions(
@@ -142,16 +144,16 @@ const DailyAttendancePage = () => {
         .filter(
           (c) =>
             c.province_code === selectedProvince.province_code &&
-            c.city_name.toLowerCase().includes(value.toLowerCase())
+            c.city_name.toLowerCase().includes(value.toLowerCase()),
         )
-        .slice(0, 4)
+        .slice(0, 4),
     );
   };
 
   const handleBarangayChange = (value: string) => {
     setBarangay(value);
     const selectedCity = cityList.find(
-      (c) => c.city_name.toLowerCase() === city.toLowerCase()
+      (c) => c.city_name.toLowerCase() === city.toLowerCase(),
     );
     if (!selectedCity) return setBarangaySuggestions([]);
     setBarangaySuggestions(
@@ -159,9 +161,9 @@ const DailyAttendancePage = () => {
         .filter(
           (b) =>
             b.city_code === selectedCity.city_code &&
-            b.brgy_name.toLowerCase().includes(value.toLowerCase())
+            b.brgy_name.toLowerCase().includes(value.toLowerCase()),
         )
-        .slice(0, 4)
+        .slice(0, 4),
     );
   };
 
@@ -196,13 +198,34 @@ const DailyAttendancePage = () => {
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
+    >,
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // Define which fields are mandatory
+  const isFormValid =
+    form.first_name.trim() !== "" &&
+    form.last_name.trim() !== "" &&
+    form.number.trim() !== "" &&
+    form.purpose_of_visit.trim() !== "" &&
+    province.trim() !== "" &&
+    city.trim() !== "" &&
+    barangay.trim() !== "";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isFormValid) {
+      setMsgModal({
+        show: true,
+        type: "error",
+        message:
+          "Please fill in all required fields (Name, Address, Contact, and Purpose).",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       await AxiosInstance.post("/attendances", {
@@ -234,8 +257,23 @@ const DailyAttendancePage = () => {
       setCity("");
       setBarangay("");
       fetchTodayAttendances();
+
+      setOpen(false);
+      resetForm();
+      fetchTodayAttendances();
+
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Attendance recorded successfully!",
+      });
     } catch (err) {
       console.error(err);
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: "Failed to record attendance.",
+      });
     } finally {
       setLoading(false);
     }
@@ -295,7 +333,7 @@ const DailyAttendancePage = () => {
       `${att.province} ${att.city} ${att.barangay}`
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      att.purpose_of_visit.toLowerCase().includes(searchTerm.toLowerCase())
+      att.purpose_of_visit.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const [msgModal, setMsgModal] = useState<{
@@ -402,6 +440,15 @@ const DailyAttendancePage = () => {
     };
   }, [attendances, open]);
 
+  const [currentStep, setCurrentStep] = useState(1);
+
+  const nextStep = () => setCurrentStep((prev) => prev + 1);
+  const prevStep = () => setCurrentStep((prev) => prev - 1);
+
+  const isStep1Valid =
+    form.first_name && form.last_name && form.gender && form.number;
+  const isStep2Valid = province && city && barangay;
+
   return (
     <div className="attendance-container">
       {/* Header */}
@@ -507,243 +554,287 @@ const DailyAttendancePage = () => {
 
       {open && (
         <div className="attendance-modal-overlay">
-          <div className="attendance-modal-box">
-            <button
-              onClick={() => {
-                resetForm();
-                setOpen(false);
-              }}
-              className="attendance-modal-close-btn"
-              disabled={loading}
-            >
-              &times;
-            </button>
+          <div className="multi-step-modal">
+            {/* LEFT SIDEBAR - Step Indicators */}
+            <div className="step-sidebar">
+              <div className="sidebar-header">
+                <h3>Step {currentStep}</h3>
+                <p>Record Attendance</p>
+              </div>
 
-            {/* Header */}
-            <div className="attendance-modal-header text-center mb-0">
-              <h3 className="mb-0">TIME IN</h3>
-              <p>
-                <i>Fill in the information below to record your attendance.</i>
-              </p>
+              <div className="step-list">
+                <div
+                  className={`step-item ${currentStep === 1 ? "active" : ""} ${currentStep > 1 ? "completed" : ""}`}
+                >
+                  <div className="step-circle">1</div>
+                  <span>Personal Info</span>
+                </div>
+                <div
+                  className={`step-item ${currentStep === 2 ? "active" : ""} ${currentStep > 2 ? "completed" : ""}`}
+                >
+                  <div className="step-circle">2</div>
+                  <span>Address</span>
+                </div>
+                <div
+                  className={`step-item ${currentStep === 3 ? "active" : ""}`}
+                >
+                  <div className="step-circle">3</div>
+                  <span>Purpose</span>
+                </div>
+              </div>
             </div>
 
-            {/* Tabs to select Guest or Patron (below header) */}
-            <div className="attendance-modal-tabs mb-1 text-center">
+            {/* RIGHT CONTENT AREA */}
+            <div className="step-content-area">
               <button
-                className={`tab ${mode === "guest" ? "active" : ""}`}
+                className="close-x"
                 onClick={() => {
-                  setMode("guest");
+                  setOpen(false);
                   resetForm();
                 }}
-                type="button"
               >
-                GUEST
+                &times;
               </button>
 
-              <button
-                className={`tab ${mode === "patron" ? "active" : ""}`}
-                onClick={() => {
-                  setMode("patron");
-                  resetForm();
-                }}
-                type="button"
-              >
-                PATRON
-              </button>
-            </div>
+              <div className="content-inner">
+                {/* STEP 1: PERSONAL INFO */}
+                {currentStep === 1 && (
+                  <div className="step-pane">
+                    <h2>Who are you?</h2>
+                    <p className="subtitle">
+                      Select your status and enter basic details.
+                    </p>
 
-            {loading ? (
-              <LoadingSpinner />
-            ) : (
-              <form onSubmit={handleSubmit} className="attendance-form">
-                {/* Patron Section */}
-                {mode === "patron" && (
-                  <div className="patron-section mb-0">
-                    <label className="mt-0">Patron ID</label>
-                    <input
-                      id="patronId"
-                      name="patronId"
-                      className="mb-3"
-                      value={form.patronId}
-                      onChange={(e) => handlePatronIdChange(e.target.value)}
-                      placeholder="Enter Patron ID..."
-                      disabled={loading}
-                    />
+                    <div className="mode-toggle mb-4">
+                      <button
+                        type="button"
+                        className={mode === "guest" ? "active" : ""}
+                        onClick={() => setMode("guest")}
+                      >
+                        GUEST
+                      </button>
+                      <button
+                        type="button"
+                        className={mode === "patron" ? "active" : ""}
+                        onClick={() => setMode("patron")}
+                      >
+                        PATRON
+                      </button>
+                    </div>
+
+                    {mode === "patron" && (
+                      <input
+                        className="form-control mb-3"
+                        placeholder="Scan or Enter Patron ID"
+                        value={form.patronId}
+                        onChange={(e) => handlePatronIdChange(e.target.value)}
+                      />
+                    )}
+
+                    <div className="row g-2 mb-3">
+                      <div className="col-md-5">
+                        <input
+                          name="first_name"
+                          className="form-control"
+                          placeholder="First Name"
+                          value={form.first_name}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="col-md-2">
+                        <input
+                          name="middle_name"
+                          className="form-control"
+                          placeholder="M.I."
+                          value={form.middle_name}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="col-md-5">
+                        <input
+                          name="last_name"
+                          className="form-control"
+                          placeholder="Last Name"
+                          value={form.last_name}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="row g-2 mb-3">
+                      <div className="col-md-4">
+                        <select
+                          name="gender"
+                          className="form-select"
+                          value={form.gender}
+                          onChange={handleChange}
+                        >
+                          <option value="">Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                        </select>
+                      </div>
+                      <div className="col-md-8">
+                        <input
+                          name="number"
+                          className="form-control"
+                          placeholder="Mobile Number"
+                          value={form.number}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      className="btn-next"
+                      disabled={!isStep1Valid}
+                      onClick={nextStep}
+                    >
+                      Next: Address &rarr;
+                    </button>
                   </div>
                 )}
 
-                {/* Name Row */}
-                <div className="name-row mb-0">
-                  <input
-                    name="first_name"
-                    value={form.first_name}
-                    onChange={handleChange}
-                    placeholder="First Name"
-                    required
-                    disabled={loading}
-                  />
-                  <input
-                    name="middle_name"
-                    value={form.middle_name}
-                    onChange={handleChange}
-                    placeholder="Middle Name"
-                    disabled={loading}
-                  />
-                  <input
-                    name="last_name"
-                    value={form.last_name}
-                    onChange={handleChange}
-                    placeholder="Last Name"
-                    required
-                    disabled={loading}
-                  />
-                  <input
-                    name="suffix"
-                    value={form.suffix}
-                    onChange={handleChange}
-                    placeholder="Suffix"
-                    disabled={loading}
-                  />
-                </div>
+                {/* STEP 2: ADDRESS */}
+                {currentStep === 2 && (
+                  <div className="step-pane">
+                    <h2>Where are you from?</h2>
+                    <p className="subtitle">
+                      Please provide your current address details.
+                    </p>
 
-                {/* Province, City, Barangay */}
-                <div className="address-row mb-0">
-                  <div className="input-wrapper">
-                    <input
-                      placeholder="Province"
-                      value={province}
-                      onChange={(e) => handleProvinceChange(e.target.value)}
-                    />
-                    {provinceSuggestions.length > 0 && (
-                      <ul className="suggestion-lists">
-                        {provinceSuggestions.map((p) => (
-                          <li
-                            key={p.province_code}
-                            onClick={() => {
-                              handleProvinceChange(p.province_name);
-                              setProvinceSuggestions([]);
-                            }}
-                            className="suggestion-item"
-                          >
-                            {p.province_name}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    <div className="address-stack">
+                      <div className="input-wrapper mb-3">
+                        <input
+                          className="form-control"
+                          placeholder="Province"
+                          value={province}
+                          onChange={(e) => handleProvinceChange(e.target.value)}
+                        />
+                        {/* Suggestions list here */}
+                      </div>
+                      <div className="input-wrapper mb-3">
+                        <input
+                          className="form-control"
+                          placeholder="City"
+                          value={city}
+                          onChange={(e) => handleCityChange(e.target.value)}
+                        />
+                      </div>
+                      <div className="input-wrapper mb-3">
+                        <input
+                          className="form-control"
+                          placeholder="Barangay"
+                          value={barangay}
+                          onChange={(e) => handleBarangayChange(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="d-flex gap-2">
+                      <button className="btn-back" onClick={prevStep}>
+                        Back
+                      </button>
+                      <button
+                        className="btn-next"
+                        disabled={!isStep2Valid}
+                        onClick={nextStep}
+                      >
+                        Next: Purpose &rarr;
+                      </button>
+                    </div>
                   </div>
+                )}
 
-                  <div className="input-wrapper">
-                    <input
-                      placeholder="City"
-                      value={city}
-                      onChange={(e) => handleCityChange(e.target.value)}
-                    />
-                    {citySuggestions.length > 0 && (
-                      <ul className="suggestion-lists">
-                        {citySuggestions.map((c) => (
-                          <li
-                            key={c.city_code}
-                            onClick={() => {
-                              handleCityChange(c.city_name);
-                              setCitySuggestions([]);
-                            }}
-                            className="suggestion-item"
-                          >
-                            {c.city_name}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                {/* STEP 3: PURPOSE */}
+                {currentStep === 3 && (
+                  <div className="step-pane">
+                    <h2>Who are you today?</h2>
+                    <p className="subtitle">
+                      Select your category to help us track attendance better.
+                    </p>
+
+                    <div className="visitor-type-grid mb-4">
+                      {/* Student Option */}
+                      <div
+                        className={`type-card ${form.visitor_type === "Student" ? "selected" : ""}`}
+                        onClick={() =>
+                          setForm({ ...form, visitor_type: "Student" })
+                        }
+                      >
+                        <div className="card-icon">
+                          <img
+                            src="./src/assets/visitor_type/student.png"
+                            alt="Student"
+                          />
+                        </div>
+                        <span>Student</span>
+                        <div className="radio-indicator"></div>
+                      </div>
+
+                      {/* Public Worker Option */}
+                      <div
+                        className={`type-card ${form.visitor_type === "Public Worker" ? "selected" : ""}`}
+                        onClick={() =>
+                          setForm({ ...form, visitor_type: "Public Worker" })
+                        }
+                      >
+                        <div className="card-icon">
+                          <img
+                            src="./src/assets/visitor_type/worker.png"
+                            alt="Public Worker"
+                          />
+                        </div>
+                        <span>Public Worker</span>
+                        <div className="radio-indicator"></div>
+                      </div>
+
+                      {/* Civilian Option */}
+                      <div
+                        className={`type-card ${form.visitor_type === "Civilian" ? "selected" : ""}`}
+                        onClick={() =>
+                          setForm({ ...form, visitor_type: "Civilian" })
+                        }
+                      >
+                        <div className="card-icon">
+                          <img
+                            src="./src/assets/visitor_type/citizen.png"
+                            alt="Civilian"
+                          />
+                        </div>
+                        <span>Civilian</span>
+                        <div className="radio-indicator"></div>
+                      </div>
+                    </div>
+
+                    <div className="purpose-section">
+                      <label className="form-label">Purpose of Visit</label>
+                      <textarea
+                        name="purpose_of_visit"
+                        className="form-control mb-4"
+                        rows={3}
+                        placeholder="e.g., Research, Borrowing books, etc."
+                        value={form.purpose_of_visit}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div className="d-flex gap-2">
+                      <button className="btn-back" onClick={prevStep}>
+                        Back
+                      </button>
+                      <button
+                        className="btn-submit"
+                        onClick={handleSubmit}
+                        disabled={loading || !form.visitor_type}
+                      >
+                        {loading ? "Submitting..." : "Submit Attendance"}
+                      </button>
+                    </div>
                   </div>
-
-                  <div className="input-wrapper">
-                    <input
-                      placeholder="Barangay"
-                      value={barangay}
-                      onChange={(e) => handleBarangayChange(e.target.value)}
-                    />
-                    {barangaySuggestions.length > 0 && (
-                      <ul className="suggestion-lists">
-                        {barangaySuggestions.map((b) => (
-                          <li
-                            key={b.brgy_code}
-                            onClick={() => {
-                              handleBarangayChange(b.brgy_name);
-                              setBarangaySuggestions([]);
-                            }}
-                            className="suggestion-item"
-                          >
-                            {b.brgy_name}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-                <input
-                  name="gender"
-                  value={form.gender}
-                  onChange={handleChange}
-                  placeholder="Gender"
-                  disabled={loading}
-                />
-                <input
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  placeholder="Email"
-                  disabled={loading}
-                />
-                <input
-                  name="number"
-                  value={form.number}
-                  onChange={handleChange}
-                  placeholder="Contact Number"
-                  required
-                  disabled={loading}
-                />
-                <input
-                  name="visitor_type"
-                  value={form.visitor_type}
-                  onChange={handleChange}
-                  placeholder="Visitor Type"
-                  disabled={loading}
-                />
-                <input
-                  name="affiliation"
-                  value={form.affiliation}
-                  onChange={handleChange}
-                  placeholder="Affiliation / Organization"
-                  disabled={loading}
-                />
-                <textarea
-                  name="purpose_of_visit"
-                  value={form.purpose_of_visit}
-                  onChange={handleChange}
-                  placeholder="Purpose of Visit"
-                  required
-                  disabled={loading}
-                />
-
-                <div className="form-actions">
-                  <button
-                    type="button"
-                    className="cancel-btn"
-                    onClick={() => setOpen(false)}
-                    disabled={loading}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="submit-btn"
-                    disabled={loading}
-                  >
-                    Time In
-                  </button>
-                </div>
-              </form>
-            )}
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

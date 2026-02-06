@@ -266,6 +266,12 @@ const Accounts: React.FC = () => {
     return 0;
   });
 
+  const handleCardClick = (role: string) => {
+    // If the same card is clicked again, clear the filter; otherwise, set it.
+    setRoleFilter((prev) => (prev === role ? null : role));
+    setCurrentPage(1); // Reset to page 1 when filtering
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -335,7 +341,14 @@ const Accounts: React.FC = () => {
   return (
     <>
       <div className="account-tally-cards-container">
-        <div className="account-tally-card">
+        {/* PATRON CARD */}
+        <div
+          className={`account-tally-card ${roleFilter === "patron" ? "active-filter" : ""}`}
+          onClick={() => handleCardClick("patron")}
+          style={{
+            cursor: "pointer",
+          }}
+        >
           <img src={patron} alt="Patrons" />
           <div className="account-tally-info">
             <div className="account-tally-count">
@@ -345,7 +358,14 @@ const Accounts: React.FC = () => {
           </div>
         </div>
 
-        <div className="account-tally-card">
+        {/* STAFF CARD */}
+        <div
+          className={`account-tally-card ${roleFilter === "staff" ? "active-filter" : ""}`}
+          onClick={() => handleCardClick("staff")}
+          style={{
+            cursor: "pointer",
+          }}
+        >
           <img src={staff} alt="Staff" />
           <div className="account-tally-info">
             <div className="account-tally-count">
@@ -355,7 +375,14 @@ const Accounts: React.FC = () => {
           </div>
         </div>
 
-        <div className="account-tally-card">
+        {/* ADMIN CARD */}
+        <div
+          className={`account-tally-card ${roleFilter === "admin" ? "active-filter" : ""}`}
+          onClick={() => handleCardClick("admin")}
+          style={{
+            cursor: "pointer",
+          }}
+        >
           <img src={admin} alt="Admins" />
           <div className="account-tally-info">
             <div className="account-tally-count">
@@ -365,13 +392,18 @@ const Accounts: React.FC = () => {
           </div>
         </div>
 
-        <div className="account-tally-card">
+        {/* NEW ACCOUNTS CARD (Reset Filter) */}
+        <div
+          className="account-tally-card"
+          onClick={() => setRoleFilter(null)}
+          style={{ cursor: "pointer" }}
+        >
           <img src={count} alt="New" />
           <div className="account-tally-info">
             <div className="account-tally-count">
               {loading ? <LoadingSpinner /> : userCounts.new_accounts_this_week}
             </div>
-            <div className="account-tally-label">New Accounts This Week</div>
+            <div className="account-tally-label">New This Week</div>
           </div>
         </div>
       </div>
@@ -436,7 +468,7 @@ const Accounts: React.FC = () => {
                         className="sort-field"
                         onClick={() =>
                           setSortField(
-                            sortField === field ? null : (field as any)
+                            sortField === field ? null : (field as any),
                           )
                         }
                       >
@@ -501,7 +533,7 @@ const Accounts: React.FC = () => {
                     }`}
                     onClick={() =>
                       setActiveFilterSection(
-                        activeFilterSection === "role" ? null : "role"
+                        activeFilterSection === "role" ? null : "role",
                       )
                     }
                   >
@@ -535,7 +567,7 @@ const Accounts: React.FC = () => {
                     }`}
                     onClick={() =>
                       setActiveFilterSection(
-                        activeFilterSection === "status" ? null : "status"
+                        activeFilterSection === "status" ? null : "status",
                       )
                     }
                   >
@@ -559,13 +591,13 @@ const Accounts: React.FC = () => {
                           }`}
                           onClick={() =>
                             setStatusFilter(
-                              statusFilter === status ? null : status
+                              statusFilter === status ? null : status,
                             )
                           }
                         >
                           {status}
                         </div>
-                      )
+                      ),
                     )}
                 </div>
               )}

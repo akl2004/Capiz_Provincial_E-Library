@@ -408,7 +408,7 @@ const PatronInfo = () => {
               <span className="stat-number">{activeLoans}</span>
             </div>
             <div className="stat-footer">
-              Number of books currently on loan to the patron.
+              Number of books currently issued to the patron.
             </div>
           </div>
 

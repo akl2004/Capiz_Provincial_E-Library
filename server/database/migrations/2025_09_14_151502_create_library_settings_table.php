@@ -9,8 +9,8 @@ return new class extends Migration {
     {
         Schema::create('library_settings', function (Blueprint $table) {
             $table->id();
-            $table->string('key')->unique();  // e.g. "default_loan_days"
-            $table->string('value');          // e.g. "5"
+            $table->string('key')->unique(); 
+            $table->string('value');         
             $table->timestamps();
         });
     }

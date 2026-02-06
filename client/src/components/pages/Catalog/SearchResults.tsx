@@ -192,7 +192,13 @@ const SearchResults = () => {
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
           <h1 className="text-xl font-semibold mb-0">
-            {/* Use deweyParam if it exists, otherwise use "Search Results" */}
+            <span
+              className="me-2"
+              style={{ cursor: "pointer" }}
+              onClick={() => navigate(-1)}
+            >
+              <i className="bi bi-arrow-left"></i>
+            </span>
             {deweyParam ? getDeweyCategory(deweyParam) : "Search Results"}
           </h1>
           <p className="mb-0">
@@ -200,14 +206,14 @@ const SearchResults = () => {
               {deweyParam
                 ? `Showing books for classification: ${deweyParam}`
                 : query
-                ? `Search results for "${query}"`
-                : "Browsing all books"}
+                  ? `Search results for "${query}"`
+                  : "Browsing all books"}
             </i>
           </p>
         </div>
 
-        <div className="d-flex gap-2 align-items-center">
-          <div className="position-relative" style={{ maxWidth: "300px" }}>
+        <div className="d-flex gap-2 align-items-center flex-grow-1 justify-content-end">
+          <div className="position-relative" style={{ width: "500px" }}>
             <span
               className="position-absolute top-50 translate-middle-y ps-2"
               style={{ left: "10px", color: "#6c757d" }}
@@ -321,7 +327,7 @@ const SearchResults = () => {
                         <strong>Title:</strong> {book.title}
                       </p>
                       <p className="mb-0">
-                        <strong>Author:</strong>{" "}
+                        <strong>Contributor:</strong>{" "}
                         {book.author ||
                           book.editor ||
                           book.other_author_editor ||
@@ -352,7 +358,7 @@ const SearchResults = () => {
                         <strong>Available Copies:</strong>{" "}
                         {
                           book.copies.filter(
-                            (copy) => copy.status === "Available"
+                            (copy) => copy.status === "Available",
                           ).length
                         }
                       </p>
@@ -515,7 +521,7 @@ const SearchResults = () => {
                     <p className="mb-0">
                       <strong>Availability:</strong>{" "}
                       {bookModal.copies?.filter((c) => {
-                        return c.status !== "On Loan" && c.status !== "Lost";
+                        return c.status !== "Issued" && c.status !== "Lost";
                       }).length || 0}{" "}
                       out of {bookModal.copies?.length || 0} copies in shelf
                     </p>
@@ -601,10 +607,10 @@ const SearchResults = () => {
                       {bookModal?.section === "Gen. Reference"
                         ? "REF"
                         : bookModal?.section === "Gen. Circulation"
-                        ? "GC"
-                        : bookModal?.section === "Filipiniana"
-                        ? "FIL"
-                        : bookModal?.section}
+                          ? "GC"
+                          : bookModal?.section === "Filipiniana"
+                            ? "FIL"
+                            : bookModal?.section}
                     </span>
                     <span className="desc">
                       <strong>Section:</strong> Go to the {bookModal?.section}{" "}

@@ -17,7 +17,7 @@ interface BookCopy {
   id: number;
   barcode: string;
   copy_number: number;
-  status: "Available" | "On Loan";
+  status: "Available" | "Issued";
   book: {
     title: string;
     call_number: string;

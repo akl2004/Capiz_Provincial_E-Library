@@ -18,7 +18,7 @@ import LoadingSpinner from "../../LoadingSpinner";
 
 interface CirculationRow {
   month: string;
-  onLoan: number;
+  issued: number;
   returned: number;
   overdue: number;
   lost: number;
@@ -120,7 +120,7 @@ const CirculationTab: React.FC<CirculationTabProps> = ({
           const rows = res.data.rows || [];
           const top = res.data.topBooks || [];
           const summary = res.data.summary || {
-            onLoan: 0,
+            issued: 0,
             returned: 0,
             overdue: 0,
             lost: 0,
@@ -186,7 +186,7 @@ const CirculationTab: React.FC<CirculationTabProps> = ({
 
     const data = circulationData.map((row) => ({
       Month: row.month,
-      "On Loan": row.onLoan,
+      Issued: row.issued,
       Returned: row.returned,
       Overdue: row.overdue,
       Lost: row.lost,
@@ -247,12 +247,10 @@ const CirculationTab: React.FC<CirculationTabProps> = ({
     if (reportType !== "Most Borrowed") {
       autoTable(doc, {
         startY: currentY + 5,
-        head: [
-          ["Month", "Borrowed", "Returned", "Overdue", "Lost", "Fees Paid"],
-        ],
+        head: [["Month", "Issued", "Returned", "Overdue", "Lost", "Fees Paid"]],
         body: pdfSortedData.map((row) => [
           row.month,
-          row.onLoan,
+          row.issued,
           row.returned,
           row.overdue,
           row.lost,
@@ -356,10 +354,10 @@ const CirculationTab: React.FC<CirculationTabProps> = ({
               />
               <Legend iconType="circle" verticalAlign="bottom" align="center" />
               <Bar
-                dataKey="onLoan"
+                dataKey="issued"
                 stackId="a"
                 fill="#4691e0"
-                name="On Loan"
+                name="Issued"
                 barSize={40}
               />
               <Bar
@@ -475,7 +473,7 @@ const CirculationTab: React.FC<CirculationTabProps> = ({
             <thead className="table-light">
               <tr>
                 <th className="ps-3">Month</th>
-                <th>Borrowed</th>
+                <th>Issued</th>
                 <th>Returned</th>
                 <th>Overdue</th>
                 <th>Lost</th>
@@ -487,7 +485,7 @@ const CirculationTab: React.FC<CirculationTabProps> = ({
                 currentCirculation.map((row, i) => (
                   <tr key={i}>
                     <td className="ps-3 fw-medium">{row.month}</td>
-                    <td>{row.onLoan}</td>
+                    <td>{row.issued}</td>
                     <td>{row.returned}</td>
                     <td>
                       <span

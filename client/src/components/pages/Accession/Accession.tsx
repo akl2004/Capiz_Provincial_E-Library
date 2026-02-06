@@ -81,6 +81,8 @@ const Accession = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const copiesPerPage = 10;
 
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
   const [selectedCopy, setSelectedCopy] = useState<FlattenedCopy | null>(null);
   const sliderRef = useRef<HTMLDivElement | null>(null);
 
@@ -235,32 +237,31 @@ const Accession = () => {
   const itemsPerPage = 10;
 
   const handleWithdraw = async () => {
-    const idsToWithdraw = currentCopies
+    const idsToWithdraw = flattenedCopies
       .filter((copy) => selectedAccessions.includes(copy.accession_number))
       .map((copy) => copy.id);
 
-    if (window.confirm(`Withdraw ${idsToWithdraw.length} copies?`)) {
-      try {
-        setLoading(true);
-        await AxiosInstance.post("/circulations/book-copies/withdraw-bulk", {
-          ids: idsToWithdraw,
-        });
+    try {
+      setLoading(true);
+      setShowWithdrawModal(false); // Close modal
+      await AxiosInstance.post("/circulations/book-copies/withdraw-bulk", {
+        ids: idsToWithdraw,
+      });
 
-        setBooks((prev) =>
-          prev.map((book) => ({
-            ...book,
-            copies: book.copies.filter((c) => !idsToWithdraw.includes(c.id)),
-          }))
-        );
+      setBooks((prev) =>
+        prev.map((book) => ({
+          ...book,
+          copies: book.copies.filter((c) => !idsToWithdraw.includes(c.id)),
+        })),
+      );
 
-        setSelectedAccessions([]);
-        alert("Successfully withdrawn.");
-      } catch (error) {
-        console.error(error);
-        alert("Withdrawal failed.");
-      } finally {
-        setLoading(false);
-      }
+      setSelectedAccessions([]);
+      alert("Successfully withdrawn.");
+    } catch (error) {
+      console.error(error);
+      alert("Withdrawal failed.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -328,23 +329,32 @@ const Accession = () => {
       <div className="d-flex justify-content-between gap-3 mb-4">
         {[
           {
-            label: "TOTAL COPIES",
+            label: "ACCESSIONED COPIES",
             value: filteredCopies.length,
             icon: total,
+          },
+          {
+            label: "CURRENT HOLDINGS",
+            value: filteredCopies.filter(
+              (c) =>
+                c.status === "Available" &&
+                !["damaged", "poor"].includes(c.condition?.toLowerCase() || ""),
+            ).length,
+            icon: available,
           },
           {
             label: "AVAILABLE FOR USE",
             value: filteredCopies.filter(
               (c) =>
                 c.status === "Available" &&
-                !["damaged", "poor"].includes(c.condition?.toLowerCase() || "")
+                !["damaged", "poor"].includes(c.condition?.toLowerCase() || ""),
             ).length,
             icon: available,
           },
           {
             label: "REPAIR/REVIEW",
             value: filteredCopies.filter((c) =>
-              ["damaged", "poor"].includes(c.condition?.toLowerCase() || "")
+              ["damaged", "poor"].includes(c.condition?.toLowerCase() || ""),
             ).length,
             icon: repair,
           },
@@ -362,6 +372,7 @@ const Accession = () => {
           </div>
         ))}
       </div>
+      
       <div className="copies-info mt-4">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-3">
@@ -381,7 +392,7 @@ const Accession = () => {
             {selectedAccessions.length > 0 && (
               <button
                 className="btn btn-withdraw-action animate-slide-in"
-                onClick={handleWithdraw}
+                onClick={() => setShowWithdrawModal(true)}
               >
                 <i className="bi bi-trash3-fill me-2"></i>
                 Withdraw
@@ -436,7 +447,7 @@ const Accession = () => {
                       className="sort-field"
                       onClick={() =>
                         setSortField(
-                          sortField === field ? null : (field as any)
+                          sortField === field ? null : (field as any),
                         )
                       }
                     >
@@ -500,7 +511,7 @@ const Accession = () => {
                   }`}
                   onClick={() =>
                     setActiveFilterSection(
-                      activeFilterSection === "section" ? null : "section"
+                      activeFilterSection === "section" ? null : "section",
                     )
                   }
                 >
@@ -514,23 +525,25 @@ const Accession = () => {
                   ></i>
                 </div>
                 {activeFilterSection === "section" &&
-                  ["Filipiniana", "General Reference", "General Collection"].map(
-                    (section) => (
-                      <div
-                        key={section}
-                        className={`filter-item ${
-                          sectionFilter === section ? "active" : ""
-                        }`}
-                        onClick={() =>
-                          setSectionFilter(
-                            sectionFilter === section ? null : section
-                          )
-                        }
-                      >
-                        {section}
-                      </div>
-                    )
-                  )}
+                  [
+                    "Filipiniana",
+                    "General Reference",
+                    "General Collection",
+                  ].map((section) => (
+                    <div
+                      key={section}
+                      className={`filter-item ${
+                        sectionFilter === section ? "active" : ""
+                      }`}
+                      onClick={() =>
+                        setSectionFilter(
+                          sectionFilter === section ? null : section,
+                        )
+                      }
+                    >
+                      {section}
+                    </div>
+                  ))}
 
                 {/* Condition Filter */}
                 <div
@@ -539,7 +552,7 @@ const Accession = () => {
                   }`}
                   onClick={() =>
                     setActiveFilterSection(
-                      activeFilterSection === "condition" ? null : "condition"
+                      activeFilterSection === "condition" ? null : "condition",
                     )
                   }
                 >
@@ -561,7 +574,7 @@ const Accession = () => {
                       }`}
                       onClick={() =>
                         setConditionFilter(
-                          conditionFilter === cond ? null : cond
+                          conditionFilter === cond ? null : cond,
                         )
                       }
                     >
@@ -576,7 +589,7 @@ const Accession = () => {
                   }`}
                   onClick={() =>
                     setActiveFilterSection(
-                      activeFilterSection === "source" ? null : "source"
+                      activeFilterSection === "source" ? null : "source",
                     )
                   }
                 >
@@ -603,7 +616,7 @@ const Accession = () => {
                       >
                         {src}
                       </div>
-                    )
+                    ),
                   )}
 
                 {/* Date Filter */}
@@ -755,9 +768,9 @@ const Accession = () => {
                             setSelectedAccessions(
                               e.target.checked
                                 ? currentItems.map(
-                                    (c: any) => c.accession_number
+                                    (c: any) => c.accession_number,
                                   )
-                                : []
+                                : [],
                             )
                           }
                           checked={
@@ -802,7 +815,7 @@ const Accession = () => {
                               <input
                                 type="checkbox"
                                 checked={selectedAccessions.includes(
-                                  item.accession_number
+                                  item.accession_number,
                                 )}
                                 onChange={() =>
                                   toggleSelect(item.accession_number)
@@ -883,7 +896,7 @@ const Accession = () => {
                                         <input
                                           type="checkbox"
                                           checked={selectedAccessions.includes(
-                                            copy.accession_number
+                                            copy.accession_number,
                                           )}
                                           onChange={() =>
                                             toggleSelect(copy.accession_number)
@@ -903,7 +916,7 @@ const Accession = () => {
                                       </td>
                                       <td>
                                         {new Date(
-                                          copy.created_at
+                                          copy.created_at,
                                         ).toLocaleDateString()}
                                       </td>
                                     </tr>
@@ -957,6 +970,39 @@ const Accession = () => {
           </>
         )}
       </div>
+
+      {showWithdrawModal && (
+        <div className="modal-overlay">
+          <div className="modal-box text-center" style={{ maxWidth: "400px" }}>
+            <div className="mb-3">
+              <i
+                className="bi bi-trash3 text-danger"
+                style={{ fontSize: "3rem" }}
+              ></i>
+            </div>
+            <h3>Confirm Withdrawal</h3>
+            <p className="text-muted">
+              Are you sure you want to withdraw{" "}
+              <b>{selectedAccessions.length}</b> selected copies? This action
+              cannot be undone.
+            </p>
+            <div className="form-actions mt-4">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowWithdrawModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="submit-btn btn-danger"
+                onClick={handleWithdraw}
+              >
+                Yes, Withdraw
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Slider Panel */}
       {selectedCopy && (

@@ -350,6 +350,7 @@ const BookDetails: React.FC = () => {
                   const isOnlyCopy = book.copies.length <= 1;
 
                   if (status === "lost") return "-";
+                  if (status === "missing") return "-";
 
                   if (
                     condition === "damaged" ||
@@ -360,7 +361,7 @@ const BookDetails: React.FC = () => {
 
                   if (
                     (condition === "new" || condition === "fine") &&
-                    (status === "available" || status === "on loan")
+                    (status === "available" || status === "issued")
                   ) {
                     return "Circulating";
                   }
@@ -450,6 +451,9 @@ const BookDetails: React.FC = () => {
                       {
                         condition: formData.get("condition"),
                         internal_note: formData.get("internal_note"),
+                        price: formData.get("price")
+                          ? parseFloat(formData.get("price") as string)
+                          : 0,
                       },
                     );
 
@@ -492,6 +496,20 @@ const BookDetails: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="mb-3">
+                  <label className="fw-bold mb-1">Price</label>
+                  <div className="input-group">
+                    <span className="input-group-text">₱</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      name="price"
+                      className="form-control"
+                      defaultValue={editingCopy.price}
+                    />
+                  </div>
                 </div>
 
                 <div className="mb-4">

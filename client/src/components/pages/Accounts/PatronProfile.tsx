@@ -25,6 +25,18 @@ interface ActivityLog {
   purpose_of_visit: string;
 }
 
+interface Activity {
+  id: string;
+  date: string;
+  type: string;
+  module: string;
+  description: string;
+  details: string;
+  fine: number;
+  time_in?: string; // Added optional field
+  time_out?: string | null; // Added optional field
+}
+
 const PatronProfile: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [patron, setPatron] = useState<Patron | null>(null);
@@ -34,8 +46,9 @@ const PatronProfile: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sortOption, setSortOption] = useState<"date_asc" | "date_desc" | "">(
-    ""
+    "",
   );
+  const [activities, setActivities] = useState<Activity[]>([]);
 
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
@@ -76,6 +89,30 @@ const PatronProfile: React.FC = () => {
     fetchPatron();
   }, [id]);
 
+  // Consolidate the activity fetcher
+  const fetchFullActivity = async () => {
+    setLoadingLogs(true);
+    try {
+      const token = localStorage.getItem("authToken");
+      const response = await AxiosInstance.get(`/patrons/${id}/full-activity`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // response.data is now correctly mapped to Activity[]
+      setActivities(response.data);
+    } catch (err) {
+      console.error("Failed to load activity log", err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    document.title = "Patron Profile";
+    if (id) {
+      fetchFullActivity();
+    }
+  }, [id]);
+
   // Fetch Activity Logs
   useEffect(() => {
     document.title = "Patron Profile";
@@ -84,9 +121,7 @@ const PatronProfile: React.FC = () => {
         const token = localStorage.getItem("authToken");
         if (!token) throw new Error("No auth token found");
 
-        const res = await AxiosInstance.get(`/patrons/${id}/activity-logs`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await AxiosInstance.get(`/patrons/${id}/full-activity`);
         setActivityLogs(res.data);
       } catch (err) {
         console.error("Error fetching logs:", err);
@@ -120,16 +155,16 @@ const PatronProfile: React.FC = () => {
   }, []);
 
   // Filter + Sort Activity Logs
-  const filteredLogs = activityLogs.filter((log) =>
-    log.purpose_of_visit.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredActivities = activities.filter(
+    (act) =>
+      act.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      act.type.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const sortedLogs = [...filteredLogs].sort((a, b) => {
+  const sortedActivities = [...filteredActivities].sort((a, b) => {
     if (sortOption === "date_asc")
-      return new Date(a.time_in).getTime() - new Date(b.time_in).getTime();
-    if (sortOption === "date_desc")
-      return new Date(b.time_in).getTime() - new Date(a.time_in).getTime();
-    return 0;
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
   // Confirming renewal of patron card
@@ -143,7 +178,7 @@ const PatronProfile: React.FC = () => {
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       setShowRenewModal(false);
@@ -202,15 +237,13 @@ const PatronProfile: React.FC = () => {
       const updated = await AxiosInstance.get(`/patrons/${patron.id}`);
       setPatron(updated.data);
 
-      setAlertMessage(
-        `Patron has been blocked successfully.`
-      );
+      setAlertMessage(`Patron has been blocked successfully.`);
       setAlertType("success");
     } catch (error: any) {
       console.error("Error blocking patron:", error);
       setAlertMessage(
         error.response?.data?.message ||
-          "Failed to block patron. Please try again."
+          "Failed to block patron. Please try again.",
       );
       setAlertType("error");
     } finally {
@@ -241,7 +274,7 @@ const PatronProfile: React.FC = () => {
       setAlertMessage(
         isUnblock
           ? "Patron has been unblocked successfully!"
-          : "Patron has been reactivated successfully!"
+          : "Patron has been reactivated successfully!",
       );
       setAlertType("success");
     } catch (error) {
@@ -252,7 +285,6 @@ const PatronProfile: React.FC = () => {
       setActivating(false);
     }
   };
-
 
   return (
     <>
@@ -480,25 +512,89 @@ const PatronProfile: React.FC = () => {
         <div className="card-body">
           {loadingLogs ? (
             <LoadingSpinner />
-          ) : sortedLogs.length > 0 ? (
+          ) : sortedActivities.length > 0 ? (
             <table className="user-table">
               <thead>
                 <tr>
-                  <th>Time In</th>
-                  <th>Time Out</th>
-                  <th>Purpose of Visit</th>
+                  <th>Date & Time</th>
+                  <th>Activity</th>
+                  <th>Description</th>
+                  <th>Fine</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td>{new Date(log.time_in).toLocaleString()}</td>
+                {sortedActivities.map((act) => (
+                  <tr key={act.id}>
                     <td>
-                      {log.time_out
-                        ? new Date(log.time_out).toLocaleString()
-                        : "Not yet logged out"}
+                      <div className="fw-semibold">
+                        {new Date(act.date).toLocaleDateString()}
+                      </div>
+                      <small className="text-muted">
+                        {act.type === "Visit" ? (
+                          <>
+                            <i className="bi bi-box-arrow-in-right text-success"></i>{" "}
+                            {new Date(act.time_in!).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {act.time_out ? (
+                              <>
+                                {" "}
+                                |{" "}
+                                <i className="bi bi-box-arrow-left text-danger"></i>{" "}
+                                {new Date(act.time_out).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </>
+                            ) : (
+                              <span
+                                className="ms-1 badge bg-info text-dark"
+                                style={{ fontSize: "0.6rem" }}
+                              >
+                                In Library
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          new Date(act.date).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        )}
+                      </small>
                     </td>
-                    <td>{log.purpose_of_visit}</td>
+                    <td>
+                      <span
+                        className={`badge-status status-${act.type.toLowerCase().replace(/\s+/g, "-")}`}
+                      >
+                        {act.type}
+                      </span>
+                      <br />
+                      <small
+                        className="text-muted"
+                        style={{ fontSize: "0.7rem" }}
+                      >
+                        {act.module}
+                      </small>
+                    </td>
+                    <td>
+                      <div className="activity-desc">
+                        <strong>{act.description}</strong>
+                      </div>
+                      <div className="activity-details text-muted small">
+                        {act.details}
+                      </div>
+                    </td>
+                    <td>
+                      {Number(act.fine) > 0 ? (
+                        <span className="text-danger fw-bold">
+                          ₱{Number(act.fine).toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -657,6 +753,6 @@ const PatronProfile: React.FC = () => {
       )}
     </>
   );
-};
+};;
 
 export default PatronProfile;

@@ -7,6 +7,7 @@ import provinceListData from "../../../data/ph_addresses/province.json";
 import cityListData from "../../../data/ph_addresses/city.json";
 import barangayListData from "../../../data/ph_addresses/barangay.json";
 import LoadingSpinner from "../../LoadingSpinner";
+import MessageModal from "../../MessageModal";
 
 const provinceList = provinceListData as Province[];
 const cityList = cityListData as City[];
@@ -443,7 +444,7 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
                 <option value="">Select Gender</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="Other">Prefer not to say</option>
               </select>
             </div>
           </div>
@@ -503,6 +504,21 @@ const Patron = () => {
 
   const filterRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
+
+  const [msgModal, setMsgModal] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
+
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingDeactivateId, setPendingDeactivateId] = useState<number | null>(
+    null,
+  );
 
   // Fetch patrons
   const fetchPatrons = async () => {
@@ -633,7 +649,7 @@ const Patron = () => {
           Add Patron
         </button>
       </div>
-      <div className="d-flex gap-2 align-items-center">
+      <div className="d-flex gap-2 align-items-center mb-3">
         {/* Controls */}
         <div className="d-flex gap-2 align-items-center w-100">
           {/* Search */}
@@ -746,7 +762,7 @@ const Patron = () => {
                   }`}
                   onClick={() =>
                     setActiveFilterSection(
-                      activeFilterSection === "status" ? null : "status"
+                      activeFilterSection === "status" ? null : "status",
                     )
                   }
                 >
@@ -770,13 +786,13 @@ const Patron = () => {
                         }`}
                         onClick={() =>
                           setStatusFilter(
-                            statusFilter === status ? null : status
+                            statusFilter === status ? null : status,
                           )
                         }
                       >
                         {status}
                       </div>
-                    )
+                    ),
                   )}
               </div>
             )}
@@ -851,7 +867,7 @@ const Patron = () => {
                           : {
                               top: rect.bottom + window.scrollY,
                               left: rect.left + window.scrollX,
-                            }
+                            },
                       );
                       setOpenMenu(openMenu === patron.id ? null : patron.id);
                     }}
@@ -915,32 +931,94 @@ const Patron = () => {
         >
           <button
             onClick={() => {
-              if (openMenu) {
-                if (role === "admin") {
-                  navigate(`/admin/patrons/${openMenu}`);
-                } else if (role === "staff") {
-                  navigate(`/staff/patrons/${openMenu}`);
-                }
-              }
+              const path =
+                role === "admin"
+                  ? `/admin/patrons/${openMenu}`
+                  : `/staff/patrons/${openMenu}`;
+              navigate(path);
             }}
           >
             <i className="bi bi-eye"></i> View
           </button>
-          <button
-            onClick={async () => {
-              if (openMenu) {
-                try {
-                  await AxiosInstance.patch(`/patrons/${openMenu}/deactivate`);
-                  fetchPatrons();
-                } catch (error) {
-                  console.error(error);
-                }
-              }
-            }}
-          >
-            Deactivate
-          </button>
+
+          {/* Only show Deactivate if status is "Active" */}
+          {patrons.find((p) => p.id === openMenu)?.status?.toLowerCase() ===
+            "active" && (
+            <button
+              onClick={() => {
+                setPendingDeactivateId(openMenu);
+                setShowConfirm(true);
+                setOpenMenu(null); // Close the triple-dot menu
+                setDropdownPosition(null);
+              }}
+            >
+              <i className="bi bi-person-x"></i> Deactivate
+            </button>
+          )}
         </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-box text-center" style={{ maxWidth: "400px" }}>
+            <div className="mb-3">
+              <i
+                className="bi bi-exclamation-triangle text-warning"
+                style={{ fontSize: "3rem" }}
+              ></i>
+            </div>
+            <h3>Are you sure?</h3>
+            <p>
+              Do you really want to <b>deactivate</b> this patron? They will no
+              longer be able to borrow books.
+            </p>
+            <div className="form-actions mt-4">
+              <button
+                className="cancel-btn"
+                onClick={() => setShowConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="submit-btn btn-danger"
+                onClick={async () => {
+                  setShowConfirm(false); // Close confirmation
+                  if (pendingDeactivateId) {
+                    try {
+                      await AxiosInstance.patch(
+                        `/patrons/${pendingDeactivateId}/deactivate`,
+                      );
+                      setMsgModal({
+                        show: true,
+                        type: "success",
+                        message: "Patron has been successfully deactivated.",
+                      });
+                      fetchPatrons();
+                    } catch (error) {
+                      setMsgModal({
+                        show: true,
+                        type: "error",
+                        message: "Failed to deactivate patron.",
+                      });
+                    }
+                  }
+                }}
+              >
+                Yes, Deactivate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success/Error Modal */}
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
       )}
 
       {showModal && (

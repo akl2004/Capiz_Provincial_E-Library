@@ -90,7 +90,7 @@ class ReportsController extends Controller
         $totalCopies = DB::table('book_copies')->count();
 
         // Define the statuses you consider "Active"
-        $activeStatuses = ['On Loan', 'Returned', 'Reserved', 'Renewed'];
+        $activeStatuses = ['Issued', 'Returned', 'Renewed'];
 
         $borrowedByType = DB::table('circulations')
             ->join('book_copies', 'circulations.book_copy_id', '=', 'book_copies.id')
@@ -192,7 +192,7 @@ class ReportsController extends Controller
             ->where(function ($query) use ($today) {
                 $query->where('status', 'Returned Late')
                       ->orWhere(function ($sub) use ($today) {
-                          $sub->where('status', 'On Loan')
+                          $sub->where('status', 'Issued')
                               ->whereDate('due_date', '<', $today);
                       });
             })
@@ -231,7 +231,7 @@ class ReportsController extends Controller
             $monthEnd = Carbon::parse($m['full_date']);
 
             // Monthly Borrowed
-            $onLoan = DB::table('circulations')
+            $issued = DB::table('circulations')
                 ->whereYear('issue_date', $y)
                 ->whereMonth('issue_date', $mo)
                 ->count();
@@ -275,7 +275,7 @@ class ReportsController extends Controller
             $rows[] = [
                 'month' => $m['display'],
                 'year_month' => $m['year_month'], 
-                'onLoan' => (int)$onLoan,
+                'issued' => (int)$issued,
                 'returned' => (int)$returned,
                 'overdue' => (int)$monthlyOverdue,
                 'lost' => (int)$lost,

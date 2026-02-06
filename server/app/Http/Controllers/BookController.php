@@ -213,11 +213,11 @@ class BookController extends Controller
 
         $fineRate = (int) LibrarySetting::getValue('fine_per_day', 5);
 
-        // Map each copy to include current status & on loan info
+        // Map each copy to include current status & issued info
         $book->copies = $book->copies->map(function ($copy) use ($fineRate) {
             $circulation = Circulation::with('patron')
                 ->where('book_copy_id', $copy->id)
-                ->where('status', 'On Loan')
+                ->where('status', 'Issued')
                 ->latest('issue_date')
                 ->first();
             
@@ -242,7 +242,7 @@ class BookController extends Controller
                     'copy_number' => $copy->copy_number,
                     'barcode' => $copy->barcode,
                     'accession_number' => $copy->accession_number,
-                    'status' => 'On Loan',
+                    'status' => 'Issued',
                     'borrowed_by' => [
                         'patron_id' => $circulation->patron->patron_id,
                         'first_name' => $circulation->patron->first_name,
@@ -339,7 +339,6 @@ class BookController extends Controller
     }
 
 
-   // Add $bookId as the second parameter
     public function updateCopy(Request $request, $bookId, $id)
     {
         $user = $request->user();
@@ -347,28 +346,57 @@ class BookController extends Controller
         $validated = $request->validate([
             'condition'     => 'sometimes|required|string',
             'internal_note' => 'nullable|string',
-            'price'         => 'nullable|numeric',
+            'price'         => 'nullable|numeric|min:0',
         ]);
 
-        // The $id here will now correctly refer to the Copy ID (e.g., 26)
-        $copy = BookCopy::with('book')->find($id);
+        // 1. Find the specific copy
+        $specificCopy = BookCopy::where('book_id', $bookId)->find($id);
 
-        if (!$copy) {
-            return response()->json(['message' => 'Book copy not found'], 404);
+        if (!$specificCopy) {
+            return response()->json(['message' => 'Copy not found'], 404);
         }
 
-        $copy->update($validated);
+        // 2. Build change log for the specific copy
+        $specificCopy->fill($validated);
+        $changes = $specificCopy->getDirty();
+        $changeDetails = [];
+
+        foreach ($changes as $field => $newValue) {
+            $oldValue = $specificCopy->getOriginal($field);
+            $changeDetails[] = "{$field} (from '{$oldValue}' to '{$newValue}')";
+        }
+
+        // 3. APPLY CHANGES
+        // First: Update the individual copy for Condition and Notes
+        $specificCopy->save();
+
+        // Second: If price was changed, update ALL copies for this book
+        $globalPriceNote = "";
+        if (array_key_exists('price', $changes)) {
+            $newPrice = $validated['price'];
+            
+            // This is the bulk update command
+            BookCopy::where('book_id', $bookId)->update(['price' => $newPrice]);
+            
+            $globalPriceNote = " [Price updated for ALL copies of this book]";
+        }
+
+        // 4. LOGGING
+        $specificCopy->load('book');
+        $changeMessage = count($changeDetails) > 0 
+            ? "Changes: " . implode(', ', $changeDetails) . $globalPriceNote
+            : "No modifications made";
 
         $this->logActivity(
             'Update Copy',
-            "Updated copy {$copy->barcode} of book: {$copy->book->title}",
+            "Updated copy {$specificCopy->barcode} ({$specificCopy->book->title}): {$changeMessage}",
             $user,
-            'Inventory'
+            'Cataloging'
         );
 
         return response()->json([
-            'message' => 'Copy updated successfully',
-            'data' => $copy
+            'message' => 'Copy and global book pricing updated successfully',
+            'data' => $specificCopy
         ]);
     }
 
@@ -436,7 +464,7 @@ class BookController extends Controller
             'Add Copy',
             'Added ' . $request->copies . ' copy/copies for book: ' . $book->title,
             $user,
-            'Accession'
+            'Accession Module'
         );
 
         // return response()->json($book->load('copies'));

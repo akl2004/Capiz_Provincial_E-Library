@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/patrons/{id}', [PatronController::class, 'destroy']);
     Route::post('/patrons/{id}/renew', [PatronController::class, 'renewPatron']);
     Route::post('/patrons/pay-fine', [PatronController::class, 'payFine']);
+    Route::get('/patrons/{id}/full-activity', [PatronController::class, 'getPatronFullActivity']);
 
     Route::put('/patrons/{id}/edit', [PatronController::class, 'updateEditableFields']);
 });

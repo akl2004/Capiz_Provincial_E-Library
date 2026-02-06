@@ -161,7 +161,7 @@ class PatronController extends Controller
             'borrowedBooks' => $patron->circulations()->count(),
             'returnedBooks' => $patron->circulations()->whereIn('status', ['Returned', 'Returned Late'])->count(),
             'lostBooks'     => $patron->circulations()->where('status', 'Lost')->count(),
-            'activeLoans'   => $patron->circulations()->whereIn('status', ['On Loan', 'Overdue'])->count(),
+            'activeLoans'   => $patron->circulations()->whereIn('status', ['Issued', 'Overdue'])->count(),
             'totalFine'     => (float) $totalFine,
             'overdueBooks'  => $patron->circulations()->where('status', 'Overdue')->count(),
         ]);
@@ -240,7 +240,7 @@ class PatronController extends Controller
         ActivityLog::create([
             'user_id' => $user->id,
             'role' => $user->role,
-            'module' => 'Patron',
+            'module' => 'Patron Module',
             'action' => $action,
             'description' => $description,
         ]);
@@ -310,7 +310,7 @@ class PatronController extends Controller
 
         // 2. Find all active loans for this patron
         $loans = Circulation::where('patron_id', $patron->id)
-            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->whereIn('status', ['Issued', 'Overdue'])
             ->get();
 
         $paidCount = 0;
@@ -326,7 +326,7 @@ class PatronController extends Controller
             if ($calculatedFine > 0) {
             $loan->update([
                     'fine' => $calculatedFine,
-                    'status' => 'On Loan',   
+                    'status' => 'Issued',   
                     'is_paid' => true,          
                     'overdue_by' => $overdueDays,
                     'updated_at' => $now        
@@ -360,6 +360,71 @@ class PatronController extends Controller
         }, $comp);
     }
 
+
+    public function getPatronFullActivity($id)
+{
+    $patron = Patron::findOrFail($id);
+
+    // 1. Circulation (Books)
+    $circulations = \App\Models\Circulation::with('bookCopy.book')
+        ->where('patron_id', $id)
+        ->get()
+        ->map(function ($c) {
+            return [
+                'id' => 'circ-' . $c->id,
+                'date' => $c->updated_at, // Sort date
+                'type' => $c->status,
+                'module' => 'Circulation Module',
+                'description' => "{$c->status}: " . ($c->bookCopy->book->title ?? 'Unknown Book'),
+                'details' => "Accession: " . ($c->bookCopy->accession_number ?? 'N/A'),
+                'fine' => $c->fine,
+                'time_in' => null,
+                'time_out' => null
+            ];
+        });
+
+    // 2. Attendance (Visitor Logs)
+    $attendances = \App\Models\Attendance::where('patron_id', $id)
+        ->get()
+        ->map(function ($a) {
+            return [
+                'id' => 'att-' . $a->id,
+                'date' => $a->time_in, // Sort date
+                'type' => 'Visit',
+                'module' => 'Attendance Module',
+                'description' => "Library Visit: " . $a->purpose_of_visit,
+                'details' => $a->time_out ? "Stayed until " . \Carbon\Carbon::parse($a->time_out)->format('h:i A') : "Currently in library",
+                'fine' => 0,
+                'time_in' => $a->time_in,
+                'time_out' => $a->time_out
+            ];
+        });
+
+    // 3. Activity Logs (System Records)
+    $logs = \App\Models\ActivityLog::where('description', 'like', '%' . $patron->first_name . '%')
+        ->orWhere('description', 'like', '%' . $patron->last_name . '%')
+        ->get()
+        ->map(function ($l) {
+            return [
+                'id' => 'log-' . $l->id,
+                'date' => $l->created_at, // Sort date
+                'type' => $l->action,
+                'module' => $l->module,
+                'description' => $l->description,
+                'details' => "System activity recorded",
+                'fine' => 0,
+                'time_in' => null,
+                'time_out' => null
+            ];
+        });
+
+    // Merge and Sort
+    $merged = $circulations->concat($attendances)->concat($logs)
+        ->sortByDesc('date')
+        ->values();
+
+    return response()->json($merged);
+}
 
 
 }

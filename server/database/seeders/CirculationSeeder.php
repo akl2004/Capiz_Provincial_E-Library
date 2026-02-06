@@ -20,13 +20,18 @@ class CirculationSeeder extends Seeder
         $loanDays = (int) LibrarySetting::getValue('default_loan_days', 5);
         $missingThreshold = (int) LibrarySetting::getValue('missing_book_threshold_days', 365);
         
-        // 2. Prerequisites
         $patron = Patron::first() ?? Patron::factory()->create();
         $staff = User::first() ?? User::factory()->create();
 
+        $usedCopyIds = [];
+
         // --- SECTION 1: OVERDUE RECORD ---
-        $overdueCopy = BookCopy::where('status', 'Available')->first() ?? BookCopy::factory()->create();
-        $overdueCopy->update(['status' => 'On Loan']);
+        $overdueCopy = BookCopy::where('status', 'Available')
+            ->whereNotIn('id', $usedCopyIds)
+            ->first() ?? BookCopy::factory()->create();
+        $usedCopyIds[] = $overdueCopy->id;
+        
+        $overdueCopy->update(['status' => 'Issued']);
         $issueDate1 = now()->subDays(15);
         $dueDate1 = $issueDate1->copy()->addWeekdays($loanDays);
         $overdueDays1 = $this->calculateOverdueDays($dueDate1, now());
@@ -43,7 +48,11 @@ class CirculationSeeder extends Seeder
         ]);
 
         // --- SECTION 2: RETURNED LATE RECORD ---
-        $historyCopy = BookCopy::where('status', 'Available')->first() ?? BookCopy::factory()->create();
+        $historyCopy = BookCopy::where('status', 'Available')
+            ->whereNotIn('id', $usedCopyIds)
+            ->first() ?? BookCopy::factory()->create();
+        $usedCopyIds[] = $historyCopy->id;
+
         $issueDate2 = now()->subDays(25);
         $dueDate2 = $issueDate2->copy()->addWeekdays($loanDays);
         $returnDate = now()->subDays(10);
@@ -63,7 +72,11 @@ class CirculationSeeder extends Seeder
         ]);
 
         // --- SECTION 3: LOST RECORD ---
-        $lostCopy = BookCopy::where('status', 'Available')->first() ?? BookCopy::factory()->create();
+        $lostCopy = BookCopy::where('status', 'Available')
+            ->whereNotIn('id', $usedCopyIds)
+            ->first() ?? BookCopy::factory()->create();
+        $usedCopyIds[] = $lostCopy->id;
+
         $lostCopy->update(['status' => 'Lost']);
         $issueDate3 = now()->subDays(30);
         $dueDate3 = $issueDate3->copy()->addWeekdays($loanDays);
@@ -79,14 +92,15 @@ class CirculationSeeder extends Seeder
             'fine'            => (float)($lostCopy->price ?? 0) + $processingFee,
         ]);
 
-        // --- SECTION 4: MISSING RECORD (Way past overdue) ---
-        $missingCopy = BookCopy::where('status', 'Available')->first() ?? BookCopy::factory()->create();
+        // --- SECTION 4: MISSING RECORD ---
+        $missingCopy = BookCopy::where('status', 'Available')
+            ->whereNotIn('id', $usedCopyIds)
+            ->first() ?? BookCopy::factory()->create();
+        $usedCopyIds[] = $missingCopy->id;
         
-        // We set the issue date way back (Threshold + 30 days)
         $issueDate4 = now()->subDays($missingThreshold + 30);
         $dueDate4 = $issueDate4->copy()->addWeekdays($loanDays);
         
-        // According to your controller: fine = missingThreshold * fineRate
         Circulation::create([
             'book_copy_id' => $missingCopy->id,
             'patron_id'    => $patron->id,

@@ -665,23 +665,46 @@ const StaffProfile: React.FC = () => {
         {loadingLogs ? (
           <LoadingSpinner message="Loading activity logs..." />
         ) : activityLogs.length > 0 ? (
-          <table className="table table-striped">
+          <table className="user-table">
             <thead>
               <tr>
-                <th>Date & Time</th>
-                <th>Role</th>
-                <th>Module</th>
-                <th>Action</th>
+                <th style={{ width: "160px" }}>Date & Time</th>
+                <th style={{ width: "200px" }}>Activity</th>
                 <th>Description</th>
               </tr>
             </thead>
             <tbody>
               {sortedLogs.map((log) => (
                 <tr key={log.id}>
-                  <td>{new Date(log.created_at).toLocaleString()}</td>
-                  <td>{log.role}</td>
-                  <td>{log.module}</td>
-                  <td>{log.action}</td>
+                  <td>
+                    <div className="fw-semibold text-dark">
+                      {new Date(log.created_at).toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </div>
+                    <small className="text-muted">
+                      <i
+                        className="bi bi-clock me-1"
+                        style={{ fontSize: "0.75rem" }}
+                      ></i>
+                      {new Date(log.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </small>
+                  </td>
+                  <td>
+                    <div className="fw-semibold text-dark">{log.action}</div>
+                    <small
+                      className="text-muted text-uppercase"
+                      style={{ fontSize: "0.7rem", letterSpacing: "0.5px" }}
+                    >
+                      <i className="bi bi-layers me-1"></i>
+                      {log.module}
+                    </small>
+                  </td>
                   <td>{log.description}</td>
                 </tr>
               ))}

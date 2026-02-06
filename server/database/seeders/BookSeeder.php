@@ -74,7 +74,7 @@ class BookSeeder extends Seeder
         ]);
 
         // Define number of copies for this book
-        $numCopies = 3;
+        $numCopies = 5;
 
         // Get last global accession number
         $lastCopy = BookCopy::orderBy('id', 'desc')->first();

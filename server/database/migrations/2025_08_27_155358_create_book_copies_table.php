@@ -36,7 +36,7 @@ return new class extends Migration
 
             // Circulation info
             $table->decimal('price', 8, 2)->nullable();
-            $table->enum('status', ['Available', 'On Loan', 'Lost', 'Missing'])->default('Available');
+            $table->enum('status', ['Available', 'Issued', 'Lost', 'Missing'])->default('Available');
             $table->dateTime('date_added')->useCurrent();
 
             $table->softDeletes();

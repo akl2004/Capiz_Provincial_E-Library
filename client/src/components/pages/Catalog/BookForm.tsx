@@ -176,6 +176,14 @@ const BookForm: React.FC = () => {
   };
 
   const addNewTab = () => {
+    // Check if the limit has been reached
+    if (allBooks.length >= 10) {
+      setModalType("error");
+      setModalMessage("You can only add a maximum of 10 books per batch.");
+      setShowModal(true);
+      return;
+    }
+
     // Pass the existing dropdown states to the new book
     const newBook = createEmptyBook(sections, materialTypes, sources);
     setAllBooks([...allBooks, newBook]);
@@ -435,9 +443,15 @@ const BookForm: React.FC = () => {
               </div>
             ))}
 
-            <button type="button" onClick={addNewTab} className="add-book-tab">
-              + Add Book
-            </button>
+            {allBooks.length < 10 && (
+              <button
+                type="button"
+                onClick={addNewTab}
+                className="add-book-tab"
+              >
+                + Add Book
+              </button>
+            )}
           </div>
         </div>
 
@@ -482,7 +496,7 @@ const BookForm: React.FC = () => {
                               onChange={(e) =>
                                 updateActiveBook(
                                   "isbn_paperback",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -497,7 +511,7 @@ const BookForm: React.FC = () => {
                               onChange={(e) =>
                                 updateActiveBook(
                                   "isbn_hardcover",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                             />
@@ -533,7 +547,7 @@ const BookForm: React.FC = () => {
                         className="switch-mode-btn compact"
                         onClick={() =>
                           setIdentifierMode(
-                            identifierMode === "ISBN" ? "ISSN" : "ISBN"
+                            identifierMode === "ISBN" ? "ISSN" : "ISBN",
                           )
                         }
                         title={`Switch to ${
@@ -583,7 +597,7 @@ const BookForm: React.FC = () => {
                     {allBooks[activeTab]?.coverImage ? (
                       <img
                         src={URL.createObjectURL(
-                          allBooks[activeTab].coverImage as File
+                          allBooks[activeTab].coverImage as File,
                         )}
                         alt="Preview"
                       />
@@ -749,7 +763,7 @@ const BookForm: React.FC = () => {
                         onChange={() =>
                           updateActiveBook(
                             "includesIndex",
-                            !allBooks[activeTab].includesIndex
+                            !allBooks[activeTab].includesIndex,
                           )
                         }
                       />{" "}
@@ -763,7 +777,7 @@ const BookForm: React.FC = () => {
                         onChange={() =>
                           updateActiveBook(
                             "includesAppendix",
-                            !allBooks[activeTab].includesAppendix
+                            !allBooks[activeTab].includesAppendix,
                           )
                         }
                       />{" "}
@@ -777,7 +791,7 @@ const BookForm: React.FC = () => {
                         onChange={() =>
                           updateActiveBook(
                             "includesGlossary",
-                            !allBooks[activeTab].includesGlossary
+                            !allBooks[activeTab].includesGlossary,
                           )
                         }
                       />{" "}
@@ -795,7 +809,7 @@ const BookForm: React.FC = () => {
                           updateActiveBook(
                             "includesBibliographicalReferences",
                             !allBooks[activeTab]
-                              .includesBibliographicalReferences
+                              .includesBibliographicalReferences,
                           )
                         }
                       />{" "}
@@ -1102,7 +1116,7 @@ const BookForm: React.FC = () => {
                   onClick={() =>
                     updateActiveBook(
                       "copies",
-                      Math.max(1, allBooks[activeTab].copies - 1)
+                      Math.max(1, allBooks[activeTab].copies - 1),
                     )
                   }
                 >
@@ -1204,7 +1218,7 @@ const BookForm: React.FC = () => {
                       </div>
                       <Barcode value={c.barcode} width={2} height={50} />
                     </div>
-                  ))
+                  )),
                 )}
               </div>
 

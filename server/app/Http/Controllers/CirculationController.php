@@ -44,7 +44,7 @@ class CirculationController extends Controller
                     $rec->save();
                 }
             } else {
-                $rec->status = 'On Loan';
+                $rec->status = 'Issued';
                 $rec->overdue_by = 0;
             }
 
@@ -65,15 +65,15 @@ class CirculationController extends Controller
 
         $dueDatePreview = now()->addWeekdays($loanDays)->toDateString();
 
-        // Count how many books the patron has on loan today
+        // Count how many books the patron has issued today
         $borrowedToday = $patron->circulations()
             ->whereDate('issue_date', $today)
-            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->whereIn('status', ['Issued', 'Overdue'])
             ->count();
 
-        // Count total currently on loan (on loan + overdue) books
+        // Count total currently issued (issued + overdue) books
         $currentBorrowed = $patron->circulations()
-            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->whereIn('status', ['Issued', 'Overdue'])
             ->count();
 
         // How many more books the patron can borrow today
@@ -182,11 +182,11 @@ class CirculationController extends Controller
                         'user_id'      => $user->id,
                         'issue_date'   => $issueDate,
                         'due_date'     => $dueDate,
-                        'status'       => 'On Loan',
+                        'status'       => 'Issued',
                     ]);
 
                     // Update Book Status
-                    $bookCopy->update(['status' => 'On Loan']);
+                    $bookCopy->update(['status' => 'Issued']);
                     $bookTitles[] = $bookCopy->book->title;
                 }
             });
@@ -211,7 +211,7 @@ class CirculationController extends Controller
     }
 
 
-    // Return an on loan book copy
+    // Return an issued book copy
     public function return(Request $request)
     {
         $request->validate([
@@ -221,7 +221,7 @@ class CirculationController extends Controller
         $user = $request->user();
 
         $circulation = Circulation::where('book_copy_id', $request->book_copy_id)
-            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->whereIn('status', ['Issued', 'Overdue'])
             ->latest('issue_date')
             ->firstOrFail();
 
@@ -273,7 +273,7 @@ class CirculationController extends Controller
         $mode = $request->replacement_mode;
         
         $circulation = Circulation::where('book_copy_id', $request->book_copy_id)
-            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->whereIn('status', ['Issued', 'Overdue'])
             ->firstOrFail();
 
         $replacementCost = ($settlementType === 'payment') 
@@ -424,7 +424,7 @@ class CirculationController extends Controller
 
         $activeLoans = Circulation::with(['bookCopy.book'])
             ->where('patron_id', $patronId)
-            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->whereIn('status', ['Issued', 'Overdue'])
             ->get()
             ->map(function ($loan) use ($fineRate, $now) {
                 $overdueDays = $this->calculateOverdueDays($loan->due_date, $now);
@@ -461,13 +461,13 @@ class CirculationController extends Controller
 
         $user = $request->user();
 
-        // Find the latest on loan circulation for this book copy
+        // Find the latest issued circulation for this book copy
         $circulation = Circulation::where('book_copy_id', $request->book_copy_id)
-            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->whereIn('status', ['Issued', 'Overdue'])
             ->latest('issue_date')
             ->firstOrFail();
 
-        // Ensure the book is currently on loan
+        // Ensure the book is currently issued
         if ($circulation->status === 'Overdue' || $circulation->fine > 0) {
             return response()->json([
                 'message' => 'Cannot renew book: Please settle the outstanding fine first.',
@@ -496,7 +496,7 @@ class CirculationController extends Controller
             'renewal_date' => now(),
             'renewal_count' => $circulation->renewal_count + 1,
             'due_date' => $newDueDate,
-            'status' => 'On Loan',
+            'status' => 'Issued',
         ]);
 
         // Log activity
@@ -518,7 +518,7 @@ class CirculationController extends Controller
     public function reports()
     {
         return response()->json([
-            'On Loan' => Circulation::where('status', 'On Loan')->count(),
+            'Issued' => Circulation::where('status', 'Issued')->count(),
             'Returned' => Circulation::whereIn('status', ['Returned', 'Returned Late'])->count(),
             'Overdue' => Circulation::where('status', 'Overdue')->count(),
             'Lost' => Circulation::where('status', 'Lost')->count(),
@@ -578,16 +578,16 @@ class CirculationController extends Controller
             ], 404);
         }
 
-        // Find the latest on loan circulation record for this copy
+        // Find the latest issued circulation record for this copy
         $circulation = Circulation::with('patron')
             ->where('book_copy_id', $bookCopy->id)
-            ->whereIn('status', ['On Loan', 'Overdue'])
+            ->whereIn('status', ['Issued', 'Overdue'])
             ->latest('issue_date')
             ->first();
 
         if (!$circulation) {
             return response()->json([
-                'message' => 'This book is not currently on loan.'
+                'message' => 'This book is not currently issued.'
             ], 404);
         }
 
@@ -624,7 +624,7 @@ class CirculationController extends Controller
             ->orderBy('issue_date', 'desc')
             ->get()
             ->map(function ($rec) use ($fineRate) {
-                if ($rec->status === 'On Loan' || $rec->status === 'Overdue') {
+                if ($rec->status === 'Issued' || $rec->status === 'Overdue') {
                     $overdueBy = $this->calculateOverdueDays($rec->due_date, now());
                     $fine = $overdueBy * $fineRate;
                 } else {
@@ -687,16 +687,16 @@ class CirculationController extends Controller
         $returnedToday = Circulation::whereDate('date_returned', $today)->count();
         $returnedYesterday = Circulation::whereDate('date_returned', $yesterday)->count();
 
-        $overdueToday = Circulation::whereIn('status', ['On Loan', 'Overdue'])
+        $overdueToday = Circulation::whereIn('status', ['Issued', 'Overdue'])
             ->whereDate('due_date', '<', Carbon::today())
             ->count();
 
-        $overdueYesterday = Circulation::whereIn('status', ['On Loan', 'Overdue'])
+        $overdueYesterday = Circulation::whereIn('status', ['Issued', 'Overdue'])
             ->whereDate('due_date', '<', $yesterday)
             ->count();
 
         return response()->json([
-            'On Loan' => [
+            'Issued' => [
                 'count' => $borrowedToday,
                 'percent' => $calcPercent($borrowedToday, $borrowedYesterday),
             ],
@@ -730,7 +730,7 @@ class CirculationController extends Controller
 
         foreach ($copies as $copy) {
             // 1. SECURITY CHECK: Skip if book is currently borrowed
-            if (in_array($copy->status, ['On Loan', 'Overdue'])) {
+            if (in_array($copy->status, ['Issued', 'Overdue'])) {
                 $errors[] = "Accession {$copy->accession_number} is currently active in a transaction.";
                 continue;
             }
@@ -743,7 +743,7 @@ class CirculationController extends Controller
             ActivityLog::create([
                 'user_id' => $request->user()->id,
                 'role' => $request->user()->role ?? 'staff',
-                'module' => 'Inventory',
+                'module' => 'Cataloging Module',
                 'action' => 'Withdrawn',
                 'description' => "Withdrew Copy #{$copy->copy_number} of '{$copy->book->title}' (Accession: {$copy->accession_number})"
             ]);

@@ -30,14 +30,14 @@ return new class extends Migration {
             $table->enum('lost_resolution', ['Pending', 'Payment', 'Replacement', 'None'])->default('None');
 
             $table->enum('status', [
-                'On Loan', 
+                'Issued', 
                 'Returned', 
                 'Returned Late', 
                 'Renewed', 
                 'Lost', 
                 'Overdue',
                 'Missing'
-            ])->default('On Loan');
+            ])->default('Issued');
 
             $table->timestamps();
         });

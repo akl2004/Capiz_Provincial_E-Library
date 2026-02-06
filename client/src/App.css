@@ -3544,8 +3544,14 @@ input:focus {
   color: #991b1b;
 }
 
-.tally-active {
-  border: 2px solid black;
+.tally-missing {
+  border: 3px solid #dc7235;
+  color: #99521b;
+}
+
+.tally-lost {
+  border: 3px solid #8b8b8b;
+  color: #575656;
 }
 
 .tally-card img {
@@ -6620,3 +6626,189 @@ input:focus {
 
 
 
+.multi-step-modal {
+  display: flex;
+  width: 900px;
+  max-width: 95vw;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  color: white;
+}
+
+.step-sidebar {
+  width: 280px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 40px 25px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.step-pane .subtitle, .step-pane h2, .sidebar-header, .step-list{
+  color: #000;
+}
+
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 30px;
+  opacity: 0.4;
+}
+
+.step-item.active { opacity: 1; }
+.step-item.completed { opacity: 0.8; color: #00d084; }
+
+.step-circle {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.step-content-area {
+  flex: 1;
+  padding: 40px;
+  position: relative;
+}
+
+.close-x {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: transparent;
+  border: none;
+  color: blackl;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  z-index: 10; /* Ensures it stays above other elements */
+}
+
+.close-x:hover {
+  color: #ff4d4d;
+}
+
+.btn-next, .btn-submit {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 6px;
+  width: 100%;
+  font-weight: bold;
+}
+
+.btn-back {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 12px 25px;
+  border-radius: 6px;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 10px;
+}
+
+.mode-toggle button {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    color: black;
+    border-radius: 6px;
+}
+
+.mode-toggle button.active {
+    background: #C05B42;
+    color: white;
+}
+
+.visitor-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.type-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.type-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: translateY(-2px);
+}
+
+.type-card.selected {
+  border-color: #007bff;
+  background: rgba(0, 123, 255, 0.1);
+}
+
+.card-icon {
+  width: 170px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-icon img {
+  max-width: 100%;
+  opacity: 0.8;
+}
+
+.type-card.selected .card-icon img {
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(0, 123, 255, 0.5));
+}
+
+.type-card span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #cbd5e0;
+}
+
+.type-card.selected span {
+  color: #fff;
+}
+
+/* The small circle indicator at the bottom of the card */
+.radio-indicator {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  margin-top: 10px;
+  position: relative;
+}
+
+.type-card.selected .radio-indicator {
+  border-color: #007bff;
+}
+
+.type-card.selected .radio-indicator::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: #007bff;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}

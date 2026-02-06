@@ -58,9 +58,11 @@ const CirculationPage = () => {
   const [activePeriodMap, setActivePeriodMap] = useState<{
     [key: string]: "This Week" | "This Month" | "This Year";
   }>({
-    "On Loan": "This Week",
+    Issued: "This Week",
     Returned: "This Week",
     Overdue: "This Week",
+    Missing: "This Week",
+    Lost: "This Week",
   });
 
   // Sorting
@@ -200,23 +202,32 @@ const CirculationPage = () => {
 
   // Tally counts
   const tally = {
-    "On Loan": records.filter(
+    Issued: records.filter(
       (r) =>
-        getStatus(r) === "On Loan" &&
-        filterByPeriod(r, activePeriodMap["On Loan"])
+        getStatus(r) === "Issued" &&
+        filterByPeriod(r, activePeriodMap["Issued"]),
     ).length,
     Returned: records.filter(
       (r) =>
         getStatus(r) === "Returned" &&
-        filterByPeriod(r, activePeriodMap["Returned"])
+        filterByPeriod(r, activePeriodMap["Returned"]),
     ).length,
     Overdue: records.filter((r) => getStatus(r) === "Overdue").length,
+    Missing: records.filter(
+      (r) =>
+        getStatus(r) === "Missing" &&
+        filterByPeriod(r, activePeriodMap["Missing"]),
+    ).length,
+    Lost: records.filter(
+      (r) =>
+        getStatus(r) === "Lost" && filterByPeriod(r, activePeriodMap["Lost"]),
+    ).length,
   };
 
   const getStatusColor = (record: Circulation) => {
     const status = getStatus(record);
     switch (status) {
-      case "On Loan":
+      case "Issued":
         return "#0d6efd"; // blue
       case "Returned":
         return "#198754"; // green
@@ -279,9 +290,12 @@ const CirculationPage = () => {
       <div className="circulation-tally" ref={tallyRef}>
         {Object.entries(tally).map(([key, count]) => {
           let cardClass = "";
-          if (key === "On Loan") cardClass = "tally-borrowed";
+          if (key === "Issued") cardClass = "tally-borrowed";
           else if (key === "Returned") cardClass = "tally-returned";
           else if (key === "Overdue") cardClass = "tally-overdue";
+          else if (key === "Missing")
+            cardClass = "tally-missing";
+          else if (key === "Lost") cardClass = "tally-lost";
 
           return (
             <div
@@ -488,7 +502,7 @@ const CirculationPage = () => {
                       className="filter-dropdown"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {["On Loan", "Returned", "Overdue"].map((status) => (
+                      {["Issued", "Returned", "Overdue", "Missing", "Lost"].map((status) => (
                         <div
                           key={status}
                           className={`filter-item ${

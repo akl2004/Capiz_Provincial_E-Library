@@ -494,7 +494,7 @@ const GuestDashboard = () => {
                     <p className="mb-0">
                       <strong>Availability:</strong>{" "}
                       {selectedBook.copies?.filter((c) => {
-                        return c.status !== "On Loan" && c.status !== "Lost";
+                        return c.status !== "Issued" && c.status !== "Lost";
                       }).length || 0}{" "}
                       out of {selectedBook.copies?.length || 0} copies in shelf
                     </p>
