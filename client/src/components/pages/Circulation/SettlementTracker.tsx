@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
+import MessageModal from "../../MessageModal";
 
 // --- SUB-COMPONENT: THE RESOLUTION MODAL ---
 const ResolutionModal = ({ data, onClose, refresh }: any) => {
@@ -8,6 +9,13 @@ const ResolutionModal = ({ data, onClose, refresh }: any) => {
     "complete",
   );
   const [loading, setLoading] = useState(false);
+  const [modalMessage, setModalMessage] = useState<{
+    type: "success" | "error";
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const [settings, setSettings] = useState({ days: 14, limit: 2 });
 
   const [userName, setUserName] = useState("Authorized User");
   const [userRole, setUserRole] = useState("Staff");
@@ -45,6 +53,42 @@ const ResolutionModal = ({ data, onClose, refresh }: any) => {
       .then((res) => setLatePenaltySetting(res.data.late_settlement_penalty))
       .catch(() => setLatePenaltySetting(50));
   }, []);
+
+  useEffect(() => {
+    AxiosInstance.get("/settings/replacement-policy")
+      .then((res) =>
+        setSettings({
+          days: res.data.extension_days,
+          limit: res.data.extension_limit,
+        }),
+      )
+      .catch(() => console.error("Using default policy"));
+  }, []);
+
+  const isExtensionLimitReached = (data.extension_count || 0) >= settings.limit;
+
+ const calculateMaxDate = () => {
+   if (!data.due_date) return "";
+
+   // Always calculate based on the DUE DATE, not today's date
+   const currentDue = new Date(data.due_date);
+
+   // Add the 14 days to the current deadline
+   currentDue.setDate(currentDue.getDate() + settings.days);
+
+   const year = currentDue.getFullYear();
+   const month = String(currentDue.getMonth() + 1).padStart(2, "0");
+   const day = String(currentDue.getDate()).padStart(2, "0");
+
+   return `${year}-${month}-${day}`;
+ };
+
+  useEffect(() => {
+    if (action === "extend" && data.due_date && settings.days) {
+      const maxDate = calculateMaxDate();
+      setNewDate(maxDate);
+    }
+  }, [action, settings.days, data.due_date]);
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
@@ -105,10 +149,22 @@ const ResolutionModal = ({ data, onClose, refresh }: any) => {
         `/circulations/resolve-lost/${data.id}`,
         payload,
       );
-      refresh();
-      onClose();
-    } catch (err) {
-      alert("Failed to resolve case. Check console for details.");
+
+      // 1. Show Success Message
+      setModalMessage({
+        type: "success",
+        title: "Success",
+        message: "The case has been resolved successfully.",
+      });
+
+    } catch (err: any) {
+      const backendMessage =
+        err.response?.data?.message || "An unexpected error occurred.";
+      setModalMessage({
+        type: "error",
+        title: "Action Denied",
+        message: backendMessage,
+      });
     } finally {
       setLoading(false);
     }
@@ -128,7 +184,11 @@ const ResolutionModal = ({ data, onClose, refresh }: any) => {
             onChange={(e: any) => setAction(e.target.value)}
           >
             <option value="complete">Book Received (Register Copy)</option>
-            <option value="extend">Extend Promise Deadline</option>
+            <option value="extend" disabled={isExtensionLimitReached}>
+              {isExtensionLimitReached
+                ? "Extend (Limit Reached)"
+                : "Extend Promise Deadline"}
+            </option>
             <option value="fail">Patron Failed (Apply Penalties)</option>
           </select>
         </div>
@@ -189,51 +249,47 @@ const ResolutionModal = ({ data, onClose, refresh }: any) => {
                   Current Due Date
                 </label>
                 <span className="text-dark fw-semibold">
-                  {data.due_date
-                    ? new Date(data.due_date).toLocaleDateString()
-                    : "N/A"}
+                  {new Date(data.due_date).toLocaleDateString()}
                 </span>
               </div>
-              {newDate && data.due_date && (
-                <div className="text-end">
-                  <label className="d-block small text-muted fw-bold text-uppercase">
-                    Extension
-                  </label>
-                  <span className="badge bg-primary">
-                    {Math.ceil(
-                      (new Date(newDate).getTime() -
-                        new Date(data.due_date).getTime()) /
-                        (1000 * 60 * 60 * 24),
-                    )}{" "}
-                    Days
-                  </span>
-                </div>
-              )}
+              <div className="text-end">
+                <label className="d-block small text-muted fw-bold text-uppercase">
+                  Uses
+                </label>
+                <span
+                  className={`badge ${isExtensionLimitReached ? "bg-danger" : "bg-warning text-dark"}`}
+                >
+                  {data.extension_count || 0} / {settings.limit}
+                </span>
+              </div>
             </div>
 
-            {/* Input Section */}
             <label className="small fw-bold">New Due Date</label>
             <input
               type="date"
-              className="form-control border-2"
+              className="form-control border-2 border-primary" // Highlighted to show it's auto-filled
               min={new Date().toISOString().split("T")[0]}
+              max={calculateMaxDate()}
               value={newDate}
               onChange={(e) => setNewDate(e.target.value)}
             />
 
-            {/* Real-time Status Note */}
-            {newDate && (
-              <small className="text-info mt-2 d-block fw-medium">
-                <i className="bi bi-info-circle me-1"></i>
-                New deadline will be{" "}
-                {new Date(newDate).toLocaleDateString("en-US", {
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-                .
+            <div
+              className="mt-2 p-2 rounded-2"
+              style={{ backgroundColor: "#e7f3ff" }}
+            >
+              <small className="text-primary d-block fw-medium">
+                <i className="bi bi-magic me-1"></i>
+                Automatically set to <strong>{settings.days} days</strong> from
+                current due.
               </small>
-            )}
+              <small
+                className="text-muted d-block"
+                style={{ fontSize: "0.75rem" }}
+              >
+                You can still manually pick an earlier date if needed.
+              </small>
+            </div>
           </div>
         )}
 
@@ -303,13 +359,31 @@ const ResolutionModal = ({ data, onClose, refresh }: any) => {
             {loading ? "Processing..." : "Confirm Resolution"}
           </button>
         </div>
+
+        {modalMessage && (
+          <MessageModal
+            type={modalMessage.type}
+            message={modalMessage.message}
+            onClose={() => {
+              if (modalMessage.type === "success") {
+                onClose();
+                refresh(); 
+              }
+              setModalMessage(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );
 };
 
 // --- MAIN COMPONENT: THE TRACKER ---
-const SettlementTracker = () => {
+interface MainTrackerProps {
+  onSuccess?: () => void;
+}
+
+const SettlementTracker = ({ onSuccess }: MainTrackerProps) => {
   const [pending, setPending] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSettlement, setSelectedSettlement] = useState<any | null>(
@@ -318,6 +392,7 @@ const SettlementTracker = () => {
   const [showResolveModal, setShowResolveModal] = useState(false);
 
   const fetchPending = async () => {
+    setLoading(true);
     try {
       const res = await AxiosInstance.get("/circulations/pending-settlements");
       setPending(res.data);
@@ -347,7 +422,6 @@ const SettlementTracker = () => {
       <h1 className="form-title">Pending Book Replacements</h1>
 
       {loading ? (
-        /* --- YOUR LOADING SNIPPET HERE --- */
         <div className="text-center py-10" style={{ padding: "5rem 0" }}>
           <LoadingSpinner message="Loading pending settlements..." />
         </div>
@@ -414,6 +488,7 @@ const SettlementTracker = () => {
           data={selectedSettlement}
           onClose={() => setShowResolveModal(false)}
           refresh={fetchPending}
+          onSuccess={onSuccess}
         />
       )}
     </div>

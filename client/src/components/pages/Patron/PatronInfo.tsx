@@ -140,6 +140,37 @@ const PatronInfo = () => {
     if (id) fetchData();
   }, [id]);
 
+  const getExpiryStatus = (dateString?: string) => {
+    if (!dateString) return "No Expiry Set";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiryDate = new Date(dateString);
+    expiryDate.setHours(0, 0, 0, 0);
+
+    const diffTime = expiryDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return (
+        <span style={{ color: "#dc3545", fontWeight: "bold" }}>
+          Expired ({Math.abs(diffDays)} days ago)
+        </span>
+      );
+    } else if (diffDays === 0) {
+      return (
+        <span style={{ color: "#fd7e14", fontWeight: "bold" }}>
+          Expires Today
+        </span>
+      );
+    } else if (diffDays <= 30) {
+      return (
+        <span style={{ color: "#fd7e14" }}>{diffDays} days remaining</span>
+      );
+    }
+    return <span className="text-success">{diffDays} days remaining</span>;
+  };
+
   const [fineRate, setFineRate] = useState(5);
 
   useEffect(() => {
@@ -374,7 +405,43 @@ const PatronInfo = () => {
                   Email: patron.email,
                   Status: patron.status || "-",
                   "Registration Date": formatDate(patron.created_at),
-                  "Expiry Date": formatDate(patron.expiry_date),
+                  "Expiry Date": (
+                    <span>
+                      {formatDate(patron.expiry_date)}
+                      <span style={{ marginLeft: "10px", fontSize: "0.9em" }}>
+                        {patron.status?.toLowerCase() !== "active" ? (
+                          <span className="text-muted">(Paused)</span>
+                        ) : (
+                          (() => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const expiry = new Date(patron.expiry_date || "");
+                            expiry.setHours(0, 0, 0, 0);
+                            const diffTime = expiry.getTime() - today.getTime();
+                            const diffDays = Math.ceil(
+                              diffTime / (1000 * 60 * 60 * 24),
+                            );
+
+                            if (diffDays < 0)
+                              return (
+                                <span className="text-danger">(Expired)</span>
+                              );
+                            if (diffDays === 0)
+                              return (
+                                <span className="text-warning">
+                                  (Expires Today)
+                                </span>
+                              );
+                            return (
+                              <span className="text-success">
+                              </span>
+                            );
+                          })()
+                        )}
+                      </span>
+                    </span>
+                  ),
+                  "Account Validity": getExpiryStatus(patron.expiry_date),
                   Notes: patron.notes || "-",
                 }).map(([key, value]) => (
                   <tr key={key}>

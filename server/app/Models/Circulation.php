@@ -24,6 +24,7 @@ class Circulation extends Model
         'status',
         'lost_resolution',
         'is_paid',
+        'extension_count',
     ];
 
     protected $casts = [

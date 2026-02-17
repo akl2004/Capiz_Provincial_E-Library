@@ -25,6 +25,7 @@ return new class extends Migration {
             $table->decimal('fine', 10, 2)->default(0.00);
             $table->boolean('is_paid')->default(false);
             $table->date('date_returned')->nullable();
+            $table->integer('extension_count')->default(0);
 
             // Track how the 'Lost' status is handled
             $table->enum('lost_resolution', ['Pending', 'Payment', 'Replacement', 'None'])->default('None');

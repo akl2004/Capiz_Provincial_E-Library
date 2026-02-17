@@ -46,6 +46,12 @@ const Dashboard = () => {
   const [userName, setUserName] = useState("User");
   const [loadingUser, setLoadingUser] = useState(true);
 
+  const handleNavigation = (page: "attendance" | "circulation") => {
+    if (userRole === "guest") return;
+
+    navigate(`/${userRole}/${page}`);
+  };
+
   const [attendanceToday, setAttendanceToday] = useState<TallyWithPercentage>({
     count: 0,
     percent: 0,
@@ -113,9 +119,7 @@ const Dashboard = () => {
           count:
             circRes.data.Issued?.count || circRes.data.Borrowed?.count || 0,
           percent:
-            circRes.data.Issued?.percent ||
-            circRes.data.Borrowed?.percent ||
-            0,
+            circRes.data.Issued?.percent || circRes.data.Borrowed?.percent || 0,
         },
         returned: {
           count: circRes.data.Returned?.count || 0,
@@ -145,7 +149,7 @@ const Dashboard = () => {
         Object.entries(patronMap)
           .map(([name, visits]) => ({ name, visits }))
           .sort((a, b) => b.visits - a.visits)
-          .slice(0, 5)
+          .slice(0, 5),
       );
     } catch (err) {
       console.error("Dashboard error:", err);
@@ -238,7 +242,11 @@ const Dashboard = () => {
 
       {/* Tally Row */}
       <div className="tally-rows">
-        <div className="tally-cards blue">
+        <div
+          className="tally-cards blue"
+          style={{ cursor: "pointer" }}
+          onClick={() => handleNavigation("attendance")}
+        >
           {loadingTally ? (
             <TallySkeleton />
           ) : (
@@ -255,7 +263,11 @@ const Dashboard = () => {
           )}
         </div>
 
-        <div className="tally-cards green">
+        <div
+          className="tally-cards green"
+          style={{ cursor: "pointer" }}
+          onClick={() => handleNavigation("circulation")}
+        >
           {loadingTally ? (
             <TallySkeleton />
           ) : (
@@ -274,7 +286,11 @@ const Dashboard = () => {
           )}
         </div>
 
-        <div className="tally-cards yellow">
+        <div
+          className="tally-cards yellow"
+          style={{ cursor: "pointer" }}
+          onClick={() => handleNavigation("circulation")}
+        >
           {loadingTally ? (
             <TallySkeleton />
           ) : (
@@ -293,7 +309,11 @@ const Dashboard = () => {
           )}
         </div>
 
-        <div className="tally-cards red">
+        <div
+          className="tally-cards red"
+          style={{ cursor: "pointer" }}
+          onClick={() => handleNavigation("circulation")}
+        >
           {loadingTally ? (
             <TallySkeleton />
           ) : (
@@ -380,8 +400,8 @@ const Dashboard = () => {
                       role === "admin"
                         ? `/admin/cataloging/${book.id}`
                         : role === "staff"
-                        ? `/staff/cataloging/${book.id}`
-                        : null;
+                          ? `/staff/cataloging/${book.id}`
+                          : null;
                     if (path) navigate(path);
                   }}
                 >

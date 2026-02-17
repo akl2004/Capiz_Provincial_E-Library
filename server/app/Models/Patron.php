@@ -27,6 +27,7 @@ class Patron extends Model
         'registered_by',
         'notes',
         'expires_at',
+        'seconds_remaining',
     ];
 
     protected $casts = [

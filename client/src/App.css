@@ -2276,6 +2276,7 @@ select {
   padding: 8px 12px;
   cursor: pointer;
   list-style-type: none;
+  color: black;
   background-color: #ffffff;
   transition: background-color 0.2s ease;
 }
@@ -3448,15 +3449,29 @@ input:focus {
 .row-card {
   display: grid;  
   grid-template-columns: 0.8fr 1fr 1.1fr 1.1fr 1fr 1fr 1fr 1fr 0.9fr;
+  gap: 10px;
   border: 3px solid #dee2e6;
   border-left: 15px solid;
   border-radius: 10px;
-  padding: 1rem;
+  padding: 0.6rem 1rem;
   transition: background 0.2s;
 }
 
 .row-card:hover {
   background-color: #f8f9fa;
+}
+
+.row-card > div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.95rem;
+}
+
+.row-card > div:last-child {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .expanded-table {
@@ -3472,6 +3487,7 @@ input:focus {
 
 .circulation-tally {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem; 
   margin-top: 1rem;
   margin-bottom: 1rem;
@@ -3482,7 +3498,9 @@ input:focus {
   display: flex;
   align-items: center;
   gap: 0.75rem;     
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 150px; /* Prevents cards from getting too squished */
+  max-width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 12px;
   cursor: pointer;
@@ -3495,12 +3513,26 @@ input:focus {
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+@media (max-width: 480px) {
+  .tally-card {
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+  
+  .tally-card img {
+    max-width: 60px; /* Smaller icon on mobile */
+  }
+}
+
 .tally-card img {
-  width: 90px;
-  height: 70px;
+  width: 100%;
+  max-width: 90px;
+  height: auto; 
+  aspect-ratio: 9/7; 
   padding: 0.5rem;
   border-radius: 20px;
   background-color: gray;
+  min-width: 50px; 
 }
 
 .tally-text {
@@ -3509,19 +3541,24 @@ input:focus {
   justify-content: center;
   flex: 1;              
   position: relative;
+  padding-left: 0.5rem; 
+  min-width: 0;
 }
 
 .tally-key {
   text-transform: uppercase;
   font-weight: bold;
-  font-size: 1.15rem;
+  font-size: clamp(0.9rem, 1vw, 1.1rem); 
+  line-height: 1.2;
+  word-wrap: break-word;
 }
 
 .tally-count {
-  font-size: 35px;
+  font-size: clamp(1.5rem, 4vw, 2.2rem); 
   color: black;
   font-weight: 700;
-  text-align: right;  
+  text-align: right;
+  line-height: 1;
 }
 
 .tally-card:hover {
@@ -3545,8 +3582,12 @@ input:focus {
 }
 
 .tally-missing {
-  border: 3px solid #dc7235;
-  color: #99521b;
+  border: 3px solid #ddb72d;
+  color: #ddb72d;
+}
+
+.bg-missing {
+  background-color: #ddb72d;
 }
 
 .tally-lost {
@@ -3575,8 +3616,22 @@ input:focus {
   background-color: #fee2e2;
 }
 
-.tally-renewed img {
-  background-color: #fef9c3; 
+.tally-missing img {
+  background-color: #ddb72d5a; 
+}
+
+.tally-card:focus-within,
+.tally-card:active,
+.tally-card.is-open { 
+  z-index: 999 !important;
+  position: relative;
+  transform: none !important; 
+}
+
+.tally-card.is-dropdown-open {
+  z-index: 9999 !important; 
+  position: relative;
+  transform: none !important; 
 }
 
 /* Dropdown container */
@@ -3611,7 +3666,7 @@ input:focus {
 
 /* Filter trigger text */
 .filter-trigger {
-  font-size: 10px;
+  font-size: 0.7rem;
   color: #606060;
   cursor: pointer;
   margin-top: 0.25rem;
@@ -3623,6 +3678,7 @@ input:focus {
 
 .filter-trigger:hover {
   color: #C05B42;
+  text-decoration: underline;
 }
 
 
@@ -5011,30 +5067,20 @@ input:focus {
   z-index: 1000;
 }
 
+/* Top teal header bar inside modal (like "TIME IN") */
 .attendance-modal-box {
-  max-width: 92vw;
+  width: 92vw;
+  height: 90vh; 
+  max-width: 70%;
   background: #fff;
   border-radius: 14px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.25);
   padding: 0 !important;
   position: relative;
-  overflow: hidden;
-  border: 5px solid #0f7b83 !important; 
+  overflow: hidden; 
+  border: 5px solid #C05B42 !important; 
   box-sizing: border-box;
-}
-
-/* Top teal header bar inside modal (like "TIME IN") */
-.attendance-modal-header {
-  background: #0f7b83;
-  color: #fff;
-  padding: 5px;
-  text-align: center;
-  letter-spacing: 1px;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-}
-
-.attendance-modal-header p {
-  font-size: 12px;
+  display: flex;
 }
 
 /* Tabs for Guest/Patron */
@@ -5055,32 +5101,195 @@ input:focus {
   cursor: pointer;
   font-size: 15px;
 }
-.attendance-modal-tabs .tab.active {
-  background: #ffffff;
-  border-color: #0f7b83;
-  box-shadow: 0 2px 0 rgba(0,0,0,0.05);
+
+.step-pane .subtitle, .step-pane h2, .sidebar-header, .step-list{
+  color: #000;
 }
 
-/* Close button (top-right) */
-.attendance-modal-close-btn {
-  position: absolute;
-  top: 10px;
-  right: 14px;
+.step-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 30px;
+  color: #000;
+}
+
+.step-content-area {
+  flex: 1;
+  padding: 40px;
+  position: relative;
+  overflow-y: auto; 
+  height: 100%;    
+}
+
+.step-content-area::-webkit-scrollbar {
+  width: 8px;
+}
+
+.step-content-area::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.step-content-area::-webkit-scrollbar-thumb {
+  background: #C05B4272;
+  border-radius: 10px;
+}
+
+.close-x {
+  position: sticky; 
+  top: -20px;    
+  float: right;
+  background: white;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   border: none;
-  background: transparent;
-  font-size: 26px;
-  line-height: 1;
+  color: #000;
+  font-size: 28px;
   cursor: pointer;
-  color: #333;
-}
-.attendance-modal-close-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+  z-index: 100;
 }
 
-/* Inner content spacing */
-.attendance-modal-content {
-  padding: 20px 28px 28px;
+.close-x:hover {
+  color: #ff4d4d;
+}
+
+.btn-submit {
+  background: #c05b42;
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 6px;
+  width: 100%;
+  font-weight: bold;
+}
+
+.btn-submit:disabled {
+  background-color: #d3d3d3; /* Grey background */
+  color: #888888;           /* Muted text color */
+  cursor: not-allowed;      /* Shows the "stop" or "prohibited" icon */
+  opacity: 0.7;
+  transform: none !important; /* Prevents hover lifting effects */
+  box-shadow: none;
+}
+
+/* Optional: Keep the hover effect only when NOT disabled */
+.btn-submit:not(:disabled):hover {
+  background: #a64a32; /* Slightly darker shade on hover */
+  transform: translateY(-1px);
+}
+
+.form-label.optional::after {
+  content: " (Optional)";
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: normal;
+}
+
+.mode-toggle {
+    display: flex;
+    gap: 10px;
+}
+
+.mode-toggle button {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    color: black;
+    border-radius: 6px;
+}
+
+.mode-toggle button.active {
+    background: #C05B42;
+    color: white;
+}
+
+.visitor-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.type-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.type-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  transform: translateY(-2px);
+}
+
+.type-card.selected {
+  border-color: #da8e6c;
+  background: rgba(234, 177, 153, 0.79);
+}
+
+.card-icon {
+  width: 170px;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-icon img {
+  max-width: 100%;
+  opacity: 0.8;
+}
+
+.type-card.selected .card-icon img {
+  opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(234, 177, 153, 1));
+}
+
+.type-card span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #454545;
+}
+
+.type-card.selected span {
+  color: #000;
+}
+
+/* The small circle indicator at the bottom of the card */
+.radio-indicator {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  margin-top: 10px;
+  position: relative;
+}
+
+.type-card.selected .radio-indicator {
+  border-color: #C05B42;
+}
+
+.type-card.selected .radio-indicator::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: #C05B42;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 /* Form styling to resemble screenshot */
@@ -6626,189 +6835,5 @@ input:focus {
 
 
 
-.multi-step-modal {
-  display: flex;
-  width: 900px;
-  max-width: 95vw;
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  color: white;
-}
 
-.step-sidebar {
-  width: 280px;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 40px 25px;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-}
 
-.step-pane .subtitle, .step-pane h2, .sidebar-header, .step-list{
-  color: #000;
-}
-
-.step-item {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 30px;
-  opacity: 0.4;
-}
-
-.step-item.active { opacity: 1; }
-.step-item.completed { opacity: 0.8; color: #00d084; }
-
-.step-circle {
-  width: 35px;
-  height: 35px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
-
-.step-content-area {
-  flex: 1;
-  padding: 40px;
-  position: relative;
-}
-
-.close-x {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: transparent;
-  border: none;
-  color: blackl;
-  font-size: 28px;
-  line-height: 1;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  z-index: 10; /* Ensures it stays above other elements */
-}
-
-.close-x:hover {
-  color: #ff4d4d;
-}
-
-.btn-next, .btn-submit {
-  background: #007bff;
-  color: white;
-  border: none;
-  padding: 12px 25px;
-  border-radius: 6px;
-  width: 100%;
-  font-weight: bold;
-}
-
-.btn-back {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  padding: 12px 25px;
-  border-radius: 6px;
-}
-
-.mode-toggle {
-    display: flex;
-    gap: 10px;
-}
-
-.mode-toggle button {
-    flex: 1;
-    padding: 10px;
-    background: transparent;
-    color: black;
-    border-radius: 6px;
-}
-
-.mode-toggle button.active {
-    background: #C05B42;
-    color: white;
-}
-
-.visitor-type-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-}
-
-.type-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 10px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-
-.type-card:hover {
-  background: rgba(255, 255, 255, 0.07);
-  transform: translateY(-2px);
-}
-
-.type-card.selected {
-  border-color: #007bff;
-  background: rgba(0, 123, 255, 0.1);
-}
-
-.card-icon {
-  width: 170px;
-  height: 150px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.card-icon img {
-  max-width: 100%;
-  opacity: 0.8;
-}
-
-.type-card.selected .card-icon img {
-  opacity: 1;
-  filter: drop-shadow(0 0 5px rgba(0, 123, 255, 0.5));
-}
-
-.type-card span {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #cbd5e0;
-}
-
-.type-card.selected span {
-  color: #fff;
-}
-
-/* The small circle indicator at the bottom of the card */
-.radio-indicator {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  margin-top: 10px;
-  position: relative;
-}
-
-.type-card.selected .radio-indicator {
-  border-color: #007bff;
-}
-
-.type-card.selected .radio-indicator::after {
-  content: '';
-  width: 8px;
-  height: 8px;
-  background: #007bff;
-  border-radius: 50%;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}

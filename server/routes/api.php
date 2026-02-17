@@ -149,6 +149,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Lost Overdue Penalty
     Route::get('/settings/late-settlement-penalty', [LibrarySettingController::class, 'getLateSettlementPenalty']);
     Route::post('/settings/late-settlement-penalty', [LibrarySettingController::class, 'updateLateSettlementPenalty']);
+    
+    // Replacement Extension Policy Settings
+    Route::get('/settings/replacement-policy', [LibrarySettingController::class, 'getReplacementExtensionPolicy']);
+    Route::post('/settings/replacement-policy', [LibrarySettingController::class, 'updateReplacementExtensionPolicy']);
 });
 
 

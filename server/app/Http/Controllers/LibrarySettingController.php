@@ -286,4 +286,41 @@ class LibrarySettingController extends Controller
         ]);
     }
 
+    // ==========================================
+    // 📌 Replacement Extension Policy
+    // ==========================================
+    public function getReplacementExtensionPolicy()
+    {
+        return response()->json([
+            'extension_days' => (int) LibrarySetting::getValue('replacement_extension_days', 14),
+            'extension_limit' => (int) LibrarySetting::getValue('replacement_extension_limit', 2),
+        ]);
+    }
+
+    public function updateReplacementExtensionPolicy(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'extension_days' => 'required|integer|min:1|max:30',
+            'extension_limit' => 'required|integer|min:0|max:10',
+        ]);
+
+        LibrarySetting::setValue('replacement_extension_days', $validated['extension_days']);
+        LibrarySetting::setValue('replacement_extension_limit', $validated['extension_limit']);
+
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'role'    => $user->role,
+            'module'  => 'Settings',
+            'action'  => 'Update Replacement Policy',
+            'description' => "{$user->name} set replacement extensions to {$validated['extension_days']} days, max {$validated['extension_limit']} times.",
+        ]);
+
+        return response()->json([
+            'message' => 'Replacement extension policy updated successfully',
+            'data' => $validated
+        ]);
+    }
+
 }

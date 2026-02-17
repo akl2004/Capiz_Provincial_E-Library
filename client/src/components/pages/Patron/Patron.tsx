@@ -50,6 +50,7 @@ interface Patron {
   notes: string;
   created_at: string;
   expiry_date: string;
+  seconds_remaining?: number;
 }
 
 const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
@@ -606,6 +607,53 @@ const Patron = () => {
     return 0;
   });
 
+  const handleActivate = async (id: number) => {
+    try {
+      setLoading(true);
+      const response = await AxiosInstance.patch(`/patrons/${id}/activate`);
+
+      setPatrons((prev) =>
+        prev.map((p) => (p.id === id ? response.data.patron : p)),
+      );
+
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: `Patron activated! New expiry: ${new Date(response.data.patron.expiry_date).toLocaleDateString()}`,
+      });
+    } catch (error) {
+      console.error("Activation failed:", error);
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: "Failed to activate patron.",
+      });
+    } finally {
+      setLoading(false);
+      setOpenMenu(null);
+      setDropdownPosition(null);
+    }
+  };
+
+  const formatPausedTime = (seconds: number | undefined): string => {
+    if (!seconds || seconds <= 0) return "Paused (0 days left)";
+
+    const days = Math.floor(seconds / 86400);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+
+    let timeStr = "";
+    if (years > 0) {
+      timeStr = `${years} yr${years > 1 ? "s" : ""}`;
+    } else if (months > 0) {
+      timeStr = `${months} mo${months > 1 ? "s" : ""}`;
+    } else {
+      timeStr = `${days} day${days !== 1 ? "s" : ""}`;
+    }
+
+    return `Paused (${timeStr} left)`;
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -840,9 +888,19 @@ const Patron = () => {
                     : "N/A"}
                 </td>
                 <td>
-                  {patron.expiry_date
-                    ? new Date(patron.expiry_date).toLocaleDateString()
-                    : "N/A"}
+                  {patron.status?.toLowerCase() === "deactivated" ? (
+                    <span
+                      className="badge bg-info text-dark"
+                      style={{ fontSize: "0.8rem" }}
+                    >
+                      <i className="bi bi-pause-fill"></i>{" "}
+                      {formatPausedTime(patron.seconds_remaining)}
+                    </span>
+                  ) : patron.expiry_date ? (
+                    new Date(patron.expiry_date).toLocaleDateString()
+                  ) : (
+                    <span className="text-muted">N/A</span>
+                  )}
                 </td>
                 <td>
                   <span
@@ -930,29 +988,35 @@ const Patron = () => {
           }}
         >
           <button
-            onClick={() => {
-              const path =
-                role === "admin"
-                  ? `/admin/patrons/${openMenu}`
-                  : `/staff/patrons/${openMenu}`;
-              navigate(path);
-            }}
+            onClick={() =>
+              navigate(
+                `${role === "admin" ? "/admin" : "/staff"}/patrons/${openMenu}`,
+              )
+            }
           >
             <i className="bi bi-eye"></i> View
           </button>
 
-          {/* Only show Deactivate if status is "Active" */}
+          {/* SHOW DEACTIVATE IF ACTIVE */}
           {patrons.find((p) => p.id === openMenu)?.status?.toLowerCase() ===
             "active" && (
             <button
               onClick={() => {
                 setPendingDeactivateId(openMenu);
                 setShowConfirm(true);
-                setOpenMenu(null); // Close the triple-dot menu
+                setOpenMenu(null);
                 setDropdownPosition(null);
               }}
             >
               <i className="bi bi-person-x"></i> Deactivate
+            </button>
+          )}
+
+          {/* NEW: SHOW ACTIVATE IF DEACTIVATED */}
+          {patrons.find((p) => p.id === openMenu)?.status?.toLowerCase() ===
+            "deactivated" && (
+            <button onClick={() => handleActivate(openMenu!)}>
+              <i className="bi bi-person-check"></i> Activate
             </button>
           )}
         </div>

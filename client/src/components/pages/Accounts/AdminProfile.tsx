@@ -488,9 +488,9 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
           <table className="user-table">
             <thead>
               <tr>
-                <th style={{ width: "160px" }}>Date & Time</th>
-                <th style={{ width: "200px" }}>Activity</th>
-                <th>Description</th>
+                <th style={{ width: "20%" }}>Date & Time</th>
+                <th style={{ width: "30%" }}>Activity</th>
+                <th style={{ width: "50%" }}>Description</th>
               </tr>
             </thead>
             <tbody>

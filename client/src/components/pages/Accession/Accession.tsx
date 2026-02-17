@@ -149,12 +149,12 @@ const Accession = () => {
         cataloging_note: copy.cataloging_note,
         internal_note: copy.internal_note,
         status: copy.status || "Available",
-      }))
+      })),
     )
     .sort((a, b) =>
       b.accession_number.localeCompare(a.accession_number, undefined, {
         numeric: true,
-      })
+      }),
     );
 
   // Filter logic
@@ -270,7 +270,7 @@ const Accession = () => {
     setSelectedAccessions((prev) =>
       prev.includes(accession)
         ? prev.filter((a) => a !== accession)
-        : [...prev, accession]
+        : [...prev, accession],
     );
   };
 
@@ -336,9 +336,7 @@ const Accession = () => {
           {
             label: "CURRENT HOLDINGS",
             value: filteredCopies.filter(
-              (c) =>
-                c.status === "Available" &&
-                !["damaged", "poor"].includes(c.condition?.toLowerCase() || ""),
+              (c) => !["lost", "missing"].includes(c.status?.toLowerCase()),
             ).length,
             icon: available,
           },
@@ -346,8 +344,13 @@ const Accession = () => {
             label: "AVAILABLE FOR USE",
             value: filteredCopies.filter(
               (c) =>
-                c.status === "Available" &&
-                !["damaged", "poor"].includes(c.condition?.toLowerCase() || ""),
+                c.status?.toLowerCase() === "available" &&
+                !["damaged", "poor"].includes(
+                  c.condition?.toLowerCase() || "",
+                ) &&
+                !["lost", "missing", "issued"].includes(
+                  c.status?.toLowerCase(),
+                ),
             ).length,
             icon: available,
           },
@@ -372,7 +375,7 @@ const Accession = () => {
           </div>
         ))}
       </div>
-      
+
       <div className="copies-info mt-4">
         {/* Header */}
         <div className="d-flex justify-content-between align-items-center mb-3">
@@ -949,7 +952,6 @@ const Accession = () => {
                 >
                   <i className="bi bi-chevron-double-left"></i> Prev
                 </button>
-                {/* You might want to limit the number of page buttons shown if totalPages is high */}
                 {Array.from({ length: totalPages }, (_, i) => (
                   <button
                     key={i}
@@ -1038,6 +1040,7 @@ const Accession = () => {
               ["Copy No", selectedCopy.copy_number],
               ["Material Type", selectedCopy.material_type || "-"],
               ["Condition", selectedCopy.condition],
+              ["Status", selectedCopy.status],
               ["Barcode", selectedCopy.barcode],
               [
                 "Date Acquired",

@@ -5,6 +5,7 @@ import RenewalLimitSetting from "./RenewalLimitSetting";
 import FineSetting from "./FineSetting";
 import ExpirationYearsSetting from "./ExpirationYearsSetting";
 import MissingThresholdSetting from "./MissingThresholdSetting";
+import ReplacementPolicySetting from "./ReplacementPolicySettings";
 
 const Settings: React.FC = () => {
   const [activeTab, setActiveTab] = useState("system");
@@ -102,6 +103,7 @@ const Settings: React.FC = () => {
           <RenewalLimitSetting />
           <FineSetting />
           <MissingThresholdSetting />
+          <ReplacementPolicySetting />
         </section>
 
         <hr className="section-divider" />

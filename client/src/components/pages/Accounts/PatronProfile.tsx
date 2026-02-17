@@ -32,9 +32,8 @@ interface Activity {
   module: string;
   description: string;
   details: string;
-  fine: number;
-  time_in?: string; // Added optional field
-  time_out?: string | null; // Added optional field
+  time_in?: string;
+  time_out?: string | null; 
 }
 
 const PatronProfile: React.FC = () => {
@@ -513,13 +512,14 @@ const PatronProfile: React.FC = () => {
           {loadingLogs ? (
             <LoadingSpinner />
           ) : sortedActivities.length > 0 ? (
-            <table className="user-table">
+            <table
+              className="user-table"
+            >
               <thead>
                 <tr>
-                  <th>Date & Time</th>
-                  <th>Activity</th>
-                  <th>Description</th>
-                  <th>Fine</th>
+                  <th style={{ width: "30%" }}>Date & Time</th>
+                  <th style={{ width: "30%" }}>Activity</th>
+                  <th style={{ width: "40%" }}>Description</th>
                 </tr>
               </thead>
               <tbody>
@@ -585,15 +585,6 @@ const PatronProfile: React.FC = () => {
                       <div className="activity-details text-muted small">
                         {act.details}
                       </div>
-                    </td>
-                    <td>
-                      {Number(act.fine) > 0 ? (
-                        <span className="text-danger fw-bold">
-                          ₱{Number(act.fine).toFixed(2)}
-                        </span>
-                      ) : (
-                        <span className="text-muted">-</span>
-                      )}
                     </td>
                   </tr>
                 ))}

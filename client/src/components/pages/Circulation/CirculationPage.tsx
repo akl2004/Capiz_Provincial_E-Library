@@ -32,6 +32,8 @@ interface Circulation {
   renewal_date?: string;
   renewal_count?: number;
   status: string;
+  lost_resolution?: "Payment" | "Replacement";
+  is_paid: boolean; 
   renewed?: boolean;
   fine: number;
 }
@@ -78,6 +80,75 @@ const CirculationPage = () => {
   // Status filter (already exists)
   const filterRef = useRef<HTMLDivElement | null>(null);
   const sortRef = useRef<HTMLDivElement | null>(null);
+
+  const [activeFilterSection, setActiveFilterSection] = useState<
+    "status" | "date" | null
+  >(null);
+
+  const renderStatusBadge = (loan: Circulation) => {
+    const badgeStyle: React.CSSProperties = {
+      width: "100px",
+      display: "inline-flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "4px 0",
+      lineHeight: "1.1",
+      borderRadius: "6px",
+    };
+
+    if (loan.status === "Lost") {
+      let subStatus = "LOST";
+      let variant = "bg-danger";
+
+      if (loan.lost_resolution === "Payment") {
+        variant = loan.is_paid ? "bg-secondary" : "bg-secondary";
+        subStatus = loan.is_paid ? "PAID" : "UNPAID";
+      } else if (loan.lost_resolution === "Replacement") {
+        const isReplaced = loan.is_paid;
+        variant = isReplaced ? "bg-secondary" : "bg-secondary";
+        subStatus = isReplaced ? "REPLACED" : "PENDING";
+      }
+
+      return (
+        <span className={`badge ${variant}`} style={badgeStyle}>
+          <span style={{ fontWeight: "800", fontSize: "0.75rem" }}>LOST</span>
+          <span
+            style={{
+              fontSize: "0.55rem",
+              borderTop: "1px solid rgba(255,255,255,0.3)",
+              width: "100%",
+              marginTop: "2px",
+              paddingTop: "2px",
+              letterSpacing: "0.5px",
+            }}
+          >
+            {subStatus}
+          </span>
+        </span>
+      );
+    }
+
+    // Standard statuses (Missing, Issued, etc.)
+    const statusClasses: Record<string, string> = {
+      Issued: "bg-primary",
+      Returned: "bg-success",
+      "Returned Late": "bg-success",
+      Overdue: "bg-danger",
+      Missing: "bg-missing",
+    };
+
+    return (
+      <span
+        className={`badge ${statusClasses[loan.status] || "bg-secondary"}`}
+        style={{ ...badgeStyle, padding: "10px 0" }}
+      >
+        <span style={{ fontWeight: "800", fontSize: "0.75rem" }}>
+          {loan.status === "Returned Late" ? "LATE" : loan.status.toUpperCase()}
+        </span>
+      </span>
+    );
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -171,7 +242,10 @@ const CirculationPage = () => {
   useEffect(() => {
     document.title = "Circulation";
     fetchRecords();
-  }, []);
+  }, [activeTab]);
+
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const filteredRecords = records.filter((rec) => {
     const matchesSearch =
@@ -197,7 +271,17 @@ const CirculationPage = () => {
         ? rec.renewed
         : getStatus(rec) === filterStatus);
 
-    return matchesSearch && matchesStatus;
+    const recDate = new Date(rec.issue_date);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+
+    const matchesDate =
+      (!start || recDate >= start) && (!end || recDate <= end);
+
+    return matchesSearch && matchesStatus && matchesDate;
   });
 
   // Tally counts
@@ -236,7 +320,7 @@ const CirculationPage = () => {
       case "Returned Late":
         return "#198754"; // green
       case "Missing":
-        return "#fd7e14"; // orange
+        return "#ddb72d"; // yellow
       default:
         return "#6c757d"; // gray for others
     }
@@ -293,16 +377,13 @@ const CirculationPage = () => {
           if (key === "Issued") cardClass = "tally-borrowed";
           else if (key === "Returned") cardClass = "tally-returned";
           else if (key === "Overdue") cardClass = "tally-overdue";
-          else if (key === "Missing")
-            cardClass = "tally-missing";
+          else if (key === "Missing") cardClass = "tally-missing";
           else if (key === "Lost") cardClass = "tally-lost";
 
           return (
             <div
               key={key}
-              className={`tally-card ${cardClass} ${
-                filterStatus === key ? "tally-active" : ""
-              }`}
+              className={`tally-card ${cardClass} ${filterStatus === key ? "tally-active" : ""} ${activeDropdown === key ? "is-dropdown-open" : ""}`}
               onClick={() => setFilterStatus(filterStatus === key ? null : key)}
             >
               <img src={bookIcon} alt={`${key} icon`} />
@@ -497,26 +578,137 @@ const CirculationPage = () => {
                   >
                     <i className="bi bi-sliders me-2"></i> Filter
                   </button>
+
                   {filterMenuOpen && (
                     <div
-                      className="filter-dropdown"
+                      className="filter-dropdown shadow-lg"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {["Issued", "Returned", "Overdue", "Missing", "Lost"].map((status) => (
-                        <div
-                          key={status}
-                          className={`filter-item ${
-                            filterStatus === status ? "active" : ""
-                          }`}
-                          onClick={() =>
-                            setFilterStatus(
-                              filterStatus === status ? null : status,
-                            )
-                          }
-                        >
-                          {status}
+                      {/* --- STATUS SECTION --- */}
+                      <div
+                        className={`filter-section-header ${activeFilterSection === "status" ? "active" : ""}`}
+                        style={{
+                          cursor: "pointer",
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                        onClick={() =>
+                          setActiveFilterSection(
+                            activeFilterSection === "status" ? null : "status",
+                          )
+                        }
+                      >
+                        Status{" "}
+                        <i
+                          className={`bi ${
+                            activeFilterSection === "status"
+                              ? "bi-chevron-down"
+                              : "bi-chevron-right"
+                          } ms-2`}
+                        ></i>
+                      </div>
+
+                      {activeFilterSection === "status" && (
+                        <div className="list-group list-group-flush">
+                          {[
+                            "Issued",
+                            "Returned",
+                            "Overdue",
+                            "Missing",
+                            "Lost",
+                          ].map((status) => (
+                            <div
+                              key={status}
+                              className={`filter-item ${filterStatus === status ? "active" : ""}`}
+                              style={{
+                                cursor: "pointer",
+                              }}
+                              onClick={() =>
+                                setFilterStatus(
+                                  filterStatus === status ? null : status,
+                                )
+                              }
+                            >
+                              <div>
+                                {status}
+                                {filterStatus === status}
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+
+                      {/* --- DATE RANGE SECTION --- */}
+                      <div
+                        className={`filter-section-header ${activeFilterSection === "date" ? "active" : ""}`}
+                        style={{
+                          cursor: "pointer",
+                          display: "flex",
+                          justifyContent: "space-between",
+                        }}
+                        onClick={() =>
+                          setActiveFilterSection(
+                            activeFilterSection === "date" ? null : "date",
+                          )
+                        }
+                      >
+                        Date Range{""}
+                        <i
+                          className={`bi ${
+                            activeFilterSection === "date"
+                              ? "bi-chevron-down"
+                              : "bi-chevron-right"
+                          } ms-2`}
+                        ></i>
+                      </div>
+
+                      {activeFilterSection === "date" && (
+                        <div className="p-2">
+                          <label className="small text-muted mb-0 mt-0">
+                            Start Date
+                          </label>
+                          <input
+                            type="date"
+                            className="form-control form-control-sm mb-0"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                          />
+                          <label className="small text-muted mb-0">
+                            End Date
+                          </label>
+                          <input
+                            type="date"
+                            className="form-control form-control-sm mb-3"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                          />
+                          <button
+                            className="btn btn-sm btn-outline-danger w-100"
+                            style={{ fontSize: "10px" }}
+                            onClick={() => {
+                              setStartDate("");
+                              setEndDate("");
+                            }}
+                          >
+                            Clear Dates
+                          </button>
+                        </div>
+                      )}
+
+                      {/* --- GLOBAL CLEAR (Optional) --- */}
+                      {(filterStatus || startDate || endDate) && (
+                        <div
+                          className="p-2 text-center small text-danger fw-bold"
+                          style={{ cursor: "pointer", background: "#fff5f5" }}
+                          onClick={() => {
+                            setFilterStatus(null);
+                            setStartDate("");
+                            setEndDate("");
+                          }}
+                        >
+                          Clear All Filters
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -575,7 +767,7 @@ const CirculationPage = () => {
                                 <div>{rec.renewal_count || "-"}</div>
                                 <div>{rec.date_returned || "-"}</div>
                                 <div className="fw-semibold">
-                                  {getStatus(rec)}
+                                  {renderStatusBadge(rec)}
                                 </div>
                               </div>
                             </td>
@@ -644,7 +836,7 @@ const CirculationPage = () => {
                                         </td>
                                         <td style={{ padding: "0.5rem" }}>
                                           <strong>Status:</strong>{" "}
-                                          {getStatus(rec)} <br />
+                                          {renderStatusBadge(rec)} <br />
                                           {getStatus(rec) === "Overdue" && (
                                             <span>
                                               <strong>Fine: </strong>₱
@@ -710,7 +902,9 @@ const CirculationPage = () => {
             <RenewForm onSuccess={handleActionSuccess} />
           )}
           {activeTab === "lost" && <LostForm onSuccess={handleActionSuccess} />}
-          {activeTab === "settlements" && <SettlementTracker />}
+          {activeTab === "settlements" && (
+            <SettlementTracker onSuccess={handleActionSuccess} />
+          )}
         </div>
       </div>
     </>

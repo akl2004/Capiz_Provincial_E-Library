@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import LogoutModal from "../../pages/Authentication/LogoutModal";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 
@@ -19,8 +19,32 @@ interface HeaderProps {
 const Header = ({ user, onLogout, isUserLoading = false }: HeaderProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // If the dropdown is open and the click target is NOT inside the dropdownRef
+      if (
+        dropdownOpen &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+
+    // Attach the listener to the document
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Clean up the listener on unmount
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
@@ -37,7 +61,7 @@ const Header = ({ user, onLogout, isUserLoading = false }: HeaderProps) => {
 
   // Breadcrumb labels: remove 'admin' and 'guest' only for display
   const breadcrumbPathnames = pathnames.filter(
-    (x) => x !== "admin" && x !== "guest" && x !== "staff"
+    (x) => x !== "admin" && x !== "guest" && x !== "staff",
   );
 
   const breadcrumbNameMap: Record<string, string> = {
@@ -126,8 +150,7 @@ const Header = ({ user, onLogout, isUserLoading = false }: HeaderProps) => {
 
       {/* RIGHT: User Controls */}
       <div className="d-flex align-items-center gap-3">
-
-        <div className="dropdown">
+        <div className="dropdown" ref={dropdownRef}>
           <button
             className="btn d-flex align-items-center"
             onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -147,10 +170,15 @@ const Header = ({ user, onLogout, isUserLoading = false }: HeaderProps) => {
                   borderRadius: "4px",
                   animation: "pulse 1.5s infinite",
                 }}
-              >
-              </span>
+              ></span>
             ) : (
-              <span>{user.name || "Guest"}</span>
+              <>
+                <span className="me-2">{user.name || "Guest"}</span>
+                <i
+                  className={`bi bi-chevron-down dropdown-arrow ${dropdownOpen ? "open" : ""}`}
+                  style={{ fontSize: "0.8rem" }}
+                ></i>
+              </>
             )}
           </button>
 

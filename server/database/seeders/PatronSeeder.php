@@ -97,6 +97,25 @@ class PatronSeeder extends Seeder
                 'expires_at'    => Carbon::now()->subDays(1), // Expired yesterday
                 'created_at'    => Carbon::now()->subYears(3),
             ],
+
+            // --- DEACTIVATED (PAUSED) PATRONS ---
+            [
+                'patron_id'     => 'P006',
+                'first_name'    => 'Bruce',
+                'middle_name'   => 'W.',
+                'last_name'     => 'Wayne',
+                'email'         => 'bruce@example.com',
+                'city'          => 'Mambusao',
+                'province'      => 'Capiz', // Just for fun
+                'barangay'      => 'Manibad',
+                'number'        => '09990001111',
+                'gender'        => 'Male',
+                'status'        => 'Deactivated', 
+                'registered_by' => 'Admin User',
+                'expires_at'    => null, 
+                'seconds_remaining' => 31536000, 
+                'created_at'    => Carbon::now()->subYears(2),
+            ],
         ];
 
         foreach ($patrons as $data) {

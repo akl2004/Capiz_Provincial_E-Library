@@ -104,7 +104,6 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
     if (!id.trim()) return;
     setLoading(true);
     try {
-      // 1. Search by the readable Patron ID (e.g., PATRON-001)
       const patronRes = await AxiosInstance.get(`/patrons/by-id/${id}`);
       const patronData = patronRes.data;
       setSelectedPatron(patronData);
@@ -130,12 +129,10 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
     }
   };
 
-  // 1. Initial button click
   const handleFinalizeClick = () => {
     if (!selectedBook) return;
     const upfrontTotal = Number(processingFee) + Number(selectedBook.fine);
 
-    // Replace window.confirm with Policy Modal
     if (upfrontTotal > 0) {
       setShowPolicyModal(true);
     } else {
@@ -143,7 +140,6 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
     }
   };
 
-  // 2. Logic after policy is acknowledged
   const proceedToSettlementLogic = () => {
     setShowPolicyModal(false);
     if (settlementType === "replacement") {
@@ -165,7 +161,7 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
         setNewCopyData({
           ...newCopyData,
           barcode: generateBarcode(),
-          accession_no: nextAccessionFromDB, // Set the actual number here
+          accession_no: nextAccessionFromDB, 
         });
 
         setShowReplacementModal(false);
@@ -206,6 +202,9 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
     AxiosInstance.post("/circulations/mark-lost", payload)
       .then((res) => {
         setShowAddCopyModal(false);
+        setShowReplacementModal(false);
+        setShowPolicyModal(false);
+
         setModalMessage({
           type: "success",
           message: "Settlement finalized. Records updated successfully.",
@@ -254,7 +253,6 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
               autoFocus
               onChange={(e) => {
                 setPatronSearch(e.target.value);
-                // Reset states so the UI "reacts" to new typing
                 if (selectedPatron) setSelectedPatron(null);
                 if (modalMessage) setModalMessage(null);
               }}
@@ -538,8 +536,19 @@ const LostForm = ({ onSuccess }: LostFormProps) => {
               <button
                 className="btn btn-danger flex-grow-1 fw-bold"
                 onClick={confirmSettlement}
+                disabled={loading}
               >
-                Confirm Timing
+                {loading ? (
+                  <>
+                    <span
+                      className="spinner-border spinner-border-sm me-2"
+                      role="status"
+                    ></span>
+                    Processing...
+                  </>
+                ) : (
+                  "Confirm Timing"
+                )}
               </button>
             </div>
           </div>

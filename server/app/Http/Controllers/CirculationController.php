@@ -197,7 +197,7 @@ class CirculationController extends Controller
                 'role' => $user->role ?? 'staff',
                 'module' => 'Circulation Module',
                 'action' => 'Processed Multiple Issues',
-                'description' => "Borrowed " . count($bookTitles) . " books: " . implode(', ', $bookTitles)
+                'description' => "Processed an issue of " . count($bookTitles) . " books: " . implode(', ', $bookTitles)
             ]);
 
             return response()->json([
@@ -318,13 +318,15 @@ class CirculationController extends Controller
             }
         });
 
+        $displayMode = $mode ?: 'Immediate';
+
         // Log the activity
         ActivityLog::create([
             'user_id' => $user->id,
             'role' => $user->role ?? 'staff',
             'module' => 'Circulation Module',
             'action' => 'Marked Lost',
-            'description' => "Marked '{$circulation->bookCopy->book->title}' as lost via {$settlementType} ({$mode})."
+            'description' => "Marked '{$circulation->bookCopy->book->title} - copy no. {$circulation->bookCopy->copy_number}' as lost. Settlement: " . ucfirst($settlementType) . " ({$displayMode})."
         ]);
 
         return response()->json([
@@ -359,7 +361,7 @@ class CirculationController extends Controller
         // Fetch loans marked 'Lost' but haven't been 'Returned' (closed)
         $pending = Circulation::with(['patron', 'bookCopy.book', 'bookCopy'])
             ->where('status', 'Lost')
-            ->whereNull('date_returned')
+            ->where('is_paid', false)
             ->where('lost_resolution', 'Replacement')
             ->get();
 
@@ -368,50 +370,92 @@ class CirculationController extends Controller
 
     public function resolveLostBook(Request $request, $id)
     {
-        $circulation = Circulation::findOrFail($id);
+        $circulation = Circulation::with(['patron', 'bookCopy.book'])->findOrFail($id);
         $action = $request->action;
+        $user = $request->user(); // The staff/admin performing the action
 
-        return DB::transaction(function () use ($request, $circulation, $action) {
+        return DB::transaction(function () use ($request, $circulation, $action, $user) {
+            $logDescription = "";
+            $logAction = "";
+
             if ($action === 'complete') {
                 $nextCopyNumber = BookCopy::where('book_id', $request->book_id)->max('copy_number') + 1;
+                
                 // 1. Create the new book copy record
                 BookCopy::create([
-                    'book_id'               => $request->book_id,
-                    'barcode'               => $request->barcode,
-                    'accession_number'      => $request->accession_no,
-                    'material_type_id'      => $request->material_type_id,
-                    'copy_number'           => $nextCopyNumber,
-                    'condition'             => 'New',
-                    'status'                => 'Available',
-                    'source'                => 'Replacement',
-                    'source_person'         => $request->source_person,
-                    'cataloging_note'       => $request->cataloging_note,
-                    'price'                 => $request->price,
+                    'book_id'           => $request->book_id,
+                    'barcode'           => $request->barcode,
+                    'accession_number'  => $request->accession_no,
+                    'material_type_id'  => $request->material_type_id,
+                    'copy_number'       => $nextCopyNumber,
+                    'condition'         => 'New',
+                    'status'            => 'Available',
+                    'source'            => 'Replacement',
+                    'source_person'     => $request->source_person,
+                    'cataloging_note'   => $request->cataloging_note,
+                    'price'             => $request->price,
                 ]);
 
                 // 2. Close the circulation record
                 $circulation->update([
                     'status' => 'Lost',
-                    'date_returned' => now(),
                     'is_paid' => true,
                     'lost_resolution' => 'Replacement',
                     'remarks' => $circulation->remarks . " | Resolved by replacement."
                 ]);
+
+                $logAction = "Processed Replacement";
+                $logDescription = "Accepted book replacement from {$circulation->patron->first_name} {$circulation->patron->last_name} for '{$circulation->bookCopy->book->title}' copy no. {$circulation->bookCopy->copy_number}";
             } 
             elseif ($action === 'extend') {
-                $circulation->update(['due_date' => $request->due_date]);
-            } 
+                $maxDays = (int) LibrarySetting::getValue('replacement_extension_days', 14);
+                $maxLimit = (int) LibrarySetting::getValue('replacement_extension_limit', 2);
+
+                if ($circulation->extension_count >= $maxLimit) {
+                    return response()->json(['message' => "Maximum extension limit reached."], 422);
+                }
+
+                $currentDueDate = Carbon::parse($circulation->due_date)->startOfDay();
+                $newRequestedDate = Carbon::parse($request->due_date)->startOfDay();
+                $maxAllowedDate = $currentDueDate->copy()->addDays($maxDays);
+
+                if ($newRequestedDate->gt($maxAllowedDate)) {
+                    return response()->json([
+                        'message' => "Extension cannot exceed " . $maxAllowedDate->format('M d, Y') . " (14 days from current due date)."
+                    ], 422);
+                }
+
+                $circulation->update([
+                    'due_date' => $request->due_date,
+                    'extension_count' => $circulation->extension_count + 1,
+                    'remarks' => $circulation->remarks . " | Extended to " . $request->due_date
+                ]);
+
+                $logAction = "Extended Replacement Deadline";
+                $logDescription = "Extended replacement deadline for {$circulation->patron->first_name} {$circulation->patron->last_name} until " . $newRequestedDate->format('M d, Y');
+            }
             elseif ($action === 'fail') {
-                // Charge the price + penalty
                 $bookPrice = $circulation->bookCopy->price;
                 $circulation->update([
                     'status' => 'Lost',
                     'fine' => $circulation->fine + $bookPrice,
                     'lost_resolution' => 'Payment',
+                    'is_paid' => true,
                     'date_returned' => now(), 
                     'remarks' => $circulation->remarks . " | Failed replacement promise."
                 ]);
+
+                $logAction = "Resolved via Payment";
+                $logDescription = "Processed lost book payment and penalty for '{$circulation->bookCopy->book->title}' copy no. {$circulation->bookCopy->copy_number} (Patron: {$circulation->patron->last_name})";
             }
+
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'role' => $user->role ?? 'staff',
+                'module' => 'Circulation Module',
+                'action' => $logAction,
+                'description' => $logDescription
+            ]);
 
             return response()->json(['message' => 'Success']);
         });

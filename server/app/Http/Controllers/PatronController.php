@@ -173,14 +173,25 @@ class PatronController extends Controller
         $user = $request->user();
         $patron = Patron::findOrFail($id);
 
+        // 1. Calculate time remaining in seconds
+        $now = now();
+        $expiry = Carbon::parse($patron->expires_at);
+
+        if ($expiry->gt($now)) {
+            // If they haven't expired yet, save the "time buffer"
+            $patron->seconds_remaining = $now->diffInSeconds($expiry);
+        } else {
+            // If already expired, no time to pause
+            $patron->seconds_remaining = 0;
+        }
+
         $patron->status = 'Deactivated';
         $patron->save();
 
-        //  Log the activity
-        $this->logActivity('Deactivate Patron', 'Deactivated patron: ' . $patron->first_name . ' ' . $patron->last_name, $user);
+        $this->logActivity('Deactivate Patron', 'Deactivated patron and paused expiration: ' . $patron->first_name . ' ' . $patron->last_name, $user);
         
         return response()->json([
-            'message' => 'Patron account deactivated successfully',
+            'message' => 'Patron account deactivated and expiration paused.',
             'patron' => $patron
         ]);
     }
@@ -218,18 +229,26 @@ class PatronController extends Controller
             return response()->json(['message' => 'Patron is already active'], 400);
         }
 
+        // 1. Resume the clock
+        if ($patron->seconds_remaining > 0) {
+            // Add the paused time to the current moment
+            $patron->expires_at = now()->addSeconds($patron->seconds_remaining);
+        } 
+        // If seconds_remaining is 0 or null, we don't change expires_at 
+        // because they were already expired when deactivated.
+
         $patron->status = 'Active';
+        $patron->seconds_remaining = null; // Reset the buffer
         $patron->save();
 
-        // Log the activity
         $this->logActivity(
             'Activate Patron',
-            'Activated patron: ' . $patron->first_name . ' ' . $patron->last_name,
+            'Activated patron and resumed expiration: ' . $patron->first_name . ' ' . $patron->last_name,
             $user
         );
 
         return response()->json([
-            'message' => 'Patron activated successfully',
+            'message' => 'Patron activated and expiration date adjusted.',
             'patron' => $patron
         ]);
     }
@@ -362,17 +381,18 @@ class PatronController extends Controller
 
 
     public function getPatronFullActivity($id)
-{
-    $patron = Patron::findOrFail($id);
+    {
+        $patron = Patron::findOrFail($id);
 
-    // 1. Circulation (Books)
-    $circulations = \App\Models\Circulation::with('bookCopy.book')
+        $allCirculations = \App\Models\Circulation::with('bookCopy.book')
         ->where('patron_id', $id)
-        ->get()
-        ->map(function ($c) {
+        ->get();
+
+        // 1. Circulation (Books)
+        $bookActivities = $allCirculations->map(function ($c) {
             return [
                 'id' => 'circ-' . $c->id,
-                'date' => $c->updated_at, // Sort date
+                'date' => $c->updated_at, 
                 'type' => $c->status,
                 'module' => 'Circulation Module',
                 'description' => "{$c->status}: " . ($c->bookCopy->book->title ?? 'Unknown Book'),
@@ -383,48 +403,79 @@ class PatronController extends Controller
             ];
         });
 
-    // 2. Attendance (Visitor Logs)
-    $attendances = \App\Models\Attendance::where('patron_id', $id)
-        ->get()
-        ->map(function ($a) {
-            return [
-                'id' => 'att-' . $a->id,
-                'date' => $a->time_in, // Sort date
-                'type' => 'Visit',
-                'module' => 'Attendance Module',
-                'description' => "Library Visit: " . $a->purpose_of_visit,
-                'details' => $a->time_out ? "Stayed until " . \Carbon\Carbon::parse($a->time_out)->format('h:i A') : "Currently in library",
-                'fine' => 0,
-                'time_in' => $a->time_in,
-                'time_out' => $a->time_out
-            ];
-        });
+        // 2. Attendance (Visitor Logs)
+        $attendances = \App\Models\Attendance::where('patron_id', $id)
+            ->get()
+            ->map(function ($a) {
+                return [
+                    'id' => 'att-' . $a->id,
+                    'date' => $a->time_in, // Sort date
+                    'type' => 'Visit',
+                    'module' => 'Attendance Module',
+                    'description' => "Library Visit: " . $a->purpose_of_visit,
+                    'details' => $a->time_out ? "Stayed until " . \Carbon\Carbon::parse($a->time_out)->format('h:i A') : "Currently in library",
+                    'fine' => 0,
+                    'time_in' => $a->time_in,
+                    'time_out' => $a->time_out
+                ];
+            });
 
-    // 3. Activity Logs (System Records)
-    $logs = \App\Models\ActivityLog::where('description', 'like', '%' . $patron->first_name . '%')
-        ->orWhere('description', 'like', '%' . $patron->last_name . '%')
-        ->get()
-        ->map(function ($l) {
-            return [
-                'id' => 'log-' . $l->id,
-                'date' => $l->created_at, // Sort date
-                'type' => $l->action,
-                'module' => $l->module,
-                'description' => $l->description,
-                'details' => "System activity recorded",
-                'fine' => 0,
-                'time_in' => null,
-                'time_out' => null
-            ];
-        });
+        $settlements = $allCirculations->where('is_paid', true)
+            ->map(function ($c) {
+                $type = 'Settlement for Lost Book';
+                $title = $c->bookCopy->book->title ?? 'Unknown Book';
 
-    // Merge and Sort
-    $merged = $circulations->concat($attendances)->concat($logs)
-        ->sortByDesc('date')
-        ->values();
+                $remarks = $c->remarks ?? '';
+                $resolution = $c->lost_resolution ?? '';
 
-    return response()->json($merged);
-}
+                $wasDeferred = stripos($remarks, 'Replacement') !== false || 
+                            stripos($remarks, 'Deferred') !== false || 
+                            stripos($remarks, 'promise') !== false;
+                
+                if (strcasecmp($resolution, 'Payment') === 0 && $wasDeferred) {
+                    $description = "Settled: Paid for '$title' (Failed Replacement)";
+                    $details = "Patron originally promised a replacement but settled via payment instead.";
+                } 
+                elseif (strcasecmp($resolution, 'Replacement') === 0) {
+                    $description = "Settled: Replaced '$title'";
+                    $details = "Patron provided a physical replacement copy.";
+                } 
+                else {
+                    // Standard immediate payment
+                    $description = "Settled: Paid for '$title'";
+                    $details = "Replacement cost and processing fees paid immediately.";
+                }
+                
+                return [
+                    'id' => 'settle-' . $c->id,
+                    'date' => $c->date_returned ?? $c->updated_at, 
+                    'type' => $type,
+                    'module' => 'Circulation Module',
+                    'description' => $description,
+                    'details' => $details,
+                    'fine' => (float)$c->fine,
+                    'time_in' => null,
+                    'time_out' => null
+                ];
+            });
+
+        // Merge and Sort by Date Descending
+        $merged = $bookActivities
+            ->concat($settlements)
+            ->concat($attendances)
+            ->sort(function ($a, $b) {
+                $dateA = \Carbon\Carbon::parse($a['date']);
+                $dateB = \Carbon\Carbon::parse($b['date']);
+                
+                if ($dateA->eq($dateB)) {
+                    return $b['id'] <=> $a['id']; 
+                }
+                return $dateB <=> $dateA;
+            })
+            ->values();
+
+        return response()->json($merged);
+    }
 
 
 }

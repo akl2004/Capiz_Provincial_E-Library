@@ -22,13 +22,14 @@ return new class extends Migration
             $table->string('barangay')->nullable();
             $table->string('city');
             $table->string('province');
-            $table->string('number')->nullable(); // contact number
+            $table->string('number')->nullable();
             $table->string('status')->default('Active');
             $table->integer('age')->nullable();
             $table->string('gender', 10)->nullable();
             $table->string('registered_by')->nullable();
             $table->text('notes')->nullable();
-            $table->date('expires_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->bigInteger('seconds_remaining')->nullable();
             
             $table->timestamps();
         });
