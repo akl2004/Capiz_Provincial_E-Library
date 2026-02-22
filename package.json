@@ -1,0 +1,15 @@
+{
+  "name": "capiz-provincial-library",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "electron:start": "electron .",
+    "dev:all": "concurrently \"cd client && npm run dev -- --host\" \"cd server && php artisan serve --host=0.0.0.0 --port=8000\" \"npm run electron:start\"",
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^40.4.1"
+  }
+}

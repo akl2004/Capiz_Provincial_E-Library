@@ -59,9 +59,6 @@ export default function App() {
           <Route path="about" element={<AboutUs />} />
         </Route>
 
-        {/* Merged Admin & Staff Routes */}
-        {/* We use the same AppLayout for both! */}
-
         {/* ADMIN SECTION */}
         <Route
           path="/admin"

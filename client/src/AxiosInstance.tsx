@@ -1,7 +1,10 @@
 import axios from "axios";
 
+const apiIP = import.meta.env.VITE_API_IP;
+const apiPort = import.meta.env.VITE_API_PORT;
+
 const AxiosInstance = axios.create({
-  baseURL: "http://127.0.0.1:8000/api",
+  baseURL: `http://${apiIP}:${apiPort}/api`,
 });
 
 AxiosInstance.interceptors.request.use((config) => {

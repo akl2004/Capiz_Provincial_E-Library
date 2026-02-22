@@ -101,12 +101,21 @@ const DailyAttendancePage = () => {
   );
 
   useEffect(() => {
+    // Initial load (shows spinner)
     fetchTodayAttendances();
     document.title = "Daily Attendance";
-  }, []);
 
-  const fetchTodayAttendances = async () => {
-    setLoadingAttendances(true);
+    const interval = setInterval(() => {
+      if (!open && searchTerm === "") {
+        fetchTodayAttendances(true);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [open]);
+
+  const fetchTodayAttendances = async (isBackground = false) => {
+    if (!isBackground) setLoadingAttendances(true);
     try {
       const res = await AxiosInstance.get("/attendances/today");
       // Sort newest first (based on time_in or id)
