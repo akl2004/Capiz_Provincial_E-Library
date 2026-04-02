@@ -3,6 +3,7 @@ import { Outlet, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import AxiosInstance from "../../../AxiosInstance";
+import icon from "../../../assets/lib-logo.png";
 
 interface AppLayoutProps {
   content?: React.ReactNode;
@@ -15,7 +16,7 @@ const AppLayout = ({ content }: AppLayoutProps) => {
     middle_name: null,
     last_name: "",
     suffix: null,
-    avatar: "./src/assets/lib-logo.png",
+    avatar: icon,
     role: "guest",
     name: "Guest",
   });
@@ -40,7 +41,7 @@ const AppLayout = ({ content }: AppLayoutProps) => {
           middle_name: res.data.middle_name || null,
           last_name: res.data.last_name || "",
           suffix: res.data.suffix || null,
-          avatar: res.data.avatar || "./src/assets/lib-logo.png",
+          avatar: res.data.avatar || icon,
           role: res.data.role || "guest",
           name: res.data.name || `${res.data.first_name} ${res.data.last_name}`,
         });

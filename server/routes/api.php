@@ -15,6 +15,9 @@ use App\Http\Controllers\ReportsController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/ping', function () {
+    return response()->json(['status' => 'CapizLibraryServer']);
+});
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']);

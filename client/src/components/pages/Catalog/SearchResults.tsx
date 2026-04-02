@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import AxiosInstance from "../../../AxiosInstance";
+import AxiosInstance, { BASE_URL } from "../../../AxiosInstance";
 import LoadingSpinner from "../../../components/LoadingSpinner";
 import placeholder from "../../../assets/cover_placeholder.jpg";
 
@@ -232,25 +232,44 @@ const SearchResults = () => {
               onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
             />
 
-            {showDropdown && (
-              <ul
-                className="list-group position-absolute w-100 shadow"
-                style={{ zIndex: 1050, maxHeight: "250px", overflowY: "auto" }}
+            {showDropdown && suggestions.length > 0 && (
+              <div
+                className="list-group position-absolute w-100 shadow mt-1"
+                style={{
+                  top: "100%",
+                  left: 0,
+                  zIndex: 1050,
+                  maxHeight: "250px",
+                  overflowY: "auto",
+                }}
               >
                 {suggestions.map((book) => (
-                  <li
+                  <button
                     key={book.id}
-                    className="list-group-item list-group-item-action"
-                    style={{ cursor: "pointer" }}
-                    onMouseDown={() => {
+                    type="button"
+                    className="list-group-item list-group-item-action p-2 text-start border-bottom"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
                       setSearchTerm(book.title);
                       handleSearchSubmit(book.title);
                     }}
                   >
-                    {book.title}
-                  </li>
+                    <div
+                      className="fw-bold text-truncate"
+                      style={{ fontSize: "0.9rem", color: "#212529" }}
+                    >
+                      {book.title}
+                    </div>
+                    <div
+                      className="text-muted text-truncate mt-1"
+                      style={{ fontSize: "0.75rem" }}
+                    >
+                      Author: {book.author || "Unknown"} &bull; Year:{" "}
+                      {book.year || "N/A"}
+                    </div>
+                  </button>
                 ))}
-              </ul>
+              </div>
             )}
           </div>
 
@@ -300,7 +319,7 @@ const SearchResults = () => {
                       <img
                         src={
                           book.cover_image
-                            ? `http://127.0.0.1:8000/storage/${book.cover_image}`
+                            ? `${BASE_URL}/storage/${book.cover_image}`
                             : placeholder
                         }
                         alt={book.title}
@@ -417,7 +436,7 @@ const SearchResults = () => {
               <img
                 src={
                   bookModal.cover_image
-                    ? `http://127.0.0.1:8000/storage/${bookModal.cover_image}`
+                    ? `${BASE_URL}/storage/${bookModal.cover_image}`
                     : placeholder
                 }
                 alt={bookModal.title}

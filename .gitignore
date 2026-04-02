@@ -2,6 +2,13 @@
 node_modules/
 /.phpunit.cache
 
+# Electron build outputs
+dist/
+out/
+*.exe
+*.dmg
+*.AppImage
+
 # Server (Laravel) specific ignores
 server/vendor/
 server/.env

@@ -4,6 +4,14 @@ import Barcode from "react-barcode";
 import { useNavigate } from "react-router-dom";
 import MessageModal from "../../MessageModal";
 
+declare global {
+  interface Window {
+    electronAPI: {
+      printBarcodes: (htmlContent: string) => void;
+    };
+  }
+}
+
 interface MaterialType {
   id: number;
   name: string;
@@ -141,7 +149,7 @@ const BookForm: React.FC = () => {
       bookCopies: [
         {
           copy_number: 1,
-          barcode: "",
+          barcode: `BC${Math.floor(1000000000 + Math.random() * 9000000000)}`,
           cataloging_note: "",
           internal_note: "",
           source_person: "",
@@ -197,14 +205,20 @@ const BookForm: React.FC = () => {
     setActiveTab(Math.max(0, index - 1));
   };
 
-  // Other Authors/Editors
-  const [otherAuthorsEditors, setOtherAuthorsEditors] = useState<string[]>([
-    "",
-  ]);
   const handleOtherAuthorEditorChange = (index: number, value: string) => {
-    const updated = [...otherAuthorsEditors];
-    updated[index] = value;
-    setOtherAuthorsEditors(updated);
+    setAllBooks((prev) => {
+      const updatedBooks = [...prev];
+      const updatedAuthors = [...updatedBooks[activeTab].otherAuthorsEditors];
+
+      updatedAuthors[index] = value;
+
+      updatedBooks[activeTab] = {
+        ...updatedBooks[activeTab],
+        otherAuthorsEditors: updatedAuthors,
+      };
+
+      return updatedBooks;
+    });
   };
 
   const navigate = useNavigate();
@@ -228,31 +242,40 @@ const BookForm: React.FC = () => {
     });
   }, []);
 
-  useEffect(() => {
-    if (allBooks.length === 0) return;
-
+  const handleCopyCountChange = (newCount: number) => {
     const currentBook = allBooks[activeTab];
-    const generated: Copy[] = Array.from(
-      { length: currentBook.copies },
-      (_, i) => ({
-        copy_number: i + 1,
-        barcode: `BC${Math.floor(1000000000 + Math.random() * 9000000000)}`,
-        condition: "New",
-        price: currentBook.price || "0.00",
-        cataloging_note: "",
-        internal_note: "",
-        source_person: "",
-        source: currentBook.source,
-        material_type: currentBook.materialType,
-        binding: currentBook.isbn_hardcover ? "Hardcover" : "Paperback",
-      })
-    );
+    const currentCopiesArray = [...(currentBook.bookCopies || [])];
+
+    if (newCount > currentCopiesArray.length) {
+      const copiesToAdd = newCount - currentCopiesArray.length;
+      for (let i = 0; i < copiesToAdd; i++) {
+        currentCopiesArray.push({
+          copy_number: currentCopiesArray.length + 1,
+          barcode: `BC${Math.floor(1000000000 + Math.random() * 9000000000)}`,
+          condition: conditions.length > 0 ? conditions[0] : "New",
+          price: currentBook.price || "0.00",
+          cataloging_note: "",
+          internal_note: "",
+          source_person: "",
+          source: currentBook.source,
+          material_type: currentBook.materialType,
+          binding: currentBook.isbn_hardcover ? "Hardcover" : "Paperback",
+        });
+      }
+    } else if (newCount < currentCopiesArray.length) {
+      currentCopiesArray.length = newCount;
+    }
+
     setAllBooks((prev) => {
       const updated = [...prev];
-      updated[activeTab].bookCopies = generated;
+      updated[activeTab] = {
+        ...updated[activeTab],
+        copies: newCount,
+        bookCopies: currentCopiesArray,
+      };
       return updated;
     });
-  }, [allBooks[activeTab]?.copies, allBooks[activeTab]?.price]);
+  };
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -330,7 +353,7 @@ const BookForm: React.FC = () => {
 
       formData.append(
         `books[${bIdx}][other_author_editor]`,
-        otherAuthorsEditors.filter((oae) => oae.trim() !== "").join(", ")
+        book.otherAuthorsEditors.filter((oae) => oae.trim() !== "").join(", "),
       );
 
       // Accession Record Fields
@@ -338,6 +361,11 @@ const BookForm: React.FC = () => {
       formData.append(`books[${bIdx}][materialType]`, book.materialType);
       
       formData.append(`books[${bIdx}][copies]`, book.copies.toString());
+
+      formData.append(
+        `books[${bIdx}][price]`,
+        book.price ? book.price.toString() : "0.00",
+      );
 
       // Image file
       if (book.coverImage) {
@@ -360,7 +388,7 @@ const BookForm: React.FC = () => {
         );
         formData.append(
           `books[${bIdx}][bookCopies][${cIdx}][price]`,
-          c.price.toString()
+          book.price ? book.price.toString() : "0.00",
         );
         formData.append(
           `books[${bIdx}][bookCopies][${cIdx}][source]`,
@@ -916,30 +944,30 @@ const BookForm: React.FC = () => {
                   />
                 </div>
 
-                {otherAuthorsEditors.map((person, index) => (
-                  <div className="flex-row" key={index}>
-                    {index === 0 ? (
-                      <label>Other Author/Editor</label>
-                    ) : (
-                      <div style={{ width: "120px" }} />
-                    )}
-                    <span className="catalog_number">(700)</span>
-                    <input
-                      type="text"
-                      value={person}
-                      onChange={(e) =>
-                        handleOtherAuthorEditorChange(index, e.target.value)
-                      }
-                    />
-                  </div>
-                ))}
+                {allBooks[activeTab].otherAuthorsEditors.map(
+                  (person, index) => (
+                    <div className="flex-row" key={index}>
+                      {index === 0 ? (
+                        <label>Other Author/Editor</label>
+                      ) : (
+                        <div style={{ width: "120px" }} />
+                      )}
+                      <span className="catalog_number">(700)</span>
+                      <input
+                        type="text"
+                        value={person}
+                        onChange={(e) =>
+                          handleOtherAuthorEditorChange(index, e.target.value)
+                        }
+                      />
+                    </div>
+                  ),
+                )}
 
                 <button
                   type="button"
                   className="add-more"
-                  onClick={() =>
-                    setOtherAuthorsEditors([...otherAuthorsEditors, ""])
-                  }
+                  onClick={() => handleOtherAuthorEditorChange(allBooks[activeTab].otherAuthorsEditors.length, "")}
                 >
                   + Add More
                 </button>
@@ -952,7 +980,7 @@ const BookForm: React.FC = () => {
             <legend className="record text-white mb-4">ACCESSION RECORD</legend>
 
             {/* Row 1: Shared Book Info */}
-            <div className="flex-row">
+            <div className="flex-container">
               <div className="flex-row flex-grow">
                 <label>Section</label>
                 <span className="catalog_number">(245)</span>
@@ -1114,9 +1142,8 @@ const BookForm: React.FC = () => {
                   type="button"
                   className="stepper-btn"
                   onClick={() =>
-                    updateActiveBook(
-                      "copies",
-                      Math.max(1, allBooks[activeTab].copies - 1),
+                    handleCopyCountChange(
+                      Math.max(1, (allBooks[activeTab]?.copies || 1) - 1),
                     )
                   }
                 >
@@ -1132,7 +1159,9 @@ const BookForm: React.FC = () => {
                   type="button"
                   className="stepper-btn"
                   onClick={() =>
-                    updateActiveBook("copies", allBooks[activeTab].copies + 1)
+                    handleCopyCountChange(
+                      (allBooks[activeTab]?.copies || 1) + 1,
+                    )
                   }
                 >
                   +
@@ -1216,7 +1245,19 @@ const BookForm: React.FC = () => {
                         {book.title.length > 25 ? "..." : ""} <br />
                         Copy: {c.copy_number}
                       </div>
-                      <Barcode value={c.barcode} width={2} height={50} />
+                      <Barcode
+                        value={c.barcode}
+                        width={1.5}
+                        height={40}
+                        /* --- TEXT SETTINGS --- */
+                        fontSize={14}
+                        textMargin={8}
+                        font="sans-serif"
+                        /* --- PADDING SETTINGS --- */
+                        margin={10}
+                        marginTop={15}
+                        marginBottom={5}
+                      />
                     </div>
                   )),
                 )}

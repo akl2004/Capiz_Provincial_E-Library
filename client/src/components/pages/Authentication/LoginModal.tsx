@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
+import icon from "../../../assets/lib-logo.png";
 
 interface LoginModalProps {
   // Removed 'role: string' since we determine it after login
@@ -24,8 +25,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
     setLoading(true);
 
     try {
-      // We no longer send 'role' in the body.
-      // The backend will find the user by email and return their role.
       const response = await AxiosInstance.post("/login", {
         email,
         password,
@@ -36,11 +35,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
         const role = response.data.role.toLowerCase();
 
         localStorage.setItem("authToken", response.data.token || "");
-        localStorage.setItem("role", role); 
+        localStorage.setItem("role", role);
 
         const user = {
           name: response.data.name,
-          avatar: "./src/assets/lib-logo.png",
+          avatar: response.data.avatar || icon,
           role: role,
         };
 
@@ -48,7 +47,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose, onLoginSuccess }) => {
       }
     } catch (err: any) {
       setError(
-        err.response?.data?.message || "Invalid credentials. Please try again."
+        err.response?.data?.message || "Invalid credentials. Please try again.",
       );
     } finally {
       setLoading(false);

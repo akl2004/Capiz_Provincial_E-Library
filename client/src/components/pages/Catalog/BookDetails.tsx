@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import AxiosInstance from "../../../AxiosInstance";
+import AxiosInstance, { BASE_URL } from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
 import Barcode from "react-barcode";
 import MessageModal from "../../MessageModal";
@@ -105,9 +105,7 @@ const BookDetails: React.FC = () => {
 
   const getCoverImageUrl = (cover_image?: string) => {
     if (!cover_image) return "/src/assets/cover_placeholder.jpg";
-    return `${
-      import.meta.env.VITE_API_URL || "http://localhost:8000"
-    }/storage/${cover_image}`;
+    return `${BASE_URL}/storage/${cover_image}`;
   };
 
   useEffect(() => {

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
-import LoadingSpinner from "../../LoadingSpinner";
 
 const ExpirationYearsSetting = () => {
   const [expirationYears, setExpirationYears] = useState(3);

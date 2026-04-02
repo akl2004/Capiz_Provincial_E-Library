@@ -26,9 +26,10 @@ interface BookCopy {
 
 interface RenewFormProps {
   onSuccess: () => void;
+  onSwitchTab?: (tabName: string) => void;
 }
 
-const RenewForm = ({ onSuccess }: RenewFormProps) => {
+const RenewForm = ({ onSuccess, onSwitchTab }: RenewFormProps) => {
   const [barcode, setBarcode] = useState("");
   const [bookInfo, setBookInfo] = useState<BookCopy | null>(null);
   const [searching, setSearching] = useState(false);
@@ -41,6 +42,9 @@ const RenewForm = ({ onSuccess }: RenewFormProps) => {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitMessage, setLimitMessage] = useState("");
 
   const navigate = useNavigate();
 
@@ -114,10 +118,17 @@ const RenewForm = ({ onSuccess }: RenewFormProps) => {
         }, 1500);
       })
       .catch((err) => {
-        setModalMessage({
-          type: "error",
-          message: err.response?.data?.message || "Failed to renew the book.",
-        });
+        const errorMessage =
+          err.response?.data?.message || "Failed to renew the book.";
+        if (errorMessage.toLowerCase().includes("limit")) {
+          setLimitMessage(errorMessage);
+          setShowLimitModal(true);
+        } else {
+          setModalMessage({
+            type: "error",
+            message: errorMessage,
+          });
+        }
       })
       .finally(() => setRenewing(false));
   };
@@ -150,158 +161,209 @@ const RenewForm = ({ onSuccess }: RenewFormProps) => {
   const newDueDate = bookInfo?.due_date
     ? new Date(
         new Date(bookInfo.due_date).setDate(
-          new Date(bookInfo.due_date).getDate() + loanDays
-        )
+          new Date(bookInfo.due_date).getDate() + loanDays,
+        ),
       )
         .toISOString()
         .split("T")[0]
     : "";
 
- return (
-   <div className="issue-form-container">
-     <h1 className="form-title">Renew Book</h1>
+  return (
+    <div className="issue-form-container">
+      <h1 className="form-title">Renew Book</h1>
 
-     <form className="issue-form" onSubmit={(e) => e.preventDefault()}>
-       {/* Top Section: Barcode Input */}
-       <div className="form-row mb-2">
-         <div className="form-group flex-grow-1">
-           <label>
-             <i className="bi bi-barcode"></i> Book Barcode
-           </label>
-           <div className="search-bar-wrapper">
-             <input
-               type="text"
-               className="search-input-field"
-               value={barcode}
-               onChange={(e) => setBarcode(e.target.value)}
-               onKeyDown={(e) => {
-                 if (e.key === "Enter") e.preventDefault();
-               }}
-               placeholder="Scan or enter barcode..."
-               autoFocus
-             />
-             <div className="search-status-inside">
-               {searching ? (
-                 <div className="custom-loading-bars">
-                   <div className="loading-bar"></div>
-                   <div className="loading-bar"></div>
-                   <div className="loading-bar"></div>
-                 </div>
-               ) : bookInfo ? (
-                 <i className="bi bi-check-circle-fill text-success fade-in"></i>
-               ) : searchError ? (
-                 <i className="bi bi-x-circle-fill text-danger fade-in"></i>
-               ) : null}
-             </div>
-           </div>
-         </div>
-       </div>
+      <form className="issue-form" onSubmit={(e) => e.preventDefault()}>
+        {/* Top Section: Barcode Input */}
+        <div className="form-row mb-2">
+          <div className="form-group flex-grow-1">
+            <label>
+              <i className="bi bi-barcode"></i> Book Barcode
+            </label>
+            <div className="search-bar-wrapper">
+              <input
+                type="text"
+                className="search-input-field"
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.preventDefault();
+                }}
+                placeholder="Scan or enter barcode..."
+                autoFocus
+              />
+              <div className="search-status-inside">
+                {searching ? (
+                  <div className="custom-loading-bars">
+                    <div className="loading-bar"></div>
+                    <div className="loading-bar"></div>
+                    <div className="loading-bar"></div>
+                  </div>
+                ) : bookInfo ? (
+                  <i className="bi bi-check-circle-fill text-success fade-in"></i>
+                ) : searchError ? (
+                  <i className="bi bi-x-circle-fill text-danger fade-in"></i>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
 
-       {/* Structured Info Table (Matches your preferred layout) */}
-       <div className="details-card shadow-sm">
-         <table className="circ-table">
-           <tbody>
-             {/* BORROWER SECTION */}
-             <tr>
-               <th rowSpan={2} className="category-header borrower-cat">
-                 BORROWER
-               </th>
-               <td className="field-label">Patron ID</td>
-               <td className="field-value">
-                 {bookInfo?.borrowed_by?.patron_id || (
-                   <span className="circ-placeholder">---</span>
-                 )}
-               </td>
-             </tr>
-             <tr>
-               <td className="field-label">Name</td>
-               <td className="field-value">
-                 {bookInfo?.borrowed_by ? (
-                   <span className="text-success fw-bold">{fullName}</span>
-                 ) : (
-                   <span className="circ-placeholder">Awaiting scan...</span>
-                 )}
-               </td>
-             </tr>
+        {/* Structured Info Table (Matches your preferred layout) */}
+        <div className="details-card shadow-sm">
+          <table className="circ-table">
+            <tbody>
+              {/* BORROWER SECTION */}
+              <tr>
+                <th rowSpan={2} className="category-header borrower-cat">
+                  BORROWER
+                </th>
+                <td className="field-label">Patron ID</td>
+                <td className="field-value">
+                  {bookInfo?.borrowed_by?.patron_id || (
+                    <span className="circ-placeholder">---</span>
+                  )}
+                </td>
+              </tr>
+              <tr>
+                <td className="field-label">Name</td>
+                <td className="field-value">
+                  {bookInfo?.borrowed_by ? (
+                    <span className="text-success fw-bold">{fullName}</span>
+                  ) : (
+                    <span className="circ-placeholder">Awaiting scan...</span>
+                  )}
+                </td>
+              </tr>
 
-             {/* SPACER ROW */}
-             <tr className="spacer-row">
-               <td colSpan={3}></td>
-             </tr>
+              {/* SPACER ROW */}
+              <tr className="spacer-row">
+                <td colSpan={3}></td>
+              </tr>
 
-             {/* BOOK SECTION */}
-             <tr>
-               <th rowSpan={3} className="category-header">
-                 BOOK
-               </th>
-               <td className="field-label">Title</td>
-               <td className="field-value fw-bold">
-                 {bookInfo?.book.title || "-"}
-               </td>
-             </tr>
-             <tr>
-               <td className="field-label">Call Number</td>
-               <td className="field-value">
-                 {bookInfo?.book.call_number || "-"}
-               </td>
-             </tr>
-             <tr>
-               <td className="field-label">Copy Number</td>
-               <td className="field-value">{bookInfo?.copy_number || "-"}</td>
-             </tr>
+              {/* BOOK SECTION */}
+              <tr>
+                <th rowSpan={3} className="category-header">
+                  BOOK
+                </th>
+                <td className="field-label">Title</td>
+                <td className="field-value fw-bold">
+                  {bookInfo?.book.title || "-"}
+                </td>
+              </tr>
+              <tr>
+                <td className="field-label">Call Number</td>
+                <td className="field-value">
+                  {bookInfo?.book.call_number || "-"}
+                </td>
+              </tr>
+              <tr>
+                <td className="field-label">Copy Number</td>
+                <td className="field-value">{bookInfo?.copy_number || "-"}</td>
+              </tr>
 
-             {/* SPACER ROW */}
-             <tr className="spacer-row">
-               <td colSpan={3}></td>
-             </tr>
+              {/* SPACER ROW */}
+              <tr className="spacer-row">
+                <td colSpan={3}></td>
+              </tr>
 
-             {/* LOAN DETAILS SECTION */}
-             <tr>
-               <th rowSpan={4} className="category-header">
-                 LOAN
-               </th>
-               <td className="field-label">Original Issue Date</td>
-               <td className="field-value">{bookInfo?.issue_date || "-"}</td>
-             </tr>
-             <tr>
-               <td className="field-label">Original Due Date</td>
-               <td className="field-value">{bookInfo?.due_date || "-"}</td>
-             </tr>
-             <tr>
-               <td className="field-label">Renewal Date</td>
-               <td className="field-value">{renewalDate || "-"}</td>
-             </tr>
-             <tr>
-               <td className="field-label">New Due Date</td>
-               <td className="field-value fw-bold">{newDueDate || "-"}</td>
-             </tr>
-           </tbody>
-         </table>
-       </div>
+              {/* LOAN DETAILS SECTION */}
+              <tr>
+                <th rowSpan={4} className="category-header">
+                  LOAN
+                </th>
+                <td className="field-label">Original Issue Date</td>
+                <td className="field-value">{bookInfo?.issue_date || "-"}</td>
+              </tr>
+              <tr>
+                <td className="field-label">Original Due Date</td>
+                <td className="field-value">{bookInfo?.due_date || "-"}</td>
+              </tr>
+              <tr>
+                <td className="field-label">Renewal Date</td>
+                <td className="field-value">{renewalDate || "-"}</td>
+              </tr>
+              <tr>
+                <td className="field-label">New Due Date</td>
+                <td className="field-value fw-bold">{newDueDate || "-"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-       {/* Actions */}
-       <div className="form-actions mt-4">
-         <button
-           type="button"
-           className="confirm-btn"
-           onClick={handleRenew}
-           disabled={renewing || searching || !bookInfo}
-         >
-           {renewing && <span className="spinner-tiny"></span>}
-           {renewing ? "Renewing..." : "Renew Book"}
-         </button>
-       </div>
-     </form>
+        {/* Actions */}
+        <div className="form-actions mt-4">
+          <button
+            type="button"
+            className="confirm-btn"
+            onClick={handleRenew}
+            disabled={renewing || searching || !bookInfo}
+          >
+            {renewing && <span className="spinner-tiny"></span>}
+            {renewing ? "Renewing..." : "Renew Book"}
+          </button>
+        </div>
+      </form>
 
-     {modalMessage && (
-       <MessageModal
-         type={modalMessage.type}
-         message={modalMessage.message}
-         onClose={() => setModalMessage(null)}
-       />
-     )}
-   </div>
- );
+      {modalMessage && (
+        <MessageModal
+          type={modalMessage.type}
+          message={modalMessage.message}
+          onClose={() => setModalMessage(null)}
+        />
+      )}
+
+      {showLimitModal && (
+        <div
+          className="modal fade show d-block"
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header bg-warning text-dark">
+                <h5 className="modal-title">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>{" "}
+                  Renewal Limit Reached
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowLimitModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <p className="mb-0">{limitMessage}</p>
+                <p className="text-muted mt-2 small">
+                  Would you like to process a return for this book instead?
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowLimitModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setShowLimitModal(false);
+                    if (onSwitchTab) {
+                      onSwitchTab("return");
+                    }
+                  }}
+                >
+                  <i className="bi bi-arrow-right-circle me-1"></i> Go to Return
+                  Tab
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default RenewForm;

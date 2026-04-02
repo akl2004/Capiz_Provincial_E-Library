@@ -1,5 +1,10 @@
+import { useEffect } from "react";
 
 const AboutUs = () => {
+  useEffect(() => {
+    document.title = "About Us - Capiz Provincial Library";
+  }, []);
+  
   return (
     <div className="about-container">
       <h1 className="about-title">ABOUT US</h1>
