@@ -313,13 +313,6 @@ const CollectionTab: React.FC<CollectionTabProps> = ({
     XLSX.writeFile(workbook, "masterlist.xlsx");
   };
 
-  const exportSummaryToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(reportData.collectionOverview);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Summary");
-    XLSX.writeFile(workbook, "Collection_Summary.xlsx");
-  };
-
   const getFilteredData = (dataArray: any[]) => {
     const now = new Date();
     if (!dataArray || dataArray.length === 0) return [];

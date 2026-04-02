@@ -76,6 +76,7 @@ const IssueForm = ({ onSuccess }: IssueFormProps) => {
   // 2. Logic: Can they add more books right now?
   const canScanMore =
     patronInfo &&
+    patronInfo.status === "Active" &&
     selectedBooks.length < policy.allowed_today &&
     policy.current_borrowed + selectedBooks.length < policy.borrow_limit;
 
@@ -84,12 +85,18 @@ const IssueForm = ({ onSuccess }: IssueFormProps) => {
     if (!barcode) return;
 
     if (!canScanMore) {
-      const msg =
-        selectedBooks.length >= policy.allowed_today
-          ? "Daily transaction limit reached."
-          : "Patron total borrow limit reached.";
+      let msg = "";
+
+      if (patronInfo && patronInfo.status !== "Active") {
+        msg = `Cannot issue books. Patron status is: ${patronInfo.status}`;
+      } else if (selectedBooks.length >= policy.allowed_today) {
+        msg = `Daily transaction limit reached (${policy.allowed_today} books).`;
+      } else {
+        msg = `Patron total borrow limit reached (${policy.borrow_limit} total).`;
+      }
+
       setModalMessage({ type: "error", message: msg });
-      setBarcode("");
+      setBarcode(""); // Clear the input immediately
       return;
     }
 
@@ -114,7 +121,7 @@ const IssueForm = ({ onSuccess }: IssueFormProps) => {
           }
         })
         .catch(() =>
-          setModalMessage({ type: "error", message: "Book not found" })
+          setModalMessage({ type: "error", message: "Book not found" }),
         )
         .finally(() => setSearching(false));
     }, 600);
@@ -150,7 +157,7 @@ const IssueForm = ({ onSuccess }: IssueFormProps) => {
         setModalMessage({
           type: "error",
           message: err.response?.data?.message || "Error",
-        })
+        }),
       );
   };
 
@@ -188,15 +195,28 @@ const IssueForm = ({ onSuccess }: IssueFormProps) => {
               />
             </div>
             <div className="col-md-8">
-              <label className="text-muted small">Name</label>
+              <label className="text-muted small">Name & Status</label>
               <div
                 className={`form-control-plaintext fw-bold ${
-                  patronInfo ? "text-success" : "text-danger"
+                  patronInfo && patronInfo.status === "Active"
+                    ? "text-success"
+                    : patronInfo
+                      ? "text-danger"
+                      : "text-muted"
                 }`}
               >
-                {patronInfo
-                  ? `${patronInfo.first_name} ${patronInfo.last_name}`
-                  : "Enter valid Patron ID"}
+                {patronInfo ? (
+                  <>
+                    {patronInfo.first_name} {patronInfo.last_name}
+                    {patronInfo.status !== "Active" && (
+                      <span className="badge bg-danger ms-2 text-uppercase">
+                        {patronInfo.status}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  "Enter valid Patron ID"
+                )}
               </div>
             </div>
           </div>
@@ -215,8 +235,8 @@ const IssueForm = ({ onSuccess }: IssueFormProps) => {
             !patronInfo
               ? "Search Patron First..."
               : !canScanMore
-              ? "Limit reached for this patron"
-              : "Scan book barcode..."
+                ? "Limit reached for this patron"
+                : "Scan book barcode..."
           }
         />
         <div className="search-status-inside">

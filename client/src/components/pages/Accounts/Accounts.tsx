@@ -7,7 +7,7 @@ import staff from "../../../assets/orange-icons/staff.png";
 import admin from "../../../assets/orange-icons/admin.png";
 import count from "../../../assets/icons/g-red.png";
 import moment from "moment-timezone";
-import Alert from "../../Alert";
+import MessageModal from "../../MessageModal";
 
 interface Staff {
   id: number;
@@ -56,16 +56,18 @@ const Accounts: React.FC = () => {
 
   const sortRef = useRef<HTMLDivElement | null>(null);
 
-  // Alert state
-  const [alertMessage, setAlertMessage] = useState("");
-  const [alertType, setAlertType] = useState<"success" | "error">("success");
-
   const filterRef = useRef<HTMLDivElement>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   const [defaultTimezone, setDefaultTimezone] = useState<string>("Asia/Manila");
+
+  const [msgModal, setMsgModal] = useState({
+    show: false,
+    type: "success" as "success" | "error",
+    message: "",
+  });
 
   // Initialize all fields
   const [formData, setFormData] = useState({
@@ -165,10 +167,12 @@ const Accounts: React.FC = () => {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
-      setAlertMessage("User added successfully!");
-      setAlertType("success");
       setShowModal(false);
-
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "User added successfully!",
+      });
       setFormData({
         role: "staff",
         first_name: "",
@@ -184,8 +188,12 @@ const Accounts: React.FC = () => {
       fetchStaff();
       fetchUserCounts();
     } catch (err: any) {
-      setAlertMessage(err.response?.data?.message || "Failed to add user.");
-      setAlertType("error");
+      setShowModal(false);
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: err.response?.data?.message || "Failed to add user.",
+      });
     } finally {
       setLoading(false);
     }
@@ -409,14 +417,6 @@ const Accounts: React.FC = () => {
       </div>
 
       <div className="user-page mt-4">
-        {/* Alert component */}
-        {alertMessage && (
-          <Alert
-            message={alertMessage}
-            type={alertType}
-            onClose={() => setAlertMessage("")}
-          />
-        )}
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div>
             <h1 className="text-xl font-semibold mb-0">Registered Accounts</h1>
@@ -905,6 +905,14 @@ const Accounts: React.FC = () => {
               </form>
             </div>
           </div>
+        )}
+
+        {msgModal.show && (
+          <MessageModal
+            type={msgModal.type}
+            message={msgModal.message}
+            onClose={() => setMsgModal({ ...msgModal, show: false })}
+          />
         )}
       </div>
     </>

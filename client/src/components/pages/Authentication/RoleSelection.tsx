@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LoginModal from "./LoginModal";
+import guest from "../../../assets/orange-icons/guest.png";
+import staff from "../../../assets/orange-icons/staff.png";
 
 const roles = [
-  { name: "Guest", image: "./src/assets/orange-icons/guest.png" },
-  { name: "User", image: "./src/assets/orange-icons/staff.png" },
+  { name: "Guest", image: guest },
+  { name: "User", image: staff },
 ];
 
 const RoleSelection: React.FC = () => {

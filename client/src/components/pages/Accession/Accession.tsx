@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import AxiosInstance from "../../../AxiosInstance";
+import AxiosInstance, { BASE_URL } from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
 import coverPlaceholder from "/src/assets/cover_placeholder.jpg";
 import available from "/src/assets/accession-icons/available.png";
@@ -140,7 +140,7 @@ const Accession = () => {
         price: copy.price,
         created_at: book.created_at,
         cover_image: book.cover_image
-          ? `http://localhost:8000/storage/${book.cover_image}`
+          ? `${BASE_URL}/storage/${book.cover_image}`
           : null,
         material_type: copy.material_type?.name || "N/A",
         barcode: copy.barcode,

@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
 
+import citizen from "../../../assets/visitor_type/citizen.png";
+import worker from "../../../assets/visitor_type/worker.png";
+import student from "../../../assets/visitor_type/student.png";
+
 import provinceListData from "../../../data/ph_addresses/province.json";
 import cityListData from "../../../data/ph_addresses/city.json";
 import barangayListData from "../../../data/ph_addresses/barangay.json";
@@ -101,12 +105,21 @@ const DailyAttendancePage = () => {
   );
 
   useEffect(() => {
+    // Initial load (shows spinner)
     fetchTodayAttendances();
     document.title = "Daily Attendance";
-  }, []);
 
-  const fetchTodayAttendances = async () => {
-    setLoadingAttendances(true);
+    const interval = setInterval(() => {
+      if (!open && searchTerm === "") {
+        fetchTodayAttendances(true);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [open]);
+
+  const fetchTodayAttendances = async (isBackground = false) => {
+    if (!isBackground) setLoadingAttendances(true);
     try {
       const res = await AxiosInstance.get("/attendances/today");
       // Sort newest first (based on time_in or id)
@@ -297,12 +310,16 @@ const DailyAttendancePage = () => {
         type: "success",
         message: "Attendance recorded successfully!",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+
+      const backendMessage =
+        err.response?.data?.message || "Failed to record attendance.";
+
       setMsgModal({
         show: true,
         type: "error",
-        message: "Failed to record attendance.",
+        message: backendMessage,
       });
     } finally {
       setLoading(false);
@@ -327,6 +344,18 @@ const DailyAttendancePage = () => {
     try {
       const res = await AxiosInstance.get(`/patrons/by-id/${patronId}`);
       const patron = res.data;
+
+      if (patron.status && patron.status !== "Active") {
+        setMsgModal({
+          show: true,
+          type: "error",
+          message: `Cannot time in. Patron account is ${patron.status}.`,
+        });
+        setOpen(false);
+        resetForm();
+
+        return;
+      }
 
       setForm((prev) => ({
         ...prev,
@@ -799,7 +828,7 @@ const DailyAttendancePage = () => {
                     >
                       <div className="card-icon">
                         <img
-                          src="./src/assets/visitor_type/student.png"
+                          src={student}
                           alt="Student"
                         />
                       </div>
@@ -816,7 +845,7 @@ const DailyAttendancePage = () => {
                     >
                       <div className="card-icon">
                         <img
-                          src="./src/assets/visitor_type/worker.png"
+                          src={worker}
                           alt="Public Worker"
                         />
                       </div>
@@ -833,7 +862,7 @@ const DailyAttendancePage = () => {
                     >
                       <div className="card-icon">
                         <img
-                          src="./src/assets/visitor_type/citizen.png"
+                          src={citizen}
                           alt="Other: Civilian"
                         />
                       </div>

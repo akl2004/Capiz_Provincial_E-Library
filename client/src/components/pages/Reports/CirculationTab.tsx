@@ -16,15 +16,6 @@ import {
 } from "recharts";
 import LoadingSpinner from "../../LoadingSpinner";
 
-interface CirculationRow {
-  month: string;
-  issued: number;
-  returned: number;
-  overdue: number;
-  lost: number;
-  fines: number;
-}
-
 interface jsPDFWithPlugin extends jsPDF {
   lastAutoTable: { finalY: number };
 }

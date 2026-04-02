@@ -1,0 +1,35 @@
+# Root dependencies
+node_modules/
+/.phpunit.cache
+
+# Electron build outputs
+dist/
+out/
+*.exe
+*.dmg
+*.AppImage
+
+# Server (Laravel) specific ignores
+server/vendor/
+server/.env
+server/.env.backup
+server/.env.production
+server/public/storage
+server/public/build
+server/public/hot
+server/storage/*.key
+server/storage/pail
+server/.phpunit.result.cache
+server/.phpactor.json
+server/Homestead.json
+server/Homestead.yaml
+server/auth.json
+
+# IDE and Misc
+.idea/
+.vscode/
+.fleet/
+.nova/
+.zed/
+npm-debug.log
+yarn-error.log

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import LogoutModal from "../../pages/Authentication/LogoutModal";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import icon from "../../../assets/lib-logo.png";
 
 interface HeaderProps {
   user: {
@@ -156,7 +157,7 @@ const Header = ({ user, onLogout, isUserLoading = false }: HeaderProps) => {
             onClick={() => setDropdownOpen(!dropdownOpen)}
           >
             <img
-              src={user.avatar || "./src/assets/lib-logo.png"}
+              src={user.avatar || icon}
               alt="avatar"
               className="rounded-circle me-2"
               style={{ width: "32px", height: "32px" }}

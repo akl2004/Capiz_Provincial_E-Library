@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
-import Alert from "../../Alert";
+import MessageModal from "../../MessageModal";
 
 interface Patron {
   id: number;
@@ -14,7 +14,7 @@ interface Patron {
   email: string;
   status: string;
   created_at: string;
-  registered_by: string; 
+  registered_by: string;
   expiry_date: string | null;
 }
 
@@ -33,7 +33,7 @@ interface Activity {
   description: string;
   details: string;
   time_in?: string;
-  time_out?: string | null; 
+  time_out?: string | null;
 }
 
 const PatronProfile: React.FC = () => {
@@ -61,9 +61,11 @@ const PatronProfile: React.FC = () => {
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [renewing, setRenewing] = useState(false);
 
-  // Alert state
-  const [alertMessage, setAlertMessage] = useState("");
-  const [alertType, setAlertType] = useState<"success" | "error">("success");
+  const [msgModal, setMsgModal] = useState({
+    show: false,
+    type: "success" as "success" | "error",
+    message: "",
+  });
 
   const filterRef = useRef<HTMLDivElement | null>(null);
   const navigate = useNavigate();
@@ -188,12 +190,18 @@ const PatronProfile: React.FC = () => {
       });
       setPatron(updated.data);
 
-      setAlertMessage("Patron membership renewed successfully!");
-      setAlertType("success");
-    } catch (error) {
-      console.error("Error renewing patron:", error);
-      setAlertMessage("Failed to renew patron.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Patron membership renewed successfully!",
+      });
+    } catch (err: any) {
+      console.error("Failed to renew patron.", err);
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: err.response?.data?.message || "Failed to renew patron.",
+      });
     } finally {
       setRenewing(false);
     }
@@ -212,12 +220,18 @@ const PatronProfile: React.FC = () => {
       setPatron(updated.data);
 
       // Success alert
-      setAlertMessage("Patron has been deactivated successfully!");
-      setAlertType("success");
-    } catch (error) {
-      console.error("Error deactivating patron:", error);
-      setAlertMessage("Failed to deactivate patron.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Patron account deactivated successfully.",
+      });
+    } catch (error: any) {
+      setMsgModal({
+        show: true,
+        type: "error",
+        message:
+          error.response?.data?.message || "Failed to deactivatethe patron.",
+      });
     } finally {
       setDeactivating(false);
     }
@@ -236,15 +250,17 @@ const PatronProfile: React.FC = () => {
       const updated = await AxiosInstance.get(`/patrons/${patron.id}`);
       setPatron(updated.data);
 
-      setAlertMessage(`Patron has been blocked successfully.`);
-      setAlertType("success");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Patron account blocked successfully.",
+      });
     } catch (error: any) {
-      console.error("Error blocking patron:", error);
-      setAlertMessage(
-        error.response?.data?.message ||
-          "Failed to block patron. Please try again.",
-      );
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: error.response?.data?.message || "Failed to block patron.",
+      });
     } finally {
       setBlocking(false);
     }
@@ -270,16 +286,26 @@ const PatronProfile: React.FC = () => {
       setPatron(updated.data);
 
       // Success alert
-      setAlertMessage(
+      setMsgModal(
         isUnblock
-          ? "Patron has been unblocked successfully!"
-          : "Patron has been reactivated successfully!",
+          ? {
+              show: true,
+              type: "success",
+              message: "Patron has been unblocked successfully!",
+            }
+          : {
+              show: true,
+              type: "success",
+              message: "Patron has been reactivated successfully!",
+            },
       );
-      setAlertType("success");
     } catch (error) {
       console.error("Error activating patron:", error);
-      setAlertMessage("Failed to update patron status.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: "Failed to update patron status.",
+      });
     } finally {
       setActivating(false);
     }
@@ -288,14 +314,6 @@ const PatronProfile: React.FC = () => {
   return (
     <>
       <div className="patron-profile mt-4 mb-5">
-        {/* Alert component */}
-        {alertMessage && (
-          <Alert
-            message={alertMessage}
-            type={alertType}
-            onClose={() => setAlertMessage("")}
-          />
-        )}
         <div className="mb-4">
           <h1 className="text-xl font-semibold">
             <span
@@ -512,9 +530,7 @@ const PatronProfile: React.FC = () => {
           {loadingLogs ? (
             <LoadingSpinner />
           ) : sortedActivities.length > 0 ? (
-            <table
-              className="user-table"
-            >
+            <table className="user-table">
               <thead>
                 <tr>
                   <th style={{ width: "30%" }}>Date & Time</th>
@@ -595,6 +611,14 @@ const PatronProfile: React.FC = () => {
           )}
         </div>
       </div>
+
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
+      )}
 
       {/* RENEWAL MODAL */}
       {showRenewModal && (
@@ -744,6 +768,6 @@ const PatronProfile: React.FC = () => {
       )}
     </>
   );
-};;
+};
 
 export default PatronProfile;

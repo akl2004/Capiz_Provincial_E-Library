@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Models\Patron;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -27,6 +28,21 @@ class AttendanceController extends Controller
             'affiliation' => 'nullable|string|max:255',
             'purpose_of_visit' => 'required|string|max:255',
         ]);
+
+        if (!empty($validated['patron_id'])) {
+            $patron = Patron::find($validated['patron_id']);
+            
+            if ($patron && $patron->status !== 'Active') {
+                $errorMessage = 'Cannot time in: ';
+                switch ($patron->status) {
+                    case 'Expired': $errorMessage .= 'Membership expired.'; break;
+                    case 'Blocked': $errorMessage .= 'Patron is blocked.'; break;
+                    case 'Deactivated': $errorMessage .= 'Account is deactivated.'; break;
+                    default: $errorMessage .= 'Account is not active.'; break;
+                }
+                return response()->json(['message' => $errorMessage], 403);
+            }
+        }
 
         $attendance = Attendance::create([
             ...$validated,

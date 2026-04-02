@@ -61,6 +61,12 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        $avatarUrl = null;
+        if ($user->profile_image) {
+            // 2. Generate the full network URL (e.g., http://192.168.1.5/storage/profile_images/xyz.jpg)
+            $avatarUrl = asset('storage/' . $user->profile_image);
+        }
+
         return response()->json([
             'id' => $user->id,
             'first_name' => $user->first_name,
@@ -71,7 +77,7 @@ class AuthController extends Controller
             'email' => $user->email,
             'role' => $user->role,
             'status' => $user->status,
-            'avatar' => './src/assets/lib-logo.png',
+            'avatar' => $avatarUrl,
         ]);
     }
 }

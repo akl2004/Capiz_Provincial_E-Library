@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import AxiosInstance from "../../../AxiosInstance";
+import AxiosInstance, { BASE_URL } from "../../../AxiosInstance";
 import { useNavigate } from "react-router-dom";
 import LoadingSpinner from "../../../components/LoadingSpinner";
+import placeholder from "/src/assets/cover_placeholder.jpg";
 
 interface MaterialType {
   id: number;
@@ -49,6 +50,10 @@ const Cataloging = () => {
     string | null
   >(null);
   const [materialFilter, setMaterialFilter] = useState<string | null>(null);
+
+  // Suggestions dropdown state
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
 
   // Refs for closing dropdowns on outside click
   const sortRef = useRef<HTMLDivElement>(null);
@@ -128,17 +133,17 @@ const Cataloging = () => {
     // Filters
     if (sectionFilter) {
       updatedBooks = updatedBooks.filter(
-        (book) => book.section === sectionFilter
+        (book) => book.section === sectionFilter,
       );
     }
     if (classificationFilter) {
       updatedBooks = updatedBooks.filter(
-        (book) => book.classification === classificationFilter
+        (book) => book.classification === classificationFilter,
       );
     }
     if (materialFilter) {
       updatedBooks = updatedBooks.filter((book) =>
-        book.copies?.some((c) => c.material_type === materialFilter)
+        book.copies?.some((c) => c.material_type === materialFilter),
       );
     }
 
@@ -175,19 +180,22 @@ const Cataloging = () => {
     sortOrder,
   ]);
 
-  // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Close sort menu if clicked outside
       if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
         setSortMenuOpen(false);
       }
-      // Close filter menu if clicked outside
       if (
         filterRef.current &&
         !filterRef.current.contains(event.target as Node)
       ) {
         setFilterMenuOpen(false);
+      }
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
       }
     };
 
@@ -259,7 +267,7 @@ const Cataloging = () => {
 
       // Sort newest first by id
       const sortedBooks = formattedBooks.sort(
-        (a: Book, b: Book) => b.id - a.id
+        (a: Book, b: Book) => b.id - a.id,
       );
 
       setBooks(sortedBooks);
@@ -307,7 +315,7 @@ const Cataloging = () => {
       <div className="d-flex gap-2 align-items-center">
         <div className="d-flex gap-2 align-items-center w-100">
           {/* Search */}
-          <div className="position-relative flex-grow-1">
+          <div className="position-relative flex-grow-1" ref={searchWrapperRef}>
             <span
               className="position-absolute top-50 translate-middle-y ps-2"
               style={{ left: "10px", color: "#6c757d" }}
@@ -316,10 +324,52 @@ const Cataloging = () => {
             </span>
             <input
               className="form-control ps-5 pe-5"
-              placeholder="Search book"
+              placeholder="Search by title, author, year..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowSuggestions(true); 
+              }}
+              onFocus={() => setShowSuggestions(true)} 
             />
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && searchTerm && filteredBooks.length > 0 && (
+              <div
+                className="position-absolute w-100 bg-white border rounded shadow-sm mt-1 overflow-auto z-3"
+                style={{
+                  top: "100%",
+                  left: 0,
+                  maxHeight: "250px",
+                  zIndex: 1050,
+                }}
+              >
+                {filteredBooks.slice(0, 5).map((book) => (
+                  <div
+                    key={book.id}
+                    className="p-2 border-bottom hover-bg-light"
+                    style={{ cursor: "pointer" }}
+                    onClick={() => {
+                      setSearchTerm(book.title); 
+                      setShowSuggestions(false); 
+                    }}
+                  >
+                    <div
+                      className="fw-bold text-truncate"
+                      style={{ fontSize: "0.9rem" }}
+                    >
+                      {book.title}
+                    </div>
+                    <div
+                      className="text-muted text-truncate"
+                      style={{ fontSize: "0.75rem" }}
+                    >
+                      Author: {book.contributor} &bull; Year: {book.year}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Sort Controls */}
@@ -350,7 +400,7 @@ const Cataloging = () => {
                       className="sort-field"
                       onClick={() =>
                         setSortField(
-                          sortField === field ? null : (field as any)
+                          sortField === field ? null : (field as any),
                         )
                       }
                     >
@@ -414,7 +464,7 @@ const Cataloging = () => {
                   }`}
                   onClick={() =>
                     setActiveFilterSection(
-                      activeFilterSection === "section" ? null : "section"
+                      activeFilterSection === "section" ? null : "section",
                     )
                   }
                 >
@@ -437,13 +487,13 @@ const Cataloging = () => {
                         }`}
                         onClick={() =>
                           setSectionFilter(
-                            sectionFilter === section ? null : section
+                            sectionFilter === section ? null : section,
                           )
                         }
                       >
                         {section}
                       </div>
-                    )
+                    ),
                   )}
 
                 {/* Classification Filter */}
@@ -455,7 +505,7 @@ const Cataloging = () => {
                     setActiveFilterSection(
                       activeFilterSection === "classification"
                         ? null
-                        : "classification"
+                        : "classification",
                     )
                   }
                 >
@@ -488,7 +538,7 @@ const Cataloging = () => {
                       }`}
                       onClick={() =>
                         setClassificationFilter(
-                          classificationFilter === cls ? null : cls
+                          classificationFilter === cls ? null : cls,
                         )
                       }
                     >
@@ -503,7 +553,7 @@ const Cataloging = () => {
                   }`}
                   onClick={() =>
                     setActiveFilterSection(
-                      activeFilterSection === "material" ? null : "material"
+                      activeFilterSection === "material" ? null : "material",
                     )
                   }
                 >
@@ -579,8 +629,8 @@ const Cataloging = () => {
                       role === "admin"
                         ? `/admin/cataloging/${book.id}`
                         : role === "staff"
-                        ? `/staff/cataloging/${book.id}`
-                        : null;
+                          ? `/staff/cataloging/${book.id}`
+                          : null;
                     if (path) navigate(path);
                   }}
                   style={{ cursor: "pointer" }}
@@ -592,8 +642,8 @@ const Cataloging = () => {
                         <img
                           src={
                             book.cover_image
-                              ? `http://localhost:8000/storage/${book.cover_image}`
-                              : "/src/assets/cover_placeholder.jpg"
+                              ? `${BASE_URL}/storage/${book.cover_image}`
+                              : placeholder
                           }
                           alt={book.title}
                           className="img-fluid"
@@ -687,8 +737,8 @@ const Cataloging = () => {
                         role === "admin"
                           ? `/admin/cataloging/${book.id}`
                           : role === "staff"
-                          ? `/staff/cataloging/${book.id}`
-                          : null;
+                            ? `/staff/cataloging/${book.id}`
+                            : null;
                       if (path) navigate(path);
                     }}
                   >
@@ -758,6 +808,6 @@ const Cataloging = () => {
       </div>
     </div>
   );
-};
+};;;
 
 export default Cataloging;

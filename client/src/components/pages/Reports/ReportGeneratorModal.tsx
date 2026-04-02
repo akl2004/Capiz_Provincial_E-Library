@@ -173,33 +173,6 @@ const ReportGeneratorModal: React.FC<ReportGeneratorModalProps> = ({
                     ))}
                   </select>
                 </div>
-                <hr className="my-2 opacity-25" />
-
-                {/* Toggles */}
-                <div className="form-check form-switch mt-4 mb-3">
-                  <input
-                    className="form-check-input shadow-none"
-                    type="checkbox"
-                    id="collate"
-                    defaultChecked
-                  />
-                  <label className="form-check-label small" htmlFor="collate">
-                    Collate Data Sections
-                  </label>
-                  <i className="bi bi-question-circle text-primary small ms-2"></i>
-                </div>
-
-                <div className="form-check form-switch mb-3">
-                  <input
-                    className="form-check-input shadow-none"
-                    type="checkbox"
-                    id="savePrefs"
-                  />
-                  <label className="form-check-label small" htmlFor="savePrefs">
-                    Save Custom Options
-                  </label>
-                  <i className="bi bi-question-circle text-primary small ms-2"></i>
-                </div>
               </div>
             </div>
           </div>

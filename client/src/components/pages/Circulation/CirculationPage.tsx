@@ -29,11 +29,12 @@ interface Circulation {
   issue_date: string;
   due_date: string;
   date_returned: string | null;
+  updated_at?: string;
   renewal_date?: string;
   renewal_count?: number;
   status: string;
   lost_resolution?: "Payment" | "Replacement";
-  is_paid: boolean; 
+  is_paid: boolean;
   renewed?: boolean;
   fine: number;
 }
@@ -129,11 +130,35 @@ const CirculationPage = () => {
       );
     }
 
+    if (loan.status === "Returned" || loan.status === "Returned Late") {
+      const isLate = loan.status === "Returned Late";
+      const subStatus = isLate ? "LATE" : "ON TIME";
+      const variant = isLate ? "bg-success" : "bg-success";
+
+      return (
+        <span className={`badge ${variant}`} style={badgeStyle}>
+          <span style={{ fontWeight: "800", fontSize: "0.75rem" }}>
+            RETURNED
+          </span>
+          <span
+            style={{
+              fontSize: "0.55rem",
+              borderTop: "1px solid rgba(255,255,255,0.3)",
+              width: "100%",
+              marginTop: "2px",
+              paddingTop: "2px",
+              letterSpacing: "0.5px",
+            }}
+          >
+            {subStatus}
+          </span>
+        </span>
+      );
+    }
+
     // Standard statuses (Missing, Issued, etc.)
     const statusClasses: Record<string, string> = {
       Issued: "bg-primary",
-      Returned: "bg-success",
-      "Returned Late": "bg-success",
       Overdue: "bg-danger",
       Missing: "bg-missing",
     };
@@ -191,20 +216,33 @@ const CirculationPage = () => {
 
   const toggleRow = (id: number) => {
     setExpandedRows((prev) =>
-      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id],
     );
   };
 
   const filterByPeriod = (
-    record: Circulation,
-    period: "This Week" | "This Month" | "This Year"
+    dateString: string | null | undefined,
+    period: "This Week" | "This Month" | "This Year",
   ) => {
+    // 1. If no date exists, skip it
+    if (!dateString) return false;
+
+    // 2. Fix Laravel SQL date strings (changes "2026-03-26 10:57:07" to "2026-03-26T10:57:07")
+    const safeDateString = dateString.replace(" ", "T");
+    const targetDate = new Date(safeDateString);
+
+    // 3. Fallback if the date is completely unreadable
+    if (isNaN(targetDate.getTime())) {
+      console.warn("Could not read this date format:", dateString);
+      return false;
+    }
+
     const today = new Date();
-    const issueDate = new Date(record.issue_date);
 
     if (period === "This Week") {
       const firstDayOfWeek = new Date(today);
       const day = today.getDay();
+      // Start week on Monday
       const diff = today.getDate() - day + (day === 0 ? -6 : 1);
 
       firstDayOfWeek.setDate(diff);
@@ -214,18 +252,18 @@ const CirculationPage = () => {
       lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6);
       lastDayOfWeek.setHours(23, 59, 59, 999);
 
-      return issueDate >= firstDayOfWeek && issueDate <= lastDayOfWeek;
+      return targetDate >= firstDayOfWeek && targetDate <= lastDayOfWeek;
     }
 
     if (period === "This Month") {
       return (
-        issueDate.getMonth() === today.getMonth() &&
-        issueDate.getFullYear() === today.getFullYear()
+        targetDate.getMonth() === today.getMonth() &&
+        targetDate.getFullYear() === today.getFullYear()
       );
     }
 
     if (period === "This Year") {
-      return issueDate.getFullYear() === today.getFullYear();
+      return targetDate.getFullYear() === today.getFullYear();
     }
 
     return true;
@@ -289,22 +327,27 @@ const CirculationPage = () => {
     Issued: records.filter(
       (r) =>
         getStatus(r) === "Issued" &&
-        filterByPeriod(r, activePeriodMap["Issued"]),
+        filterByPeriod(r.issue_date, activePeriodMap["Issued"]),
     ).length,
     Returned: records.filter(
       (r) =>
-        getStatus(r) === "Returned" &&
-        filterByPeriod(r, activePeriodMap["Returned"]),
+        (getStatus(r) === "Returned" || getStatus(r) === "Returned Late") &&
+        // Prioritize date_returned, but fallback to issue_date just in case
+        filterByPeriod(
+          r.date_returned || r.issue_date,
+          activePeriodMap["Returned"],
+        ),
     ).length,
     Overdue: records.filter((r) => getStatus(r) === "Overdue").length,
     Missing: records.filter(
       (r) =>
         getStatus(r) === "Missing" &&
-        filterByPeriod(r, activePeriodMap["Missing"]),
+        filterByPeriod(r.issue_date, activePeriodMap["Missing"]),
     ).length,
     Lost: records.filter(
       (r) =>
-        getStatus(r) === "Lost" && filterByPeriod(r, activePeriodMap["Lost"]),
+        getStatus(r) === "Lost" &&
+        filterByPeriod(r.updated_at || r.issue_date, activePeriodMap["Lost"]),
     ).length,
   };
 
@@ -363,7 +406,7 @@ const CirculationPage = () => {
   const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
   const currentRecords = sortedRecords.slice(
     indexOfFirstRecord,
-    indexOfLastRecord
+    indexOfLastRecord,
   );
 
   const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
@@ -858,10 +901,29 @@ const CirculationPage = () => {
                 </table>
               )}
               {filteredRecords.length > 0 && (
-                <div className="pagination-info text-center mb-2 mt-3">
-                  Showing {indexOfFirstRecord + 1} -{" "}
-                  {Math.min(indexOfLastRecord, filteredRecords.length)} of{" "}
-                  {filteredRecords.length} records
+                <div
+                  className="pagination-info text-center mb-2 mt-3 text-muted"
+                  style={{ fontSize: "0.9rem" }}
+                >
+                  {filteredRecords.length === 0 ? (
+                    "Showing 0 records"
+                  ) : (
+                    <>
+                      Showing{" "}
+                      <span className="fw-medium">
+                        {indexOfFirstRecord + 1}
+                      </span>{" "}
+                      -{" "}
+                      <span className="fw-medium">
+                        {Math.min(indexOfLastRecord, filteredRecords.length)}
+                      </span>{" "}
+                      out of{" "}
+                      <span className="fw-medium">
+                        {filteredRecords.length}
+                      </span>{" "}
+                      records
+                    </>
+                  )}
                 </div>
               )}
               {totalPages > 1 && (
@@ -899,7 +961,20 @@ const CirculationPage = () => {
             <ReturnForm onSuccess={handleActionSuccess} />
           )}
           {activeTab === "renew" && (
-            <RenewForm onSuccess={handleActionSuccess} />
+            <RenewForm
+              onSuccess={handleActionSuccess}
+              onSwitchTab={(tabName: string) =>
+                setActiveTab(
+                  tabName as
+                    | "log"
+                    | "issue"
+                    | "return"
+                    | "renew"
+                    | "lost"
+                    | "settlements",
+                )
+              }
+            />
           )}
           {activeTab === "lost" && <LostForm onSuccess={handleActionSuccess} />}
           {activeTab === "settlements" && (

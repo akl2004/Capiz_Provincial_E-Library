@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
-import Alert from "../../Alert";
+import MessageModal from "../../MessageModal";
 
 interface Admin {
   id: number;
@@ -62,15 +62,17 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
     boolean | null
   >(null);
 
-  // Alert state
-  const [alertMessage, setAlertMessage] = useState("");
-  const [alertType, setAlertType] = useState<"success" | "error">("success");
-
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
 
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [activating, setActivating] = useState(false);
+
+  const [msgModal, setMsgModal] = useState({
+    show: false,
+    type: "success" as "success" | "error",
+    message: "",
+  });
 
   // Fetch Admin Details
   useEffect(() => {
@@ -145,13 +147,18 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       });
       setAdmin(res.data);
 
-      // Success alert
-      setAlertMessage("Admin updated successfully!");
-      setAlertType("success");
-    } catch (err) {
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Admin updated successfully!",
+      });
+    } catch (err: any) {
       console.error("Error updating admin:", err);
-      setAlertMessage("Failed to update admin. Check console for errors.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: err.response?.data?.message || "Failed to update admin.",
+      });
     } finally {
       setLoadingAdmin(false);
       setLoading(false);
@@ -178,7 +185,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       await AxiosInstance.post(
         `/users/${id}/validate-password`,
         { current_password: password.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setIsCurrentPasswordValid(true); // password correct
@@ -238,7 +245,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
           current_password: currentPassword,
           password: newPassword,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setShowResetModal(false);
@@ -247,22 +254,21 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       setResetError("");
       setIsCurrentPasswordValid(null);
 
-      setAlertMessage("Password reset successfully!");
-      setAlertType("success");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Password reset successfully!",
+      });
     } catch (err: any) {
-      console.error(err);
-      if (err.response?.data?.message) {
-        setResetError(err.response.data.message);
-      } else {
-        setResetError("Failed to reset password. Please try again.");
-      }
-      setAlertMessage("Password reset failed. Please try again.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: err.response?.data?.message || "Password reset failed.",
+      });
     } finally {
-      setLoading(false); 
+      setLoading(false);
     }
   };
-
 
   const handleDeactivate = async () => {
     if (!admin) return;
@@ -274,12 +280,17 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       const updated = await AxiosInstance.get(`/users/${admin.id}`);
       setAdmin(updated.data);
 
-      setAlertMessage("Admin has been deactivated successfully!");
-      setAlertType("success");
-    } catch (error) {
-      console.error("Error deactivating admin:", error);
-      setAlertMessage("Failed to deactivate admin.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Account deactivated.",
+      });
+    } catch (error: any) {
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: error.response?.data?.message || "Failed to deactivate.",
+      });
     } finally {
       setDeactivating(false);
     }
@@ -295,12 +306,18 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       const updated = await AxiosInstance.get(`/users/${admin.id}`);
       setAdmin(updated.data);
 
-      setAlertMessage("Admin has been reactivated successfully!");
-      setAlertType("success");
-    } catch (error) {
-      console.error("Error activating admin:", error);
-      setAlertMessage("Failed to reactivate admin.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Account reactivated successfully.",
+      });
+    } catch (error: any) {
+      setMsgModal({
+        show: true,
+        type: "error",
+        message:
+          error.response?.data?.message || "Failed to reactivate account.",
+      });
     } finally {
       setActivating(false);
     }
@@ -334,14 +351,6 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
 
   return (
     <div className="staff-profile mt-4 mb-5">
-      {/* Alert component */}
-      {alertMessage && (
-        <Alert
-          message={alertMessage}
-          type={alertType}
-          onClose={() => setAlertMessage("")}
-        />
-      )}
       <div className="mb-4">
         <h1 className="text-xl font-semibold">
           <span
@@ -536,6 +545,14 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user }) => {
       </div>
 
       {/* Modal */}
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
+      )}
+
       {showModal && (
         <div className="modal-overlay">
           <div className="modal-box">

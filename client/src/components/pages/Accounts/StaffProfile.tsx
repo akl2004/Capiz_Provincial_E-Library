@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AxiosInstance from "../../../AxiosInstance";
 import LoadingSpinner from "../../LoadingSpinner";
-import Alert from "../../Alert";
 import AdminProfile from "./AdminProfile";
+import MessageModal from "../../MessageModal";
 
 interface Staff {
   id: number;
@@ -65,10 +65,6 @@ const StaffProfile: React.FC = () => {
     boolean | null
   >(null);
 
-  // Alert state
-  const [alertMessage, setAlertMessage] = useState("");
-  const [alertType, setAlertType] = useState<"success" | "error">("success");
-
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
 
@@ -78,6 +74,12 @@ const StaffProfile: React.FC = () => {
   const [showPromoteModal, setShowPromoteModal] = useState(false);
 
   const filterRef = useRef<HTMLDivElement>(null);
+
+  const [msgModal, setMsgModal] = useState({
+    show: false,
+    type: "success" as "success" | "error",
+    message: "",
+  });
 
   // Fetch Staff Details
   useEffect(() => {
@@ -110,8 +112,8 @@ const StaffProfile: React.FC = () => {
         suffix: staff.suffix || "",
         phone: staff.phone_number || "",
         email: staff.email,
-        password: "", 
-        role: "staff", 
+        password: "",
+        role: "staff",
         profile_image: undefined,
       });
     }
@@ -146,13 +148,18 @@ const StaffProfile: React.FC = () => {
       });
       setShowModal(false);
       setStaff(res.data.user || res.data);
-
-      setAlertMessage("Staff updated successfully!");
-      setAlertType("success");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Staff updated successfully!",
+      });
     } catch (err: any) {
       console.error("Error updating staff:", err);
-      setAlertMessage(err.response?.data?.message || "Failed to update staff.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: err.response?.data?.message || "Failed to update staff.",
+      });
     } finally {
       setLoading(false);
     }
@@ -161,7 +168,6 @@ const StaffProfile: React.FC = () => {
   // Resetting password
   useEffect(() => {
     if (!showResetModal) {
-      // Reset all fields when modal closes
       setCurrentPassword("");
       setNewPassword("");
       setResetError("");
@@ -178,15 +184,15 @@ const StaffProfile: React.FC = () => {
       await AxiosInstance.post(
         `/users/${id}/validate-password`,
         { current_password: password.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      setIsCurrentPasswordValid(true); // password correct
+      setIsCurrentPasswordValid(true);
     } catch (err: any) {
       if (err.response?.status === 422) {
-        setIsCurrentPasswordValid(false); // incorrect
+        setIsCurrentPasswordValid(false);
       } else {
-        setIsCurrentPasswordValid(null); // unknown error
+        setIsCurrentPasswordValid(null);
       }
     }
   };
@@ -199,7 +205,7 @@ const StaffProfile: React.FC = () => {
 
     const timeout = setTimeout(() => {
       checkCurrentPassword(currentPassword);
-    }, 500); // wait 500ms after typing
+    }, 500);
 
     return () => clearTimeout(timeout);
   }, [currentPassword]);
@@ -238,27 +244,26 @@ const StaffProfile: React.FC = () => {
           current_password: currentPassword,
           password: newPassword,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
-      // Reset everything
       setShowResetModal(false);
       setCurrentPassword("");
       setNewPassword("");
       setResetError("");
       setIsCurrentPasswordValid(null);
 
-      setAlertMessage("Password reset successfully!");
-      setAlertType("success");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Password reset successfully!",
+      });
     } catch (err: any) {
-      console.error(err);
-      if (err.response?.data?.message) {
-        setResetError(err.response.data.message);
-      } else {
-        setResetError("Failed to reset password. Please try again.");
-      }
-      setAlertMessage("Password reset failed. Please try again.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: err.response?.data?.message || "Password reset failed.",
+      });
     } finally {
       setLoading(false);
     }
@@ -272,17 +277,19 @@ const StaffProfile: React.FC = () => {
       await AxiosInstance.patch(`/users/${staff.id}/deactivate`);
       setShowDeactivateModal(false);
 
-      // Refresh staff data
       const updated = await AxiosInstance.get(`/users/${staff.id}`);
       setStaff(updated.data);
-
-      // Success alert
-      setAlertMessage("Staff has been deactivated successfully!");
-      setAlertType("success");
-    } catch (error) {
-      console.error("Error deactivating staff:", error);
-      setAlertMessage("Failed to deactivate staff.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Account deactivated.",
+      });
+    } catch (error: any) {
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: error.response?.data?.message || "Failed to deactivate.",
+      });
     } finally {
       setDeactivating(false);
     }
@@ -300,13 +307,18 @@ const StaffProfile: React.FC = () => {
       const updated = await AxiosInstance.get(`/users/${staff.id}`);
       setStaff(updated.data);
 
-      // Success alert
-      setAlertMessage("Staff has been reactivated successfully!");
-      setAlertType("success");
-    } catch (error) {
-      console.error("Error activating staff:", error);
-      setAlertMessage("Failed to reactivate staff.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Account reactivated successfully.",
+      });
+    } catch (error: any) {
+      setMsgModal({
+        show: true,
+        type: "error",
+        message:
+          error.response?.data?.message || "Failed to reactivate account.",
+      });
     } finally {
       setActivating(false);
     }
@@ -325,18 +337,19 @@ const StaffProfile: React.FC = () => {
       const res = await AxiosInstance.get(`/users/${staffId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      setStaff(res.data); // update staff state
-
-      // Success alert
-      setAlertMessage("Staff has been successfully promoted to Admin!");
-      setAlertType("success");
-    } catch (error: any) {
-      console.error(error);
-      setAlertMessage(
-        error.response?.data?.message || "Failed to promote staff."
-      );
-      setAlertType("error");
+      setStaff(res.data);
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Promoted to Admin successfully!",
+      });
+    } catch (err: any) {
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: err.response?.data?.message || "Promotion failed.",
+      });
+    } finally {
       setLoading(false);
     }
   };
@@ -382,7 +395,7 @@ const StaffProfile: React.FC = () => {
       ? log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
         log.module.toLowerCase().includes(searchTerm.toLowerCase()) ||
         log.description.toLowerCase().includes(searchTerm.toLowerCase())
-      : true
+      : true,
   );
 
   const sortedLogs = [...filteredLogs].sort((a, b) => {
@@ -409,15 +422,6 @@ const StaffProfile: React.FC = () => {
 
   return (
     <div className="staff-profile mt-4 mb-5">
-      {/* Alert component */}
-      {alertMessage && (
-        <Alert
-          message={alertMessage}
-          type={alertType}
-          onClose={() => setAlertMessage("")}
-        />
-      )}
-
       <div className="mb-4">
         <h1 className="text-xl font-semibold">
           <span
@@ -714,6 +718,14 @@ const StaffProfile: React.FC = () => {
           <p>No activities yet.</p>
         )}
       </div>
+
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
+      )}
 
       {/* Modal */}
       {showModal && (
@@ -1047,11 +1059,8 @@ const StaffProfile: React.FC = () => {
           <div className="modal-box">
             <h2>Confirm Promotion</h2>
             <p>
-              Are you sure you want to promote{" "}
-              <strong>
-                {staff.first_name} {staff.last_name}
-              </strong>{" "}
-              to admin?
+              Are you sure you want to promote <strong>{fullName}</strong> to
+              admin?
             </p>
             <div className="form-actions">
               <button

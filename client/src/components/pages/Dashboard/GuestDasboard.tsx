@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import AxiosInstance from "../../../AxiosInstance";
+import AxiosInstance, { BASE_URL } from "../../../AxiosInstance";
 import guestHome0 from "../../../assets/carousel/000.jpg";
 import guestHome1 from "../../../assets/carousel/100.jpg";
 import guestHome2 from "../../../assets/carousel/200.jpg";
@@ -256,8 +256,8 @@ const GuestDashboard = () => {
                 setSearchResults([]);
                 navigate(
                   `/guest/guestdashboard/search?query=${encodeURIComponent(
-                    searchTerm
-                  )}`
+                    searchTerm,
+                  )}`,
                 );
               }
             }}
@@ -267,36 +267,52 @@ const GuestDashboard = () => {
 
           {/* Dropdown for suggestions */}
           {showDropdown && searchResults.length > 0 && (
-            <ul
-              className="list-group position-absolute w-100"
+            <div
+              className="list-group position-absolute w-100 shadow mt-1"
               style={{
                 top: "100%",
                 left: 0,
-                zIndex: 1000,
-                maxHeight: "200px",
+                zIndex: 1050,
+                maxHeight: "250px",
                 overflowY: "auto",
               }}
             >
               {searchResults.map((book) => (
-                <li
+                <button
                   key={book.id}
-                  className="list-group-item list-group-item-action"
+                  type="button"
+                  className="list-group-item list-group-item-action p-2 text-start border-bottom"
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setSearchTerm(book.title);
                     setShowDropdown(false);
                     navigate(
                       `/guest/guestdashboard/search?query=${encodeURIComponent(
-                        book.title
-                      )}`
+                        book.title,
+                      )}`,
                     );
                   }}
-                  style={{ cursor: "pointer" }}
                 >
-                  {book.title}
-                </li>
+                  <div
+                    className="fw-bold text-truncate"
+                    style={{ fontSize: "0.9rem", color: "#212529" }}
+                  >
+                    {book.title}
+                  </div>
+                  <div
+                    className="text-muted text-truncate mt-1"
+                    style={{ fontSize: "0.75rem" }}
+                  >
+                    Author:{" "}
+                    {book.author ||
+                      book.editor ||
+                      book.other_author_editor ||
+                      "Unknown"}{" "}
+                    &bull; Year: {book.copyright || "N/A"}
+                  </div>
+                </button>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </div>
@@ -362,7 +378,7 @@ const GuestDashboard = () => {
               <img
                 src={
                   book.cover_image
-                    ? `http://127.0.0.1:8000/storage/${book.cover_image}`
+                    ? `${BASE_URL}/storage/${book.cover_image}`
                     : placeholder
                 }
                 alt={book.title}
@@ -384,7 +400,7 @@ const GuestDashboard = () => {
               <img
                 src={
                   selectedBook.cover_image
-                    ? `http://127.0.0.1:8000/storage/${selectedBook.cover_image}`
+                    ? `${BASE_URL}/storage/${selectedBook.cover_image}`
                     : placeholder
                 }
                 alt={selectedBook.title}
@@ -583,10 +599,10 @@ const GuestDashboard = () => {
                       {selectedBook?.section === "Gen. Reference"
                         ? "REF"
                         : selectedBook?.section === "Gen. Circulation"
-                        ? "GC"
-                        : selectedBook?.section === "Filipiniana"
-                        ? "FIL"
-                        : selectedBook?.section}
+                          ? "GC"
+                          : selectedBook?.section === "Filipiniana"
+                            ? "FIL"
+                            : selectedBook?.section}
                     </span>
                     <span className="desc">
                       <strong>Section:</strong> Go to the{" "}

@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
-import AxiosInstance from "../../../AxiosInstance";
+import AxiosInstance, { BASE_URL } from "../../../AxiosInstance";
 import { useNavigate } from "react-router-dom";
 
 // Assets
@@ -408,7 +408,7 @@ const Dashboard = () => {
                   <img
                     src={
                       book.cover_image
-                        ? `http://127.0.0.1:8000/storage/${book.cover_image}`
+                        ? `${BASE_URL}/storage/${book.cover_image}`
                         : placeholder
                     }
                     alt={book.title}

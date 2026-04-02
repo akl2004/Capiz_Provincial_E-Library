@@ -1,0 +1,43 @@
+{
+  "name": "capiz-provincial-library",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "electron:start": "electron .",
+    "dev:all": "concurrently \"cd client && npm run dev -- --host\" \"cd server && php artisan serve --host=0.0.0.0 --port=80\" \"npm run electron:start\"",
+    "build:client": "cd client && npm run build",
+    "build:exe": "npm run build:client && electron-builder --windows"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^40.4.1",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.capiz.library",
+    "productName": "Capiz Provincial Library",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "logo.png"
+    },
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!storage/logs/**/*",
+          "!node_modules/**/*"
+        ]
+      }
+    ],
+    "files": [
+      "main.js",
+      "package.json",
+      "client/dist/**/*"
+    ]
+  }
+}
