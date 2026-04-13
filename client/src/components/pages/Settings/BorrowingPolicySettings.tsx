@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import Alert from "../../Alert";
+import MessageModal from "../../MessageModal";
 
 const BorrowingPolicySetting = () => {
   const [loanDays, setLoanDays] = useState<string>("5");
@@ -13,6 +14,16 @@ const BorrowingPolicySetting = () => {
     "info"
   );
 
+  const [msgModal, setMsgModal] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
+
   // Fetch borrowing policy on load
   useEffect(() => {
     const fetchSettings = async () => {
@@ -24,8 +35,11 @@ const BorrowingPolicySetting = () => {
         setBorrowLimit(res.data.borrow_limit ?? 10);
       } catch (err) {
         console.error("Failed to load borrowing policy settings:", err);
-        setAlertMessage("Failed to load borrowing policy settings.");
-        setAlertType("error");
+        setMsgModal({
+          show: true,
+          type: "error",
+          message: "Failed to load borrowing policy settings.",
+        });
       } finally {
         setFetching(false);
       }
@@ -45,12 +59,18 @@ const BorrowingPolicySetting = () => {
         max_items: maxItems,
         borrow_limit: borrowLimit,
       });
-      setAlertMessage("Borrowing policy updated successfully!");
-      setAlertType("success");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Borrowing policy updated successfully!",
+      });
     } catch (err) {
       console.error("Failed to update borrowing policy:", err);
-      setAlertMessage("Failed to update borrowing policy.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: "Failed to update borrowing policy.",
+      });
     } finally {
       setSaving(false);
     }
@@ -90,7 +110,6 @@ const BorrowingPolicySetting = () => {
 
        <div className="card-body p-4">
          {fetching ? (
-           // 3. Skeleton Loading State
            <div className="borrow-skeleton-wrapper">
              {[1, 2, 3].map((i) => (
                <div key={i} className="borrow-skeleton-row mb-4">
@@ -107,7 +126,6 @@ const BorrowingPolicySetting = () => {
              </div>
            </div>
          ) : (
-           // 4. Actual Content with Fade-in Effect
            <div className="borrow-fade-in">
              <div className="borrow-setting-row">
                <div className="borrow-info">
@@ -184,6 +202,13 @@ const BorrowingPolicySetting = () => {
          )}
        </div>
      </div>
+     {msgModal.show && (
+       <MessageModal
+         type={msgModal.type}
+         message={msgModal.message}
+         onClose={() => setMsgModal({ ...msgModal, show: false })}
+       />
+     )}
    </div>
  );
 };

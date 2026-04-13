@@ -21,7 +21,7 @@ const Settings: React.FC = () => {
     document.title = "Settings";
     const observerOptions = {
       root: null,
-      rootMargin: "-20% 0px -70% 0px", // Trigger when section is near top
+      rootMargin: "-20% 0px -70% 0px",
       threshold: 0,
     };
 

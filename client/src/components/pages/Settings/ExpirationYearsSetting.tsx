@@ -1,11 +1,22 @@
 import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
+import MessageModal from "../../MessageModal";
 
 const ExpirationYearsSetting = () => {
   const [expirationYears, setExpirationYears] = useState(3);
   const [fetching, setFetching] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const [msgModal, setMsgModal] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
 
   // Fetch current expiration years
   useEffect(() => {
@@ -16,7 +27,7 @@ const ExpirationYearsSetting = () => {
         const years = Number(res.data.expiration_years);
         setExpirationYears(Number.isInteger(years) ? years : 3);
       } catch (err) {
-        setMessage("⚠️ Failed to load expiration years");
+        setMessage("⚠️ Failed to load membership validity.");
       } finally {
         setFetching(false);
       }
@@ -44,9 +55,17 @@ const ExpirationYearsSetting = () => {
       await AxiosInstance.post("/settings/expiration-years", {
         expiration_years: Number(expirationYears) || 3,
       });
-      setMessage("Expiration years updated successfully!");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Membership validity updated successfully!",
+      });
     } catch {
-      setMessage("Failed to update expiration years");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: "Failed to update membership validity.",
+      });
     } finally {
       setSaving(false);
     }
@@ -92,7 +111,6 @@ const ExpirationYearsSetting = () => {
               </div>
             </div>
           ) : (
-            /* 4. Actual Content with Fade-in Effect */
             <div className="timezone-fade-in">
               <div className="expiry-setting-row">
                 <div className="expiry-info">
@@ -148,6 +166,13 @@ const ExpirationYearsSetting = () => {
           )}
         </div>
       </div>
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
+      )}
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import Alert from "../../Alert";
+import MessageModal from "../../MessageModal";
 
 const FineSetting = () => {
   const [finePerDay, setFinePerDay] = useState<string | number>(5);
@@ -12,6 +13,16 @@ const FineSetting = () => {
   const [alertType, setAlertType] = useState<"success" | "error" | "info">(
     "info"
   );
+
+  const [msgModal, setMsgModal] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
 
   useEffect(() => {
     setFetching(true);
@@ -49,12 +60,18 @@ const FineSetting = () => {
       }),
     ])
       .then(() => {
-        setAlertMessage("All financial settings updated successfully!");
-        setAlertType("success");
+        setMsgModal({
+          show: true,
+          type: "success",
+          message: "All financial settings updated successfully!",
+        });
       })
       .catch(() => {
-        setAlertMessage("Failed to update settings. Please check your inputs.");
-        setAlertType("error");
+        setMsgModal({
+          show: true,
+          type: "error",
+          message: "Failed to update settings. Please check your inputs.",
+        });
       })
       .finally(() => setSaving(false));
   };
@@ -197,6 +214,13 @@ const FineSetting = () => {
           )}
         </div>
       </div>
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
+      )}
     </div>
   );
 };

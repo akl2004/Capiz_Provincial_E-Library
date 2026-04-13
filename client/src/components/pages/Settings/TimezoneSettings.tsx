@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import timezones from "../../../data/time-zones/countries.json";
 import AxiosInstance from "../../../AxiosInstance";
 import Alert from "../../Alert";
+import MessageModal from "../../MessageModal";
 
 const TimezoneSettings: React.FC = () => {
   const [selectedTimezone, setSelectedTimezone] = useState("Asia/Manila");
@@ -9,8 +10,18 @@ const TimezoneSettings: React.FC = () => {
   const [fetching, setFetching] = useState(true);
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<"success" | "error" | "info">(
-    "info"
+    "info",
   );
+
+  const [msgModal, setMsgModal] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
 
   useEffect(() => {
     const fetchTimezone = async () => {
@@ -39,13 +50,19 @@ const TimezoneSettings: React.FC = () => {
         { timezone: selectedTimezone },
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
-      setAlertMessage("Timezone updated successfully!");
-      setAlertType("success");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Timezone updated successfully!",
+      });
     } catch (err) {
-      setAlertMessage("Failed to update timezone.");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: "Failed to update timezone.",
+      });
     } finally {
       setLoading(false);
     }
@@ -137,6 +154,13 @@ const TimezoneSettings: React.FC = () => {
           )}
         </div>
       </div>
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
+      )}
     </div>
   );
 };

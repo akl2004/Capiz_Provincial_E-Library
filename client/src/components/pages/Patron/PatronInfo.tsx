@@ -280,83 +280,91 @@ const PatronInfo = () => {
       {/* ===== Barcode Modal for Patron ID ===== */}
       {showPrintModal && (
         <div className="modal-overlay">
-          <div className="modal-box" style={{ maxWidth: "450px" }}>
-            <button
-              onClick={() => setShowPrintModal(false)}
-              className="modal-close-btn no-print"
-            >
-              &times;
-            </button>
+          <div className="custom-print-preview-modal">
+            {/* LEFT SIDE: Controls Sidebar */}
+            <div className="preview-sidebar no-print">
+              <h2 className="text-xl font-semibold mb-4 text-white">
+                Print Patron ID
+              </h2>
+              <p className="text-light mb-6 text-sm">
+                Review the card layout on the page before printing.
+              </p>
 
-            <h2 className="text-xl font-semibold mb-4 no-print text-center">
-              Print Patron ID Card
-            </h2>
+              <div className="form-actions flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setTimeout(() => {
+                      window.print();
+                    }, 100);
+                  }}
+                  className="submit-btn w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 flex justify-center items-center"
+                >
+                  <i className="bi bi-printer me-2"></i> Print Card
+                </button>
 
-            {/* Wrapping in the ID your CSS expects */}
-            <div id="printable-patron-barcodes">
-              <div className="patron-card-design barcode-item">
-                <div className="card-accent-border"></div>
-
-                <div className="card-header-main">
-                  <div className="library-title">CAPIZ PROVINCIAL LIBRARY</div>
-                  <div className="card-type">PATRON PASS</div>
-                </div>
-
-                <div className="card-content-grid">
-                  <div className="patron-details">
-                    <div className="detail-group">
-                      <span className="patron-detail-label">NAME</span>
-                      <span className="patron-detail-value">
-                        {fullName.toUpperCase()}
-                      </span>
-                    </div>
-
-                    <div className="id-expiry-row">
-                      <div className="detail-group">
-                        <span className="patron-detail-label">PATRON ID</span>
-                        <span className="patron-detail-value">
-                          {patron.patron_id}
-                        </span>
-                      </div>
-                      <div className="detail-group">
-                        <span className="patron-detail-label">EXPIRY</span>
-                        <span className="patron-detail-value">
-                          {patron.expiry_date?.slice(0, 10) || "N/A"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="barcode-section-card">
-                  <Barcode
-                    value={patron.patron_id || "0000"}
-                    width={1.5}
-                    height={55}
-                    fontSize={12}
-                    margin={2}
-                  />
-                </div>
+                <button
+                  onClick={() => setShowPrintModal(false)}
+                  className="cancel-btn w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700"
+                >
+                  Close
+                </button>
               </div>
             </div>
 
-            <div className="form-actions no-print mt-4">
-              <button
-                onClick={() => setShowPrintModal(false)}
-                className="cancel-btn"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  setTimeout(() => {
-                    window.print();
-                  }, 100);
-                }}
-                className="submit-btn"
-              >
-                <i className="bi bi-printer me-2"></i> Print Card
-              </button>
+            {/* RIGHT SIDE: The "Paper" Preview Area */}
+            <div className="preview-paper-wrapper">
+              <div className="a4-paper-sheet">
+                <div id="printable-patron-barcodes">
+                  <div className="patron-card-design barcode-item">
+                    <div className="card-accent-border"></div>
+
+                    <div className="card-header-main">
+                      <div className="library-title">
+                        CAPIZ PROVINCIAL LIBRARY
+                      </div>
+                      <div className="card-type">PATRON PASS</div>
+                    </div>
+
+                    <div className="card-content-grid">
+                      <div className="patron-details">
+                        <div className="detail-group">
+                          <span className="patron-detail-label">NAME</span>
+                          <span className="patron-detail-value">
+                            {fullName.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="id-expiry-row">
+                          <div className="detail-group">
+                            <span className="patron-detail-label">
+                              PATRON ID
+                            </span>
+                            <span className="patron-detail-value">
+                              {patron.patron_id}
+                            </span>
+                          </div>
+                          <div className="detail-group">
+                            <span className="patron-detail-label">EXPIRY</span>
+                            <span className="patron-detail-value">
+                              {patron.expiry_date?.slice(0, 10) || "N/A"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="barcode-section-card">
+                      <Barcode
+                        value={patron.patron_id || "0000"}
+                        width={1.5}
+                        height={55}
+                        fontSize={12}
+                        margin={2}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -432,10 +440,7 @@ const PatronInfo = () => {
                                   (Expires Today)
                                 </span>
                               );
-                            return (
-                              <span className="text-success">
-                              </span>
-                            );
+                            return <span className="text-success"></span>;
                           })()
                         )}
                       </span>

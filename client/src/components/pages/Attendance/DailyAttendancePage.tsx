@@ -122,7 +122,6 @@ const DailyAttendancePage = () => {
     if (!isBackground) setLoadingAttendances(true);
     try {
       const res = await AxiosInstance.get("/attendances/today");
-      // Sort newest first (based on time_in or id)
       const sorted = res.data.sort(
         (a: Attendance, b: Attendance) =>
           new Date(b.time_in || 0).getTime() -
@@ -184,18 +183,15 @@ const DailyAttendancePage = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // If the click is NOT inside the province wrapper, clear suggestions
       if (
         provinceRef.current &&
         !provinceRef.current.contains(event.target as Node)
       ) {
         setProvinceSuggestions([]);
       }
-      // If the click is NOT inside the city wrapper, clear suggestions
       if (cityRef.current && !cityRef.current.contains(event.target as Node)) {
         setCitySuggestions([]);
       }
-      // If the click is NOT inside the barangay wrapper, clear suggestions
       if (
         barangayRef.current &&
         !barangayRef.current.contains(event.target as Node)
@@ -699,7 +695,7 @@ const DailyAttendancePage = () => {
                         type="email"
                         name="email"
                         className="form-control"
-                        placeholder="Email Address (Optional)"
+                        placeholder="Email Address"
                         value={form.email}
                         onChange={handleChange}
                       />

@@ -76,11 +76,11 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
 
   // Suggestions
   const [provinceSuggestions, setProvinceSuggestions] = useState<Province[]>(
-    []
+    [],
   );
   const [citySuggestions, setCitySuggestions] = useState<City[]>([]);
   const [barangaySuggestions, setBarangaySuggestions] = useState<Barangay[]>(
-    []
+    [],
   );
 
   const [isAdding, setIsAdding] = useState(false);
@@ -108,16 +108,16 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
     setProvinceSuggestions(
       provinceList
         .filter((p) =>
-          p.province_name.toLowerCase().includes(value.toLowerCase())
+          p.province_name.toLowerCase().includes(value.toLowerCase()),
         )
-        .slice(0, 4)
+        .slice(0, 4),
     );
   };
 
   const handleCityChange = (value: string) => {
     setCity(value);
     const selectedProvince = provinceList.find(
-      (p) => p.province_name.toLowerCase() === province.toLowerCase()
+      (p) => p.province_name.toLowerCase() === province.toLowerCase(),
     );
     if (!selectedProvince) return setCitySuggestions([]);
     setCitySuggestions(
@@ -125,16 +125,16 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
         .filter(
           (c) =>
             c.province_code === selectedProvince.province_code &&
-            c.city_name.toLowerCase().includes(value.toLowerCase())
+            c.city_name.toLowerCase().includes(value.toLowerCase()),
         )
-        .slice(0, 4)
+        .slice(0, 4),
     );
   };
 
   const handleBarangayChange = (value: string) => {
     setBarangay(value);
     const selectedCity = cityList.find(
-      (c) => c.city_name.toLowerCase() === city.toLowerCase()
+      (c) => c.city_name.toLowerCase() === city.toLowerCase(),
     );
     if (!selectedCity) return setBarangaySuggestions([]);
     setBarangaySuggestions(
@@ -142,9 +142,9 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
         .filter(
           (b) =>
             b.city_code === selectedCity.city_code &&
-            b.brgy_name.toLowerCase().includes(value.toLowerCase())
+            b.brgy_name.toLowerCase().includes(value.toLowerCase()),
         )
-        .slice(0, 4)
+        .slice(0, 4),
     );
   };
 
@@ -173,15 +173,15 @@ const AddPatronModal: React.FC<{ onClose: () => void; onSave: () => void }> = ({
           address: `${barangay}, ${city}, ${province}`,
           notes,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       const patronData = response.data.patron || response.data;
 
       if (patronData && patronData.patron_id) {
         setSavedPatron(patronData);
-        setShowIdPreview(true); // This will now trigger the "Print View"
-        onSave(); // Refresh the background table
+        setShowIdPreview(true); 
+        onSave(); 
       } else {
         console.error("Unexpected response structure:", response.data);
         throw new Error("Invalid response from server");
@@ -490,7 +490,7 @@ const Patron = () => {
   // Filter / sort
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [activeFilterSection, setActiveFilterSection] = useState<string | null>(
-    null
+    null,
   );
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [sortField, setSortField] = useState<string | null>(null);
@@ -498,6 +498,17 @@ const Patron = () => {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
   const sortRef = useRef<HTMLDivElement | null>(null);
+
+  // State to track which patrons are checked
+  const [selectedPatronIds, setSelectedPatronIds] = useState<number[]>([]);
+  const [showBatchPrintModal, setShowBatchPrintModal] = useState(false);
+  const selectedPatronsData = patrons.filter((p) =>
+    selectedPatronIds.includes(p.id),
+  );
+
+  // Suggestions dropdown state
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchWrapperRef = useRef<HTMLDivElement | null>(null);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -543,12 +554,22 @@ const Patron = () => {
 
   // Close filter menu if clicked outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent) => {
+      // Close sort/filter
       if (
+        sortRef.current &&
+        !sortRef.current.contains(e.target as Node) &&
         filterRef.current &&
-        !filterRef.current.contains(event.target as Node)
+        !filterRef.current.contains(e.target as Node)
       ) {
+        setSortMenuOpen(false);
         setFilterMenuOpen(false);
+      }
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(e.target as Node)
+      ) {
+        setShowSuggestions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -676,7 +697,7 @@ const Patron = () => {
   const indexOfFirstPatron = indexOfLastPatron - patronsPerPage;
   const currentPatrons = sortedPatrons.slice(
     indexOfFirstPatron,
-    indexOfLastPatron
+    indexOfLastPatron,
   );
 
   const role = localStorage.getItem("role") || "";
@@ -693,15 +714,26 @@ const Patron = () => {
             </i>
           </p>
         </div>
-        <button className="patron-btn" onClick={() => setShowModal(true)}>
-          Add Patron
-        </button>
+        <div className="d-flex gap-2">
+          {selectedPatronIds.length > 0 && (
+            <button
+              className="patron-btn"
+              onClick={() => setShowBatchPrintModal(true)}
+            >
+              <i className="bi bi-printer me-2"></i> Print Selected (
+              {selectedPatronIds.length})
+            </button>
+          )}
+          <button className="patron-btn" onClick={() => setShowModal(true)}>
+            Add Patron
+          </button>
+        </div>
       </div>
       <div className="d-flex gap-2 align-items-center mb-3">
         {/* Controls */}
         <div className="d-flex gap-2 align-items-center w-100">
           {/* Search */}
-          <div className="position-relative flex-grow-1">
+          <div className="position-relative flex-grow-1" ref={searchWrapperRef}>
             <span
               className="position-absolute top-50 translate-middle-y ps-2"
               style={{ left: "10px", color: "#6c757d" }}
@@ -710,10 +742,58 @@ const Patron = () => {
             </span>
             <input
               className="form-control ps-5 pe-5"
-              placeholder="Search"
+              placeholder="Search patron by name or id..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setShowSuggestions(true);
+              }}
+              onFocus={() => setShowSuggestions(true)}
             />
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && searchTerm && filteredPatrons.length > 0 && (
+              <div
+                className="position-absolute w-100 bg-white border rounded shadow-sm mt-1 overflow-auto z-3"
+                style={{
+                  top: "100%",
+                  left: 0,
+                  maxHeight: "250px",
+                  zIndex: 1050,
+                }}
+              >
+                {filteredPatrons.slice(0, 5).map((patron) => {
+                  const fullName =
+                    `${patron.first_name} ${patron.middle_name ?? ""} ${patron.last_name} ${patron.suffix ?? ""}`.trim();
+
+                  return (
+                    <div
+                      key={patron.id}
+                      className="p-2 border-bottom hover-bg-light"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        setSearchTerm(fullName);
+                        setShowSuggestions(false);
+                      }}
+                    >
+                      <div
+                        className="fw-bold text-truncate"
+                        style={{ fontSize: "0.9rem" }}
+                      >
+                        {fullName}
+                      </div>
+                      <div
+                        className="text-muted text-truncate"
+                        style={{ fontSize: "0.75rem" }}
+                      >
+                        ID: {patron.patron_id || "N/A"} &bull; Status:{" "}
+                        {patron.status || "N/A"}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Sort Controls */}
@@ -854,6 +934,22 @@ const Patron = () => {
         <table className="patron-table mt-3">
           <thead>
             <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedPatronIds(currentPatrons.map((p) => p.id));
+                    } else {
+                      setSelectedPatronIds([]);
+                    }
+                  }}
+                  checked={
+                    selectedPatronIds.length === currentPatrons.length &&
+                    currentPatrons.length > 0
+                  }
+                />
+              </th>
               <th></th>
               <th>Patron ID</th>
               <th>Patron Name</th>
@@ -875,6 +971,21 @@ const Patron = () => {
                   }
                 }}
               >
+                <td onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedPatronIds.includes(patron.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedPatronIds([...selectedPatronIds, patron.id]);
+                      } else {
+                        setSelectedPatronIds(
+                          selectedPatronIds.filter((id) => id !== patron.id),
+                        );
+                      }
+                    }}
+                  />
+                </td>
                 <td>{indexOfFirstPatron + index + 1}</td>
                 <td>{patron.patron_id || "N/A"}</td>
                 <td>
@@ -1022,6 +1133,103 @@ const Patron = () => {
         </div>
       )}
 
+      {/* ===== Batch Print Modal ===== */}
+      {showBatchPrintModal && (
+        <div className="modal-overlay">
+          <div className="custom-print-preview-modal">
+            <div className="preview-sidebar no-print">
+              <h2 className="text-xl font-semibold mb-4 text-white">
+                Batch Print IDs
+              </h2>
+              <p className="text-white mb-6 text-sm">
+                Printing {selectedPatronsData.length} card(s).
+              </p>
+
+              <div className="form-actions flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setTimeout(() => window.print(), 100);
+                  }}
+                  className="submit-btn w-full bg-blue-600 text-white py-2 rounded"
+                >
+                  <i className="bi bi-printer me-2"></i> Print All
+                </button>
+                <button
+                  onClick={() => setShowBatchPrintModal(false)}
+                  className="cancel-btn w-full bg-gray-600 text-white py-2 rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+
+            {/* RIGHT SIDE: The "Paper" Preview Area */}
+            <div className="preview-paper-wrapper">
+              <div className="a4-paper-sheets">
+                <div id="printable-batch-cards" className="batch-card-grid">
+                  {selectedPatronsData.map((patron) => {
+                    const fullName =
+                      `${patron.first_name} ${patron.last_name}`.trim();
+
+                    return (
+                      <div
+                        key={patron.id}
+                        className="patron-card-design barcode-item"
+                      >
+                        <div className="card-accent-border"></div>
+                        <div className="card-header-main">
+                          <div className="library-title">
+                            CAPIZ PROVINCIAL LIBRARY
+                          </div>
+                          <div className="card-type">PATRON PASS</div>
+                        </div>
+                        <div className="card-content-grid">
+                          <div className="patron-details">
+                            <div className="detail-group">
+                              <span className="patron-detail-label">NAME</span>
+                              <span className="patron-detail-value">
+                                {fullName.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="id-expiry-row">
+                              <div className="detail-group">
+                                <span className="patron-detail-label">
+                                  PATRON ID
+                                </span>
+                                <span className="patron-detail-value">
+                                  {patron.patron_id}
+                                </span>
+                              </div>
+                              <div className="detail-group">
+                                <span className="patron-detail-label">
+                                  EXPIRY
+                                </span>
+                                <span className="patron-detail-value">
+                                  {patron.expiry_date?.slice(0, 10) || "N/A"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="barcode-section-card">
+                          <Barcode
+                            value={patron.patron_id || "0000"}
+                            width={1.5}
+                            height={55}
+                            fontSize={12}
+                            margin={2}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {showConfirm && (
         <div className="modal-overlay">
@@ -1093,6 +1301,6 @@ const Patron = () => {
       )}
     </div>
   );
-};
+};;
 
 export default Patron;

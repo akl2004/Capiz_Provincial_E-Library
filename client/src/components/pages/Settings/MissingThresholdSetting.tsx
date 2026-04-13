@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import Alert from "../../Alert";
+import MessageModal from "../../MessageModal";
 
 const MissingThresholdSetting = () => {
   const [days, setDays] = useState<number>(365);
@@ -10,6 +11,16 @@ const MissingThresholdSetting = () => {
   const [alertType, setAlertType] = useState<"success" | "error" | "info">(
     "info",
   );
+
+  const [msgModal, setMsgModal] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
 
   // Fetch current threshold
   useEffect(() => {
@@ -36,14 +47,18 @@ const MissingThresholdSetting = () => {
       const res = await AxiosInstance.post("/settings/missing-threshold", {
         missing_threshold_days: days,
       });
-      setAlertMessage(
-        res.data.message || "Missing threshold updated successfully!",
-      );
-      setAlertType("success");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Missing threshold updated successfully!",
+      });
     } catch (error) {
       console.error(error);
-      setAlertMessage("Error updating missing threshold");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: "Failed to update missing threshold",
+      });
     } finally {
       setLoading(false);
     }
@@ -140,6 +155,13 @@ const MissingThresholdSetting = () => {
           )}
         </div>
       </div>
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
+      )}
     </div>
   );
 };

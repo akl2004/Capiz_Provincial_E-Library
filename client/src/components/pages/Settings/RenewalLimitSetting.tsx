@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import AxiosInstance from "../../../AxiosInstance";
 import Alert from "../../Alert";
+import MessageModal from "../../MessageModal";
 
 const RenewalLimitSetting = () => {
   const [renewalLimit, setRenewalLimit] = useState<number>(2);
@@ -10,6 +11,16 @@ const RenewalLimitSetting = () => {
   const [alertType, setAlertType] = useState<"success" | "error" | "info">(
     "info"
   );
+
+  const [msgModal, setMsgModal] = useState<{
+    show: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    show: false,
+    type: "success",
+    message: "",
+  });
 
   // Fetch current renewal limit
   useEffect(() => {
@@ -36,14 +47,18 @@ const RenewalLimitSetting = () => {
       const res = await AxiosInstance.post("/settings/renewal-limit", {
         renewal_limit: renewalLimit,
       });
-      setAlertMessage(
-        res.data.message || "Renewal limit updated successfully!"
-      );
-      setAlertType("success");
+      setMsgModal({
+        show: true,
+        type: "success",
+        message: "Renewal limit updated successfully!",
+      });
     } catch (error) {
       console.error(error);
-      setAlertMessage("Error updating renewal limit");
-      setAlertType("error");
+      setMsgModal({
+        show: true,
+        type: "error",
+        message: "Failed to update renewal limit",
+      });
     } finally {
       setLoading(false);
     }
@@ -143,6 +158,13 @@ const RenewalLimitSetting = () => {
           )}
         </div>
       </div>
+      {msgModal.show && (
+        <MessageModal
+          type={msgModal.type}
+          message={msgModal.message}
+          onClose={() => setMsgModal({ ...msgModal, show: false })}
+        />
+      )}
     </div>
   );
 };
