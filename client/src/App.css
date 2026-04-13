@@ -2480,9 +2480,6 @@ select {
 
 .no-spinner {
   appearance: textfield;
-}
-
-.no-spinner {
   -moz-appearance: textfield;
 }
 
@@ -6916,12 +6913,14 @@ input:focus {
   .library-title {
     color: #1e40af !important;
     -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .patron-card-design {
     border: 1px solid #e5e7eb !important;
     background-color: white !important;
     -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
     border-radius: 12px !important;
   }
 
@@ -7112,7 +7111,7 @@ input:focus {
     top: 5mm !important;
     left: 0 !important;
     width: 100% !important;
-    display: block !important; /* Strips out the buggy flexbox behavior */
+    display: block !important; 
   }
 
   .card-accent-border {
@@ -7125,6 +7124,7 @@ input:focus {
   .library-title {
     color: #1e40af !important;
     -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .patron-card-design {
