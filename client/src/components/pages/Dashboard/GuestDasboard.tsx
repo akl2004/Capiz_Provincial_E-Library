@@ -519,21 +519,40 @@ const GuestDashboard = () => {
                       {(() => {
                         const allCopies = selectedBook.copies || [];
                         const totalOwned = allCopies.length;
+
                         const healthyAvailableCopies = allCopies.filter((c) => {
                           return (
                             c.status === "Available" &&
-                            c.condition !== "Damaged" &&
-                            c.condition !== "Poor"
+                            c.condition !== "Damaged"
                           );
                         });
+
                         if (totalOwned <= 1) {
                           return (
-                            <span className="text-danger fw-bold">
+                            <span
+                              className="fw-bold"
+                              style={{ color: "#c05b42" }}
+                            >
                               0 (Reference Only)
                             </span>
                           );
                         }
-                        return `${healthyAvailableCopies.length} copies available to borrow`;
+
+                        const borrowableCount = Math.max(
+                          0,
+                          healthyAvailableCopies.length - 1,
+                        );
+
+                        if (borrowableCount === 0) {
+                          return (
+                            <span
+                              className="text-danger fw-bold"
+                            >
+                              0 (Reference Only)
+                            </span>
+                          );
+                        }
+                        return `${borrowableCount} ${borrowableCount === 1 ? "copy" : "copies"} available to borrow`;
                       })()}
                     </p>
                   </div>

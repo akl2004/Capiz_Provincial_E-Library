@@ -1254,7 +1254,7 @@ const BookForm: React.FC = () => {
                     }}
                     className="cancel-btn w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700"
                   >
-                    Cancel
+                    Close
                   </button>
                 </div>
               </div>

@@ -1158,7 +1158,7 @@ const Patron = () => {
                   onClick={() => setShowBatchPrintModal(false)}
                   className="cancel-btn w-full bg-gray-600 text-white py-2 rounded"
                 >
-                  Cancel
+                  Close
                 </button>
               </div>
             </div>

@@ -2670,89 +2670,86 @@ select {
   margin-bottom: 15px;
 }
 
-/* Hide everything by default when printing */
+/* =========================================
+   BOOK BARCODES UI
+   ========================================= */
 @media print {
+  /* 1. Set the page size and reset margins */
   @page {
-    margin: 10mm;
+    size: auto;
+    margin: 10mm; /* Standard margin for label printing */
   }
 
-  body,
-  html {
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
     height: auto !important;
     overflow: visible !important;
-    margin: 0;
-    padding: 0;
   }
 
+  /* 2. Hide all the dark mode UI */
   body * {
     visibility: hidden;
   }
 
-  .modal-overlay,
-  .modal-box,
+  /* 3. Target the correct ID for books */
   #printable-barcodes,
   #printable-barcodes * {
-    visibility: visible;
-  }
-
-  .modal-overlay {
-    position: absolute !important;
-    top: 20mm !important;
-    left: 0 !important;
-    display: block !important;
-    width: 100% !important;
-    height: auto !important;
-    background: white !important;
     visibility: visible !important;
   }
 
-  .modal-box {
+  /* 4. Strip layout constraints from wrappers */
+  .modal-overlay,
+  .custom-print-preview-modal,
+  .preview-paper-wrapper,
+  .a4-paper-sheet {
+    position: static !important;
+    background: transparent !important;
     box-shadow: none !important;
-    border: none !important;
-    width: 100% !important;
-    max-width: none !important;
     margin: 0 !important;
     padding: 0 !important;
+    border: none !important;
+    width: 100% !important;
+    height: auto !important;
+    display: block !important;
   }
 
+  /* 5. Create a grid layout for the labels */
   #printable-barcodes {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
     display: grid !important;
-    grid-template-columns: repeat(3, 2fr) !important;
-    gap: 5px !important;
-    padding: 5mm !important;
-    width: 100%;
+    grid-template-columns: repeat(3, 1fr) !important; /* 3 labels per row */
+    gap: 10px !important;
+    width: 100% !important;
   }
 
+  /* 6. Prevent labels from splitting across pages */
   .barcode-item {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    border: 1px solid #ddd !important;
-    padding: 5px !important;
     page-break-inside: avoid;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  .barcode-text {
-    font-size: 11px !important;
-    text-align: center;
-    color: black !important;
-    margin-bottom: 6px !important;
-  }
-
-  /* Hide buttons and close icons */
+  /* 7. Hide sidebar completely */
   .no-print,
-  .modal-close-btn,
-  .form-actions {
+  .preview-sidebar {
     display: none !important;
   }
 }
+
+/* =========================================
+   BOOK BARCODES ON-SCREEN PREVIEW UI
+   ========================================= */
 
 .custom-print-preview-modal {
   display: flex;
   width: 90vw;
   height: 90vh;
   max-width: 1200px;
-  background-color: #202020; /* Dark background like Windows 11 print dialog */
+  background-color: #202020;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -2772,23 +2769,24 @@ select {
   overflow-y: auto;
   padding: 40px;
   display: flex;
-  justify-content: center; /* Centers the paper */
+  justify-content: center;
   align-items: flex-start;
 }
 
-/* The actual "Paper" */
+/* The actual "Paper" preview */
 .a4-paper-sheet {
   background: white;
-  width: 210mm; /* Standard A4 width */
-  min-height: 297mm; /* Standard A4 height */
-  padding: 10mm; /* Your standard margins */
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Gives it the 3D paper look */
-
-  /* Barcode Grid setup */
+  width: 210mm;
+  min-height: 297mm;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  position: relative;
+  padding: 10mm; /* Internal padding so barcodes don't touch the edge */
+  
+  /* Use CSS Grid to display labels in rows of 3 */
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  align-content: start;
+  align-content: start; /* Prevents rows from stretching vertically */
 }
 
 .barcode-item {
@@ -6880,56 +6878,6 @@ input:focus {
   border-top: 1px solid #ffffff;
 }
 
-@media print {
-  /* 1. Hide everything */
-  body * {
-    visibility: hidden;
-  }
-
-  /* 2. Show the card and all its children */
-  #printable-patron-barcodes,
-  #printable-patron-barcodes * {
-    visibility: visible !important;
-  }
-
-  /* 3. Reset the position so it's not stuck inside a 'hidden' modal */
-  #printable-patron-barcodes {
-    position: fixed !important;
-    left: 50% !important;
-    top: 20mm !important;
-    transform: translateX(-50%) !important;
-    width: 380px !important; /* Force the width */
-    display: block !important;
-  }
-
-  /* 4. FORCE THE COLORS - This is the "Look" part */
-  .card-accent-border {
-    background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%) !important;
-    height: 6px !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .library-title {
-    color: #1e40af !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  .patron-card-design {
-    border: 1px solid #e5e7eb !important;
-    background-color: white !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    border-radius: 12px !important;
-  }
-
-  /* 5. Hide the modal's extra UI */
-  .modal-overlay {
-    background: transparent !important;
-  }
-}
-
 /* =========================================
    BATCH PRINT FOR PATRON CARD
    ========================================= */
@@ -7011,7 +6959,7 @@ input:focus {
 }
 
 /* =========================================
-   2. IN-APP PREVIEW UI WRAPPERS
+  BATCH PATRON PREVIEW UI WRAPPERS
    ========================================= */
 .custom-print-preview-modal {
   display: flex;
@@ -7053,15 +7001,6 @@ input:focus {
   margin: 0 auto;
 }
 
-/* Position a SINGLE card in the preview UI */
-#printable-patron-barcodes {
-  position: absolute;
-  left: 50%;
-  top: 20mm;
-  transform: translateX(-50%);
-  width: 380px;
-}
-
 .batch-card-grid {
   display: block;
   padding: 20mm 0;
@@ -7078,40 +7017,43 @@ input:focus {
     visibility: hidden;
   }
 
-  #printable-patron-barcodes,
-  #printable-patron-barcodes *,
   #printable-batch-cards,
-  #printable-batch-cards * {
+  #printable-batch-cards *,
+  #printable-patron-barcodes,
+  #printable-patron-barcodes * {
     visibility: visible !important;
   }
 
   .modal-overlay,
   .custom-print-preview-modal,
   .preview-paper-wrapper,
-  .a4-paper-sheets {
+  .a4-paper-sheets,
+  .a4-paper-sheet {
     position: static !important;
     background: transparent !important;
     box-shadow: none !important;
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
-  }
-
-  #printable-patron-barcodes {
-    position: fixed !important;
-    left: 50% !important;
-    top: 20mm !important;
-    transform: translateX(-50%) !important;
-    width: 380px !important;
-    display: block !important;
+    overflow: visible !important; 
   }
 
   #printable-batch-cards {
     position: absolute !important;
-    top: 5mm !important;
+    top: 0 !important;
     left: 0 !important;
     width: 100% !important;
     display: block !important; 
+  }
+
+  #printable-patron-barcodes {
+    position: absolute !important;
+    top: 15mm !important;
+    left: 50% !important; 
+    transform: translateX(-50%) !important;
+    width: 380px !important;
+    margin: 0 !important;
+    display: block !important;
   }
 
   .card-accent-border {
@@ -7135,16 +7077,35 @@ input:focus {
     border-radius: 12px !important;
     page-break-inside: avoid;
     break-inside: avoid;
-
-    /* THE MAGIC BULLET: Forces absolute center on physical paper */
     margin: 0 auto 15mm auto !important;
   }
 
-  .modal-overlay,
   .no-print {
-    background: transparent !important;
     display: none !important;
   }
+}
+/* =========================================
+  SINGLE PATRON PREVIEW UI WRAPPERS
+   ========================================= */
+.a4-paper-sheet {
+  background: white;
+  width: 210mm;
+  min-height: 297mm;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  position: relative; 
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 20mm; 
+}
+
+#printable-patron-barcodes {
+  position: absolute;
+  left: 50%;
+  top: 20mm;
+  transform: translateX(-50%);
+  width: 380px;
 }
 
 /* Guide Modal Specifics */
