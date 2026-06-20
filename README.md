@@ -1,4 +1,5 @@
 1. System Overview and Purpose
+
 1.1 System Purpose
 The Capiz E-Lib system is a localized, desktop-based library management platform designed to digitize, secure, and streamline the daily operations of the library facility. Operating entirely within a secure Local Area Network (LAN), the system functions independently of external internet connectivity. This localized architecture ensures maximum uptime, data privacy, and zero latency during daily operations.
 By utilizing an Electron-wrapped React frontend installed on local desktop clients, communicating with a centralized Laravel backend hosted via Laragon, Capiz E-Lib delivers the responsive, modern user interface of a web application combined with the stability and security of a dedicated standalone desktop system.
