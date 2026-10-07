@@ -2680,7 +2680,8 @@ select {
     margin: 10mm; /* Standard margin for label printing */
   }
 
-  body, html {
+  body,
+  html {
     margin: 0 !important;
     padding: 0 !important;
     height: auto !important;
@@ -2740,6 +2741,14 @@ select {
   }
 }
 
+.barcode-grid-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  width: 100%;
+  padding: 10mm;
+}
+
 /* =========================================
    BOOK BARCODES ON-SCREEN PREVIEW UI
    ========================================= */
@@ -2780,13 +2789,11 @@ select {
   min-height: 297mm;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   position: relative;
-  padding: 10mm; /* Internal padding so barcodes don't touch the edge */
-  
-  /* Use CSS Grid to display labels in rows of 3 */
+  padding: 10mm;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  align-content: start; /* Prevents rows from stretching vertically */
+  align-content: start;
 }
 
 .barcode-item {
@@ -7035,7 +7042,7 @@ input:focus {
     margin: 0 !important;
     padding: 0 !important;
     border: none !important;
-    overflow: visible !important; 
+    overflow: visible !important;
   }
 
   #printable-batch-cards {
@@ -7043,13 +7050,13 @@ input:focus {
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
-    display: block !important; 
+    display: block !important;
   }
 
   #printable-patron-barcodes {
     position: absolute !important;
     top: 15mm !important;
-    left: 50% !important; 
+    left: 50% !important;
     transform: translateX(-50%) !important;
     width: 380px !important;
     margin: 0 !important;
@@ -7092,12 +7099,12 @@ input:focus {
   width: 210mm;
   min-height: 297mm;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  position: relative; 
+  position: relative;
   margin: 0 auto;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 20mm; 
+  padding-top: 20mm;
 }
 
 #printable-patron-barcodes {
@@ -7257,13 +7264,13 @@ input:focus {
   font-family: "Playfair Display", serif;
   font-size: 3rem;
   font-weight: 900;
-  color: #1a1a1a;
-  margin-bottom: 50px;
+  color: #C05B42;
   letter-spacing: 4px;
-  font-style: italic;
   text-transform: uppercase;
-  /* Subtle orange shadow behind title */
   text-shadow: 2px 2px 0px rgba(192, 91, 66, 0.1);
+  display: flex;
+  align-items: center;
+  margin-right: 20px;
 }
 
 .about-text {

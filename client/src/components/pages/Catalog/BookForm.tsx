@@ -1233,7 +1233,7 @@ const BookForm: React.FC = () => {
                 <h2 className="text-xl font-semibold mb-4 text-white">
                   Print Barcodes
                 </h2>
-                <p className="text-gray-400 mb-6 text-sm">
+                <p className="text-white mb-6 text-sm">
                   Review the layout before printing.
                 </p>
 
@@ -1261,33 +1261,37 @@ const BookForm: React.FC = () => {
 
               {/* RIGHT SIDE: The "Paper" Preview Area */}
               <div className="preview-paper-wrapper">
-                {/* This div acts as the physical A4 paper */}
-                <div id="printable-barcodes" className="a4-paper-sheet">
-                  {allBooks.flatMap((book) =>
-                    book.bookCopies.map((c) => (
-                      <div
-                        key={`${book.id}-${c.copy_number}`}
-                        className="barcode-item"
-                      >
-                        <div className="barcode-text">
-                          {book.title.substring(0, 25) || "Untitled"}
-                          {book.title.length > 25 ? "..." : ""} <br />
-                          Copy: {c.copy_number}
+                <div className="a4-paper-sheet">
+                  <div
+                    id="printable-barcodes"
+                    className="barcode-grid-container"
+                  >
+                    {allBooks.flatMap((book) =>
+                      book.bookCopies.map((c) => (
+                        <div
+                          key={`${book.id}-${c.copy_number}`}
+                          className="barcode-item"
+                        >
+                          <div className="barcode-text">
+                            {book.title.substring(0, 25) || "Untitled"}
+                            {book.title.length > 25 ? "..." : ""} <br />
+                            Copy: {c.copy_number}
+                          </div>
+                          <Barcode
+                            value={c.barcode}
+                            width={1.5}
+                            height={40}
+                            fontSize={14}
+                            textMargin={8}
+                            font="sans-serif"
+                            margin={10}
+                            marginTop={15}
+                            marginBottom={5}
+                          />
                         </div>
-                        <Barcode
-                          value={c.barcode}
-                          width={1.5}
-                          height={40}
-                          fontSize={14}
-                          textMargin={8}
-                          font="sans-serif"
-                          margin={10}
-                          marginTop={15}
-                          marginBottom={5}
-                        />
-                      </div>
-                    )),
-                  )}
+                      )),
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
