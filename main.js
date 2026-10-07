@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
@@ -52,6 +52,11 @@ function createWindow() {
   });
 
   win.setAutoHideMenuBar(true);
+
+  win.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url); 
+    return { action: "deny" }; 
+  });
 
   if (isDev) {
     win.loadURL("http://localhost:5173");

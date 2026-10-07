@@ -967,7 +967,12 @@ const BookForm: React.FC = () => {
                 <button
                   type="button"
                   className="add-more"
-                  onClick={() => handleOtherAuthorEditorChange(allBooks[activeTab].otherAuthorsEditors.length, "")}
+                  onClick={() =>
+                    handleOtherAuthorEditorChange(
+                      allBooks[activeTab].otherAuthorsEditors.length,
+                      "",
+                    )
+                  }
                 >
                   + Add More
                 </button>
@@ -1222,67 +1227,72 @@ const BookForm: React.FC = () => {
         {/* ===== Barcode Modal ===== */}
         {showBarcodeModal && (
           <div className="modal-overlay">
-            <div className="modal-box">
-              {/* Close button */}
-              <button
-                onClick={() => setShowBarcodeModal(false)}
-                className="modal-close-btn"
-              >
-                &times;
-              </button>
+            <div className="custom-print-preview-modal">
+              {/* LEFT SIDE: Controls Sidebar (Hidden during actual print) */}
+              <div className="preview-sidebar no-print">
+                <h2 className="text-xl font-semibold mb-4 text-white">
+                  Print Barcodes
+                </h2>
+                <p className="text-white mb-6 text-sm">
+                  Review the layout before printing.
+                </p>
 
-              <h2 className="text-xl font-semibold mb-4">Generated Barcodes</h2>
+                <div className="form-actions flex flex-col gap-3">
+                  <button
+                    onClick={() => window.print()}
+                    className="submit-btn w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                  >
+                    Print All
+                  </button>
 
-              <div id="printable-barcodes">
-                {allBooks.flatMap((book) =>
-                  book.bookCopies.map((c) => (
-                    <div
-                      key={`${book.id}-${c.copy_number}`}
-                      className="barcode-item"
-                    >
-                      <div className="barcode-text">
-                        {book.title.substring(0, 25) || "Untitled"}
-                        {book.title.length > 25 ? "..." : ""} <br />
-                        Copy: {c.copy_number}
-                      </div>
-                      <Barcode
-                        value={c.barcode}
-                        width={1.5}
-                        height={40}
-                        /* --- TEXT SETTINGS --- */
-                        fontSize={14}
-                        textMargin={8}
-                        font="sans-serif"
-                        /* --- PADDING SETTINGS --- */
-                        margin={10}
-                        marginTop={15}
-                        marginBottom={5}
-                      />
-                    </div>
-                  )),
-                )}
+                  <button
+                    onClick={() => {
+                      setShowBarcodeModal(false);
+                      const role = localStorage.getItem("role")?.toLowerCase();
+                      if (role === "admin") navigate("/admin/cataloging");
+                      else if (role === "staff") navigate("/staff/cataloging");
+                    }}
+                    className="cancel-btn w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
 
-              <div className="form-actions no-print">
-                <button
-                  onClick={() => {
-                    setShowBarcodeModal(false);
-
-                    // Role-based redirect
-                    const role = localStorage.getItem("role")?.toLowerCase();
-                    if (role === "admin") {
-                      navigate("/admin/cataloging");
-                    } else if (role === "staff") {
-                      navigate("/staff/cataloging");
-                    }
-                  }}
-                  className="cancel-btn"
-                >
-                  Close
-                </button>
-                <button onClick={() => window.print()} className="submit-btn">
-                  Print All
-                </button>
+              {/* RIGHT SIDE: The "Paper" Preview Area */}
+              <div className="preview-paper-wrapper">
+                <div className="a4-paper-sheet">
+                  <div
+                    id="printable-barcodes"
+                    className="barcode-grid-container"
+                  >
+                    {allBooks.flatMap((book) =>
+                      book.bookCopies.map((c) => (
+                        <div
+                          key={`${book.id}-${c.copy_number}`}
+                          className="barcode-item"
+                        >
+                          <div className="barcode-text">
+                            {book.title.substring(0, 25) || "Untitled"}
+                            {book.title.length > 25 ? "..." : ""} <br />
+                            Copy: {c.copy_number}
+                          </div>
+                          <Barcode
+                            value={c.barcode}
+                            width={1.5}
+                            height={40}
+                            fontSize={14}
+                            textMargin={8}
+                            font="sans-serif"
+                            margin={10}
+                            marginTop={15}
+                            marginBottom={5}
+                          />
+                        </div>
+                      )),
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

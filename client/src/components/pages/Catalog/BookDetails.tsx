@@ -870,47 +870,62 @@ const BookDetails: React.FC = () => {
         {/* ===== Barcode Modal for New Copies ===== */}
         {showBarcodeModal && newlyAddedCopies.length > 0 && (
           <div className="modal-overlay">
-            <div className="modal-box">
-              <button
-                onClick={() => setShowBarcodeModal(false)}
-                className="modal-close-btn"
-              >
-                &times;
-              </button>
+            <div className="custom-print-preview-modal">
+              {/* LEFT SIDE: Controls Sidebar (Hidden during actual print) */}
+              <div className="preview-sidebar no-print">
+                <h2 className="text-xl font-semibold mb-4 text-white">
+                  Print Barcodes
+                </h2>
+                <p className="text-white mb-6 text-sm">
+                  Review the layout of your new copies before printing.
+                </p>
 
-              <h2 className="text-xl font-semibold mb-4">Print Barcodes</h2>
+                <div className="form-actions flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      setTimeout(() => {
+                        window.print();
+                      }, 100);
+                    }}
+                    className="submit-btn w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 flex justify-center items-center"
+                  >
+                    <i className="bi bi-printer me-2"></i> Print All
+                  </button>
 
-              <div id="printable-barcodes">
-                {newlyAddedCopies.map((c) => (
-                  <div key={c.id} className="barcode-item">
-                    <div className="barcode-text">
-                      {book.title.substring(0, 25)}
-                      {book.title.length > 25 ? "..." : ""} <br />
-                      Copy: {c.copy_number}
-                    </div>
-                    <Barcode
-                      value={c.barcode}
-                      width={2}
-                      height={50}
-                      renderer="img"
-                      displayValue={true}
-                      fontSize={12}
-                      margin={10}
-                    />
-                  </div>
-                ))}
+                  <button
+                    onClick={() => setShowBarcodeModal(false)}
+                    className="cancel-btn w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
 
-              <div className="form-actions no-print">
-                <button
-                  onClick={() => setShowBarcodeModal(false)}
-                  className="cancel-btn"
-                >
-                  Close
-                </button>
-                <button onClick={() => window.print()} className="submit-btn">
-                  <i className="bi bi-printer me-2"></i> Print All
-                </button>
+              {/* RIGHT SIDE: The "Paper" Preview Area */}
+              <div className="preview-paper-wrapper">
+                {/* This div acts as the physical A4 paper */}
+                <div id="printable-barcodes" className="a4-paper-sheet">
+                  {newlyAddedCopies.map((c) => (
+                    <div key={c.id || c.copy_number} className="barcode-item">
+                      <div className="barcode-text">
+                        {book.title.substring(0, 25) || "Untitled"}
+                        {book.title.length > 25 ? "..." : ""} <br />
+                        Copy: {c.copy_number}
+                      </div>
+                      <Barcode
+                        value={c.barcode}
+                        width={1.5}
+                        height={40}
+                        fontSize={14}
+                        textMargin={8}
+                        font="sans-serif"
+                        margin={10}
+                        marginTop={15}
+                        marginBottom={5}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
